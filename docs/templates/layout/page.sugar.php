@@ -16,7 +16,6 @@
 	<link rel="stylesheet" href="<?= ($site->basePath ?? '') . '/styles/docs.css' ?>" />
 </head>
 <body hx-boost="true">
-<?php $siteName = $site->title ?? 'Glaze'; ?>
 <header>
 	<div class="container">
 		<div class="branding">
@@ -24,9 +23,9 @@
 				<img
 					class="home-logo"
 					src="<?= ($site->basePath ?? '') . '/images/glaze-logo.svg' ?>"
-					alt="<?= $siteName ?>"
+					alt="<?= $site->title ?>"
 				/>
-				<span class="home-name"><?= $siteName ?></span>
+				<span class="home-name"><?= $site->title ?></span>
 			</a>
 		</div>
 		<a

@@ -57,6 +57,32 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
+     * Ensure `neon` fenced blocks are highlighted via the YAML grammar alias.
+     */
+    public function testRenderMapsNeonFenceLanguageToYamlGrammar(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render("```neon\nsite:\n  title: Glaze\n```\n");
+
+        $this->assertStringContainsString('class="phiki', $html);
+        $this->assertStringContainsString('language-yaml', $html);
+        $this->assertStringContainsString('data-language="yaml"', $html);
+    }
+
+    /**
+     * Ensure `djot` fenced blocks use the custom Djot grammar.
+     */
+    public function testRenderUsesCustomDjotFenceGrammar(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render("```djot\n# Intro\n```\n");
+
+        $this->assertStringContainsString('class="phiki', $html);
+        $this->assertStringContainsString('language-Djot', $html);
+        $this->assertStringContainsString('data-language="Djot"', $html);
+    }
+
+    /**
      * Ensure internal Djot links are rendered without a file extension.
      */
     public function testRenderRewritesInternalDjotLinksToExtensionlessPaths(): void

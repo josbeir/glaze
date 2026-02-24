@@ -25,6 +25,17 @@ final class PhikiCodeBlockRenderer
         protected Phiki $phiki = new Phiki(),
         protected bool $withGutter = false,
     ) {
+        $this->registerCustomGrammarAliases();
+    }
+
+    /**
+     * Register custom language aliases used by Glaze docs/content.
+     */
+    protected function registerCustomGrammarAliases(): void
+    {
+        $this->phiki->grammar('djot', dirname(__DIR__, 3) . '/resources/grammars/djot.json');
+        $this->phiki->alias('dj', 'djot');
+        $this->phiki->alias('neon', 'yaml');
     }
 
     /**

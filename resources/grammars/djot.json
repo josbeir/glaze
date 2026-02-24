@@ -1,0 +1,57 @@
+{
+  "name": "Djot",
+  "scopeName": "text.djot",
+  "patterns": [
+    {
+      "include": "#frontmatterPlus"
+    },
+    {
+      "include": "#frontmatterDash"
+    },
+    {
+      "include": "text.html.markdown"
+    }
+  ],
+  "repository": {
+    "frontmatterPlus": {
+      "name": "meta.frontmatter.neon.djot",
+      "begin": "\\A\\+\\+\\+\\s*$",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.frontmatter.begin.djot"
+        }
+      },
+      "end": "^\\+\\+\\+\\s*$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.frontmatter.end.djot"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    },
+    "frontmatterDash": {
+      "name": "meta.frontmatter.neon.djot",
+      "begin": "\\A---\\s*$",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.frontmatter.begin.djot"
+        }
+      },
+      "end": "^---\\s*$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.frontmatter.end.djot"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    }
+  }
+}

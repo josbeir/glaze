@@ -1,7 +1,13 @@
 <?php
-	$prevPage = $this->previousInSection();
-	$nextPage = $this->nextInSection();
-	$basePath = $site->basePath ?? '';
+/**
+ * @var Glaze\Content\ContentPage $page
+ * @var Glaze\Config\SiteConfig $site
+ * @var Glaze\Template\SiteContext $this
+ */
+
+$prevPage = $this->previousInSection();
+$nextPage = $this->nextInSection();
+$basePath = $site->basePath ?? '';
 ?>
 <nav
 	class="doc-pager"
