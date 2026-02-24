@@ -28,6 +28,11 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $this->normalizePath($config->glideCachePath()));
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
+        $this->assertSame([
+            'enabled' => true,
+            'theme' => 'nord',
+            'withGutter' => false,
+        ], $config->codeHighlighting);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertFalse($config->includeDrafts);
@@ -139,6 +144,50 @@ final class BuildConfigTest extends TestCase
         );
         $invalidDriver = BuildConfig::fromProjectRoot($projectRoot);
         $this->assertSame([], $invalidDriver->imageOptions);
+    }
+
+    /**
+     * Ensure code highlighting settings are normalized safely from config.
+     */
+    public function testCodeHighlightingCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "codeHighlighting:\n  enabled: false\n  theme: DARK-PLUS\n  withGutter: true\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'theme' => 'dark-plus',
+            'withGutter' => true,
+        ], $config->codeHighlighting);
+    }
+
+    /**
+     * Ensure invalid code highlighting values fall back to defaults.
+     */
+    public function testInvalidCodeHighlightingConfigurationFallsBackToDefaults(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "codeHighlighting:\n  enabled: 'yes'\n  theme: ''\n  withGutter: 1\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'theme' => 'nord',
+            'withGutter' => false,
+        ], $config->codeHighlighting);
     }
 
     /**

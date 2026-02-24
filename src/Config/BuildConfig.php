@@ -27,6 +27,7 @@ final class BuildConfig
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
+     * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting Code highlighting configuration.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
@@ -42,6 +43,11 @@ final class BuildConfig
         public readonly string $pageTemplate = 'page',
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
+        public readonly array $codeHighlighting = [
+            'enabled' => true,
+            'theme' => 'nord',
+            'withGutter' => false,
+        ],
         public readonly array $contentTypes = [],
         public readonly array $taxonomies = ['tags'],
         ?SiteConfig $site = null,
@@ -73,11 +79,45 @@ final class BuildConfig
             pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
             imagePresets: $imagePresets,
             imageOptions: $imageOptions,
+            codeHighlighting: self::normalizeCodeHighlighting($projectConfiguration['codeHighlighting'] ?? null),
             contentTypes: self::normalizeContentTypes($projectConfiguration['contentTypes'] ?? null),
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             site: SiteConfig::fromProjectConfig($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize Djot code highlighting settings.
+     *
+     * @param mixed $codeHighlighting Raw configured highlighting map.
+     * @return array{enabled: bool, theme: string, withGutter: bool}
+     */
+    protected static function normalizeCodeHighlighting(mixed $codeHighlighting): array
+    {
+        $defaults = [
+            'enabled' => true,
+            'theme' => 'nord',
+            'withGutter' => false,
+        ];
+
+        if ($codeHighlighting === null) {
+            return $defaults;
+        }
+
+        if (!is_array($codeHighlighting)) {
+            return $defaults;
+        }
+
+        $enabled = $codeHighlighting['enabled'] ?? $defaults['enabled'];
+        $withGutter = $codeHighlighting['withGutter'] ?? $defaults['withGutter'];
+        $theme = Normalization::optionalString($codeHighlighting['theme'] ?? null) ?? $defaults['theme'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'theme' => strtolower($theme),
+            'withGutter' => is_bool($withGutter) ? $withGutter : $defaults['withGutter'],
+        ];
     }
 
     /**

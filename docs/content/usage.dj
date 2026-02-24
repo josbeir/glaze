@@ -59,6 +59,8 @@ The same URL patterns can be used from templates when generating image links.
 
 When running `glaze build`, transformed image URLs are rewritten to static files under `/_glide/` in `public/`.
 
+Code fences are syntax-highlighted by default via Phiki. You can configure or disable this with `codeHighlighting` in `glaze.neon`.
+
 For a full reference (presets, cache behavior, and build output details), see [Glide images](glide-images.dj).
 
 ## Build workflow

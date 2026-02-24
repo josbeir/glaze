@@ -14,6 +14,11 @@ contentTypes:
 			- match: blog
 			  createPattern: 'blog/{date:Y/m}'
 
+codeHighlighting:
+	enabled: true
+	theme: nord
+	withGutter: false
+
 # --- Available options (uncomment and adjust as needed) ---
 # pageTemplate: page
 #
@@ -24,6 +29,11 @@ contentTypes:
 #       w: 320
 #       h: 180
 #       fit: crop
+#
+# codeHighlighting:
+#   enabled: true
+#   theme: nord
+#   withGutter: false
 #
 # site:
 #   title: My Site

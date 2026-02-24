@@ -52,6 +52,11 @@ contentTypes:
       - match: docs
     defaults:
       template: docs
+
+codeHighlighting:
+  enabled: true
+  theme: nord
+  withGutter: false
 ```
 
 ## `pageTemplate` setting
@@ -69,6 +74,23 @@ contentTypes:
 - `images.driver` is optional
 - supported values are `gd` and `imagick`
 - when omitted, Glaze uses `gd`
+
+## `codeHighlighting` settings
+
+Controls fenced code block highlighting in Djot rendering (live mode and build mode).
+
+- `enabled`: enable/disable Phiki highlighting (default `true`)
+- `theme`: Phiki theme name (default `nord`)
+- `withGutter`: show line-number gutter (default `false`)
+
+Example:
+
+```neon
+codeHighlighting:
+  enabled: true
+  theme: github-dark
+  withGutter: true
+```
 
 Example usage in URLs:
 

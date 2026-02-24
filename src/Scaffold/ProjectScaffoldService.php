@@ -222,10 +222,18 @@ final class ProjectScaffoldService
 # contentTypes:
 #   blog:
 #     paths:
-#       - match: blog
-#         createPattern: 'blog/{date:Y/m}'
+#       - blog
+#       - match: blog/archive
+#         createPattern: 'blog/archive/{date:Y/m}'
 #     defaults:
 #       template: blog
+#
+# staticDir: static
+#
+# codeHighlighting:
+#   enabled: true
+#   theme: github-dark
+#   withGutter: false
 NEON;
     }
 }
