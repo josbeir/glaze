@@ -6,6 +6,7 @@
         "bin/glaze"
     ],
     "require": {
+        "php": ">=8.2",
         "cakephp/chronos": "^3.3",
         "cakephp/console": "^5.3",
         "cakephp/http": "^5.3",
@@ -21,6 +22,13 @@
         "cakephp/cakephp-codesniffer": "^5.3"
     },
     "license": "MIT",
+    "keywords": [
+        "php",
+        "static-site-generator",
+        "djot",
+        "templating",
+        "glide"
+    ],
     "autoload": {
         "psr-4": {
             "Glaze\\": "src/"
