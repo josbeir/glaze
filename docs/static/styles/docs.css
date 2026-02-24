@@ -42,6 +42,13 @@ header {
 	background: #161618;
 	font-weight: 700;
 
+	.container {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
 	.home-link,
 	.home-link:hover {
 		display: inline-flex;
@@ -65,6 +72,25 @@ header {
 	.home-name {
 		font-size: 1.1rem;
 		font-weight: 700;
+	}
+
+	.github-link,
+	.github-link:hover {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+
+	.github-link:hover {
+		color: var(--text);
+	}
+
+	.github-icon {
+		display: block;
+		width: 1.25rem;
+		height: 1.25rem;
 	}
 }
 
@@ -231,6 +257,16 @@ main {
 }
 
 @media (max-width: 900px) {
+	header {
+		.home-logo {
+			height: 34px;
+		}
+
+		.home-name {
+			font-size: 1rem;
+		}
+	}
+
 	.docs-layout {
 		grid-template-columns: 1fr;
 	}
