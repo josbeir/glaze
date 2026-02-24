@@ -1,0 +1,34 @@
+---
+title: Why Not Markdown?
+slug: /docs/why-not-markdown/
+---
+# Why not Markdown?
+
+Short answer: Markdown is great, but Glaze leans on [Djot](https://djot.net/) for a more consistent and expressive authoring experience.
+
+In Glaze, Djot support is provided by [php-collective/djot-php](https://github.com/php-collective/djot-php).
+
+If you already write Markdown, you’re not doing anything wrong. This is about picking a format that gives cleaner rules and fewer surprises as a site grows.
+
+## The practical reasons
+
+- **Fewer edge-case surprises**: Djot is designed with a clearer parsing model.
+- **More expressive syntax**: richer structure when you need it, still lightweight for normal writing.
+- **Better long-term maintainability**: fewer “which Markdown flavor does this support?” moments.
+- **Great fit for static-site authoring**: predictable input means predictable output.
+
+## Is Markdown bad then?
+
+Not at all.
+
+Markdown is simple, popular, and easy to learn. If your content needs are minimal, it can be perfect.
+
+Glaze simply chooses Djot because it scales better for the kind of structured content + templating workflow this project targets.
+
+## What this means for you
+
+- You still write plain text content files.
+- Frontmatter is still simple (NEON in this project).
+- Your templates stay focused on rendering, not parsing quirks.
+
+If you want to compare syntax details, check the [Djot docs](https://djot.net/).

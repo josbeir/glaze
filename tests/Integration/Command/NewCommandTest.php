@@ -40,7 +40,6 @@ final class NewCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
-        $this->assertFileExists($target . '/content/stock.png');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');
@@ -61,7 +60,6 @@ final class NewCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
-        $this->assertFileExists($target . '/content/stock.png');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');

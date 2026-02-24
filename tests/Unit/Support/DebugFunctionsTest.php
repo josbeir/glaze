@@ -45,15 +45,8 @@ final class DebugFunctionsTest extends TestCase
     public function testDdDumpsAndThrows(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Execution stopped by dd().');
+        $this->expectExceptionMessageMatches('/Execution stopped by dd\(\)\..*gamma/s');
 
-        ob_start();
-        try {
-            dd('gamma');
-        } finally {
-            $output = ob_get_clean();
-            $this->assertIsString($output);
-            $this->assertStringContainsString('gamma', $output);
-        }
+        dd('gamma');
     }
 }

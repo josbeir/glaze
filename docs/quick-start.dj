@@ -1,0 +1,70 @@
+---
+title: Quick Start
+slug: /docs/quick-start/
+---
+# Quick start
+
+This is the fastest path from zero to a running site.
+
+In Glaze, a new project is scaffolded with `glaze new`.
+
+## 1) Scaffold a project
+
+With Glaze installed as a Composer binary:
+
+```bash
+glaze new my-glaze-site
+```
+
+You can also run non-interactive:
+
+```bash
+glaze new my-glaze-site --yes
+```
+
+## 2) Move into the project
+
+```bash
+cd my-glaze-site
+```
+
+## 3) Build static output
+
+```bash
+glaze build
+```
+
+This writes generated HTML files into `public/`.
+
+## 4) Start live development server
+
+```bash
+glaze serve
+```
+
+Default address is `http://127.0.0.1:8080`.
+
+## 5) Edit content and templates
+
+- Djot pages live in `content/`
+- [Sugar](https://josbeir.github.io/sugar/) templates live in `templates/`
+
+Glaze uses the [php-collective/djot-php](https://github.com/php-collective/djot-php) implementation for Djot parsing/rendering.
+
+Change a page, refresh your browser, and iterate.
+
+## Frontmatter example
+
+```djot
++++
+title: Hello world
+slug: /
+tags:
+  - intro
++++
+# Hello world
+
+Welcome to Glaze.
+```
+
+Next: see [Usage](usage.dj) for day-to-day workflow.

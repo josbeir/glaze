@@ -1,0 +1,97 @@
+---
+title: Commands
+slug: /docs/commands/
+---
+# Commands
+
+Glaze ships with a small CLI that covers the full workflow.
+
+The command is exposed as a Composer binary, so the preferred invocation is `glaze ...`.
+
+## General help
+
+```bash
+glaze --help
+```
+
+If you are running from source, these work too:
+
+```bash
+php bin/glaze --help
+./bin/glaze --help
+```
+
+## `new`
+
+Create a new Glaze project scaffold.
+
+```bash
+glaze new my-site
+```
+
+Useful options:
+
+- `--name`
+- `--title`
+- `--description`
+- `--base-url`
+- `--taxonomies`
+- `--force`
+- `--yes` (non-interactive)
+
+Example:
+
+```bash
+glaze new my-site \
+  --title "My Site" \
+  --description "Small notes and experiments" \
+  --taxonomies tags,categories \
+  --yes
+```
+
+## `build`
+
+Generate static output from `content/` + `templates/`.
+
+```bash
+glaze build
+```
+
+Options:
+
+- `--root <path>` project root
+- `--clean` clean output directory before build
+- `--drafts` include draft pages
+
+## `serve`
+
+Run local web server for development.
+
+```bash
+glaze serve
+```
+
+Options:
+
+- `--root <path>`
+- `--host <host>` (default `127.0.0.1`)
+- `--port <port>` (default `8080`)
+- `--static` serve prebuilt `public/`
+- `--build` prebuild before static serve (`--static` required)
+- `--drafts` include drafts for static mode
+
+Examples:
+
+```bash
+# live mode (templates/content)
+glaze serve
+
+# static preview after build
+glaze serve --static --build
+```
+
+## Typical workflow
+
+1. `new` (once)
+2. `serve` during development
+3. `build` for deployment artifacts

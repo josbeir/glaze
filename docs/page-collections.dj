@@ -1,0 +1,100 @@
+---
+title: Page Collections
+slug: /docs/page-collections/
+---
+# Page collections
+
+Page collections are Glaze’s query-friendly wrapper around discovered pages.
+
+You usually access them through `$this` (site context) inside [Sugar](https://josbeir.github.io/sugar/) templates.
+
+## Getting collections
+
+```php
+<p>Total pages: <?= $this->pages()->count() ?></p>
+<p>Regular pages: <?= $this->regularPages()->count() ?></p>
+<p>Blog pages: <?= $this->section('blog')->count() ?></p>
+<p>PHP tagged pages: <?= $this->taxonomyTerm('tags', 'php')->count() ?></p>
+```
+
+## Common helpers
+
+- `count()`
+- `first()` / `last()`
+- `take(n)`
+- `slice(offset, length)`
+- `reverse()`
+
+Example:
+
+```php
+<ul>
+    <li s:foreach="$this->section('blog')->take(5) as $post">
+        <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+    </li>
+</ul>
+```
+
+## Sorting
+
+- `by('key', 'asc|desc')`
+- `byDate('asc|desc', 'meta.date')`
+- `byTitle('asc|desc')`
+
+```php
+<li s:foreach="$this->section('blog')->byDate('desc') as $post">
+    <?= $post->title ?>
+</li>
+```
+
+## Filtering with `where`
+
+Supported operators include:
+
+- equality: `=`, `==`, `eq`
+- inequality: `!=`, `<>`, `ne`
+- comparisons: `>`, `>=`, `<`, `<=`
+- set operators: `in`, `not in`, `intersect`
+- text operator: `like`
+
+```php
+<li s:foreach="$this->where($this->pages(), 'meta.featured', true) as $page">
+    <?= $page->title ?>
+</li>
+
+<li s:foreach="$this->where($this->pages(), 'weight', '>=', 10) as $page">
+    <?= $page->title ?>
+</li>
+```
+
+## Grouping
+
+- `groupBy('key')`
+- `groupByDate('Y-m', 'desc', 'meta.date')`
+
+```php
+<section s:foreach="$this->pages()->groupByDate('Y-m') as $month => $pages">
+    <h3><?= $month ?></h3>
+    <p><?= $pages->count() ?> page(s)</p>
+</section>
+```
+
+## Pagination
+
+Use the `paginate()` helper from site context:
+
+```php
+<article s:foreach="$this->paginate($this->section('blog'), 10, 1, '/blog/')->items() as $post">
+    <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+</article>
+```
+
+The pager also provides URL helpers for navigation links.
+
+## Navigation helpers on current page
+
+- `$this->previousInSection()`
+- `$this->nextInSection()`
+- `$this->isCurrent('/some/path/')`
+
+This makes section-based "previous/next" UX very easy to build.

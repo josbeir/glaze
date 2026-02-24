@@ -1,0 +1,60 @@
+---
+title: Configuration
+slug: /docs/configuration/
+---
+# Configuration
+
+Glaze reads project configuration from `glaze.neon` in your project root.
+
+Glaze uses [NEON](https://doc.nette.org/en/neon) as its configuration format for both:
+
+- project/site configuration (`glaze.neon`)
+- page frontmatter blocks in `.dj` files
+
+Keep it small and intentional. Start with defaults, then add only what you need.
+
+## Example `glaze.neon`
+
+```neon
+site:
+  title: My awesome site
+  description: Notes on web, PHP, and tiny experiments.
+  baseUrl: https://example.com
+
+taxonomies:
+  - tags
+  - categories
+```
+
+## `site` settings
+
+- `title`: global site title
+- `description`: default page description
+- `baseUrl`: canonical base URL
+
+These values are available in templates through the `site` object.
+
+## `taxonomies` settings
+
+This list defines which frontmatter keys are treated as taxonomy fields.
+
+If you set:
+
+```neon
+taxonomies:
+  - tags
+  - categories
+```
+
+then `tags` and `categories` are extracted from page frontmatter and available through taxonomy helpers.
+
+## Frontmatter fence format
+
+Glaze supports both `+++` and `---` fenced [NEON](https://doc.nette.org/en/neon) frontmatter at the top of `.dj` files.
+
+## Notes
+
+- Missing `glaze.neon` is fine; Glaze uses defaults.
+- Unknown extra keys are ignored by core config loading.
+
+Next: [Templating](templating.dj).

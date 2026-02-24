@@ -1,0 +1,69 @@
+---
+title: Usage
+slug: /docs/usage/
+---
+# Usage
+
+This page covers the everyday way of working with Glaze.
+
+## Project structure
+
+Typical layout:
+
+- `content/` → Djot source files
+- `templates/` → [Sugar](https://josbeir.github.io/sugar/) templates
+- `public/` → generated static output
+- `tmp/cache/` → template cache
+- `glaze.neon` → project configuration
+
+## Content routing basics
+
+Glaze maps `.dj` files to URLs.
+
+- `content/index.dj` → `/`
+- `content/blog/post.dj` → `/blog/post/`
+- `content/blog/index.dj` → `/blog/`
+
+You can override route behavior using frontmatter `slug`.
+
+## Frontmatter fields you’ll use most
+
+Frontmatter is written in [NEON](https://doc.nette.org/en/neon), the same format used by `glaze.neon`.
+
+- `title` (string)
+- `slug` (string)
+- `draft` (bool)
+- taxonomy fields like `tags`, `categories`, etc. (based on config)
+- `meta` map for arbitrary values
+
+## Build workflow
+
+```bash
+glaze build
+```
+
+Use `--clean` to clear `public/` before writing:
+
+```bash
+glaze build --clean
+```
+
+## Draft behavior
+
+- Build mode excludes drafts by default
+- Use `--drafts` in build mode to include them
+- Live mode includes drafts by default
+
+## Local development workflow
+
+```bash
+glaze serve
+```
+
+For static preview from `public/`:
+
+```bash
+glaze serve --static --build
+```
+
+Next: [Templating](templating.dj) and [Page collections](page-collections.dj).

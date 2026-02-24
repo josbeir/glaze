@@ -1,0 +1,77 @@
+---
+title: Installation
+slug: /docs/installation/
+---
+# Installation
+
+Let’s get Glaze running on your machine.
+
+Glaze is distributed as a Composer package with a CLI binary (`glaze`).
+
+## Install as a global Composer binary (recommended)
+
+```bash
+composer global require josbeir/glaze
+```
+
+Then run:
+
+```bash
+glaze --help
+```
+
+If `glaze` is not found, add Composer’s global bin directory to your `PATH`.
+
+## Alternative: install in a project (no global install)
+
+If you prefer keeping tools local to a specific project, create a Composer project and require Glaze there.
+
+```bash
+mkdir my-site
+cd my-site
+composer init --no-interaction
+composer require josbeir/glaze
+```
+
+Run Glaze through the local vendor binary:
+
+```bash
+vendor/bin/glaze --help
+```
+
+## Requirements
+
+- PHP 8.2+
+- Composer 2+
+
+## Verify the CLI works
+
+```bash
+glaze --help
+```
+
+Or, for project-local installs:
+
+```bash
+vendor/bin/glaze --help
+```
+
+You should see available commands such as `new`, `build`, and `serve`.
+
+## Scaffold a new project
+
+Once the CLI is available, create a site scaffold with:
+
+```bash
+glaze new my-site
+```
+
+Or for project-local installs:
+
+```bash
+vendor/bin/glaze new my-site
+```
+
+## Next step
+
+Continue with [Quick start](quick-start.dj) to generate your first site.

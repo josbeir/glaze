@@ -1,0 +1,39 @@
+---
+title: Glaze Documentation
+slug: /docs/
+---
+# Glaze documentation
+
+Welcome! This is the main documentation hub for Glaze.
+
+Glaze is a fast, modern PHP static site generator built for people who like clean files and quick iteration.
+
+It combines:
+
+- [Djot](https://djot.net/) for expressive modern markup
+- [Djot](https://djot.net/) for expressive modern markup (powered by [php-collective/djot-php](https://github.com/php-collective/djot-php))
+- [Sugar](https://josbeir.github.io/sugar/) for clean, component-friendly PHP templating
+- a simple content + template workflow that feels lightweight but powerful
+
+Write in modern markup, render with modern PHP templates, and ship static output fast.
+
+## Start here
+
+- [Installation](installation.dj)
+- [Quick start](quick-start.dj)
+- [Usage](usage.dj)
+- [Configuration](configuration.dj)
+- [Templating](templating.dj)
+- [Page collections](page-collections.dj)
+- [Commands](commands.dj)
+- [Why not Markdown?](why-not-markdown.dj)
+
+## What you’ll learn
+
+- How to install and scaffold a project
+- How content and templates map to routes
+- How to configure taxonomies and global site metadata
+- How to query pages and taxonomies in templates
+- How to run build and live development workflows
+
+Take your time and jump to the section you need most.

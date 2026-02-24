@@ -8,6 +8,7 @@ use Cake\Http\ServerRequestFactory;
 use Glaze\Config\BuildConfig;
 use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
+use Glaze\Http\Middleware\ErrorHandlingMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -33,6 +34,7 @@ if (is_string($query) && $query !== '') {
 }
 
 $queue = new MiddlewareQueue();
+$queue->add(new ErrorHandlingMiddleware(true));
 $queue->add(new PublicAssetMiddleware($config));
 $queue->add(new ContentAssetMiddleware($config));
 

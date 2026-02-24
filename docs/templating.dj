@@ -1,0 +1,63 @@
+---
+title: Templating
+slug: /docs/templating/
+---
+# Templating
+
+Glaze uses [Sugar](https://josbeir.github.io/sugar/) templates for page rendering.
+
+Your main page template is `templates/page.sugar.php` (or whatever is configured as page template internally).
+
+## Base example
+
+```php
+<s-template s:extends="layout/page">
+
+<title s:prepend="title"><?= $title ?></title>
+
+<s-template s:block="content">
+    <h1><?= $title ?></h1>
+    <?= $content |> raw() ?>
+</s-template>
+```
+
+## Variables available to templates
+
+Common values include:
+
+- `$title` → page title
+- `$content` → rendered Djot HTML
+- `$url` → current URL path
+- `$page` → current page object
+- `$meta` → merged page/site meta map (object-like)
+- `$site` → global site config object
+
+## Site context (`$this`)
+
+`$this` is a `SiteContext` object with helper methods for querying pages and taxonomies.
+
+Examples:
+
+```php
+<p>Total pages: <?= $this->pages()->count() ?></p>
+<p>Blog pages: <?= $this->section('blog')->count() ?></p>
+<p>PHP-tagged pages: <?= $this->taxonomyTerm('tags', 'php')->count() ?></p>
+```
+
+See [Page collections](page-collections.dj) for query helpers.
+
+## Debug helpers
+
+You can use:
+
+- `dump(...)`
+- `debug(...)` (alias)
+- `dd(...)`
+
+In web responses, dumps are shown in styled `<pre>` blocks for readability.
+
+## Tips
+
+- Keep layout and page concerns separated using template inheritance.
+- Prefer collection helpers over manual array logic in templates.
+- Use `raw()` only for trusted HTML (`$content` is expected use-case).
