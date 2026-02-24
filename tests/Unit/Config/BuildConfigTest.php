@@ -18,10 +18,10 @@ final class BuildConfigTest extends TestCase
     {
         $config = BuildConfig::fromProjectRoot('/tmp/glaze-project');
 
-        $this->assertSame('/tmp/glaze-project/content', $config->contentPath());
-        $this->assertSame('/tmp/glaze-project/templates', $config->templatePath());
-        $this->assertSame('/tmp/glaze-project/public', $config->outputPath());
-        $this->assertSame('/tmp/glaze-project/tmp/cache', $config->cachePath());
+        $this->assertSame('/tmp/glaze-project/content', $this->normalizePath($config->contentPath()));
+        $this->assertSame('/tmp/glaze-project/templates', $this->normalizePath($config->templatePath()));
+        $this->assertSame('/tmp/glaze-project/public', $this->normalizePath($config->outputPath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache', $this->normalizePath($config->cachePath()));
         $this->assertFalse($config->includeDrafts);
     }
 
@@ -33,5 +33,15 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot('/tmp/glaze-project', true);
 
         $this->assertTrue($config->includeDrafts);
+    }
+
+    /**
+     * Normalize platform-specific separators for deterministic assertions.
+     *
+     * @param string $path Path value to normalize.
+     */
+    protected function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 }

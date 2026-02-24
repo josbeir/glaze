@@ -141,7 +141,20 @@ final class ServeCommand extends BaseCommand
 
         $io->out('Press Ctrl+C to stop.');
 
-        passthru($command, $exitCode);
+        $previousEnvironment = [];
+        if (!$isStaticMode) {
+            $previousEnvironment = $this->applyEnvironment(
+                $this->buildLiveEnvironment($projectRoot, $includeDrafts),
+            );
+        }
+
+        try {
+            passthru($command, $exitCode);
+        } finally {
+            if (!$isStaticMode) {
+                $this->restoreEnvironment($previousEnvironment);
+            }
+        }
 
         return $exitCode;
     }
@@ -175,13 +188,62 @@ final class ServeCommand extends BaseCommand
         }
 
         return sprintf(
-            'GLAZE_PROJECT_ROOT=%s GLAZE_INCLUDE_DRAFTS=%s php -S %s -t %s %s',
-            escapeshellarg($projectRoot),
-            escapeshellarg($includeDrafts ? '1' : '0'),
+            'php -S %s -t %s %s',
             escapeshellarg($address),
             escapeshellarg($docRoot),
             escapeshellarg($routerPath),
         );
+    }
+
+    /**
+     * Build environment variables for live router execution.
+     *
+     * @param string $projectRoot Project root directory.
+     * @param bool $includeDrafts Whether draft pages should be included.
+     * @return array<string, string>
+     */
+    protected function buildLiveEnvironment(string $projectRoot, bool $includeDrafts): array
+    {
+        return [
+            'GLAZE_PROJECT_ROOT' => $projectRoot,
+            'GLAZE_INCLUDE_DRAFTS' => $includeDrafts ? '1' : '0',
+        ];
+    }
+
+    /**
+     * Apply environment variables and capture previous values.
+     *
+     * @param array<string, string> $environment Environment variables to apply.
+     * @return array<string, string|null> Previous environment values.
+     */
+    protected function applyEnvironment(array $environment): array
+    {
+        $previous = [];
+
+        foreach ($environment as $key => $value) {
+            $current = getenv($key);
+            $previous[$key] = is_string($current) ? $current : null;
+            putenv($key . '=' . $value);
+        }
+
+        return $previous;
+    }
+
+    /**
+     * Restore previously captured environment values.
+     *
+     * @param array<string, string|null> $previousEnvironment Previous environment values.
+     */
+    protected function restoreEnvironment(array $previousEnvironment): void
+    {
+        foreach ($previousEnvironment as $key => $value) {
+            if ($value === null) {
+                putenv($key);
+                continue;
+            }
+
+            putenv($key . '=' . $value);
+        }
     }
 
     /**
