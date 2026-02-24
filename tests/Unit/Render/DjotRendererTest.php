@@ -55,4 +55,27 @@ final class DjotRendererTest extends TestCase
         $this->assertStringNotContainsString('data-language="php"', $html);
         $this->assertStringContainsString('line-number', $html);
     }
+
+    /**
+     * Ensure internal Djot links are rendered without a file extension.
+     */
+    public function testRenderRewritesInternalDjotLinksToExtensionlessPaths(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render('[Quick start](quick-start.dj)');
+
+        $this->assertStringContainsString('href="quick-start"', $html);
+        $this->assertStringNotContainsString('href="quick-start.dj"', $html);
+    }
+
+    /**
+     * Ensure rewriting keeps query and fragment suffixes intact.
+     */
+    public function testRenderPreservesSuffixWhenRewritingDjotLinks(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render('[Guide](guide.dj?mode=full#top)');
+
+        $this->assertStringContainsString('href="guide?mode=full#top"', $html);
+    }
 }

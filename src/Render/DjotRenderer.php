@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 use Djot\DjotConverter;
+use Glaze\Render\Djot\InternalDjotLinkExtension;
 use Glaze\Render\Djot\PhikiCodeBlockRenderer;
 use Glaze\Render\Djot\PhikiExtension;
 use Phiki\Theme\Theme;
@@ -49,6 +50,7 @@ final class DjotRenderer
     protected function createConverter(array $codeHighlighting): DjotConverter
     {
         $converter = new DjotConverter();
+        $converter->addExtension(new InternalDjotLinkExtension());
 
         if (!$codeHighlighting['enabled']) {
             return $converter;

@@ -10,6 +10,7 @@ use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\ErrorHandlingMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
+use Glaze\Http\Middleware\StaticAssetMiddleware;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -36,6 +37,7 @@ if (is_string($query) && $query !== '') {
 $queue = new MiddlewareQueue();
 $queue->add(new ErrorHandlingMiddleware(true));
 $queue->add(new PublicAssetMiddleware($config));
+$queue->add(new StaticAssetMiddleware($config));
 $queue->add(new ContentAssetMiddleware($config));
 
 $response = (new Runner())->run($queue, $request, new DevPageRequestHandler($config));

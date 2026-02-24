@@ -16,8 +16,8 @@ contentTypes:
 
 codeHighlighting:
 	enabled: true
-	theme: nord
-	withGutter: false
+	theme: solarized-dark
+	withGutter: true
 
 # --- Available options (uncomment and adjust as needed) ---
 # pageTemplate: page

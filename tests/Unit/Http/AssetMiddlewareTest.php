@@ -10,6 +10,7 @@ use Glaze\Http\Middleware\AbstractAssetMiddleware;
 use Glaze\Http\Middleware\AbstractGlideAssetMiddleware;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
+use Glaze\Http\Middleware\StaticAssetMiddleware;
 use Glaze\Image\ImageTransformerInterface;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -63,6 +64,47 @@ final class AssetMiddlewareTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('image/jpeg', $response->getHeaderLine('Content-Type'));
         $this->assertSame('jpg-bytes', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure static asset middleware returns matching files from static directory.
+     */
+    public function testStaticAssetMiddlewareReturnsAssetResponse(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/static', 0755, true);
+        file_put_contents($projectRoot . '/static/image.png', 'png-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new StaticAssetMiddleware($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/image.png');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('image/png', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('png-bytes', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure static asset middleware resolves basePath-prefixed requests.
+     */
+    public function testStaticAssetMiddlewareResolvesBasePathPrefixedAssetResponse(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/static', 0755, true);
+        file_put_contents($projectRoot . '/static/image.png', 'png-bytes');
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new StaticAssetMiddleware($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/image.png');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('image/png', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('png-bytes', (string)$response->getBody());
     }
 
     /**
