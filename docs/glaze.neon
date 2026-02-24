@@ -1,6 +1,6 @@
 pageTemplate: page
 site:
-	title: Glaze Documentation
+	title: Glaze - A PHP static site generator
 	description: Glaze PHP templating engine documentation
 	basePath: /glaze
 
@@ -16,8 +16,8 @@ contentTypes:
 
 codeHighlighting:
 	enabled: true
-	theme: solarized-dark
-	withGutter: true
+	theme: plastic
+	withGutter: false
 
 # --- Available options (uncomment and adjust as needed) ---
 # pageTemplate: page

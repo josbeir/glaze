@@ -1,31 +1,48 @@
 ---
 title: Page Collections
+weight: 90
 ---
 # Page collections
 
-Page collections are Glaze’s query-friendly wrapper around discovered pages.
+Page collections are Glaze's query-friendly wrapper around all discovered pages. You access them through `$this` (the `SiteContext` object) inside [Sugar](https://josbeir.github.io/sugar/) templates.
 
-You usually access them through `$this` (site context) inside [Sugar](https://josbeir.github.io/sugar/) templates.
+Collections are lazy and chainable -- call as many methods as you need before iterating.
 
-## Getting collections
+## Accessing collections
 
 ```php
-<p>Total pages: <?= $this->pages()->count() ?></p>
-<p>Regular pages: <?= $this->regularPages()->count() ?></p>
-<p>Blog pages: <?= $this->section('blog')->count() ?></p>
-<p>PHP tagged pages: <?= $this->taxonomyTerm('tags', 'php')->count() ?></p>
-<p>Blog typed pages: <?= $this->type('blog')->count() ?></p>
+$this->pages()                         // all pages
+$this->regularPages()                  // pages without a content type
+$this->section('blog')                 // pages under the blog/ path prefix
+$this->type('blog')                    // pages with content type 'blog'
+$this->taxonomyTerm('tags', 'php')     // pages tagged 'php'
 ```
 
-## Common helpers
+## `ContentPage` properties
 
-- `count()`
-- `first()` / `last()`
-- `take(n)`
-- `slice(offset, length)`
-- `reverse()`
+Every item in a collection is a `ContentPage` object:
 
-Example:
+```php
+$page->title            // string
+$page->urlPath          // string -- e.g. /blog/my-post/
+$page->slug             // string -- e.g. blog/my-post
+$page->relativePath     // string -- e.g. blog/my-post.dj
+$page->draft            // bool
+$page->type             // ?string -- content type name
+$page->meta             // array<string, mixed> -- all frontmatter metadata
+$page->taxonomies       // array<string, array<string>> -- e.g. ['tags' => ['php', 'oss']]
+```
+
+Access custom frontmatter values via `$page->meta`:
+
+```php
+$page->meta['date']          // Chronos instance (when set)
+$page->meta['description']   // string (when set)
+$page->meta['weight']        // int (when set)
+$page->meta['featured']      // bool (when set)
+```
+
+## Iterating
 
 ```php
 <ul>
@@ -35,77 +52,131 @@ Example:
 </ul>
 ```
 
+## Common helpers
+
+- `count()` -- total number of pages in collection
+- `first()` -- first page or null
+- `last()` -- last page or null
+- `take(n)` -- first n pages
+- `slice(offset, length)` -- a range of pages
+- `reverse()` -- reverse the current order
+
 ## Sorting
 
-- `by('key', 'asc|desc')`
-- `byDate('asc|desc', 'meta.date')`
-- `byTitle('asc|desc')`
-
 ```php
-<li s:foreach="$this->section('blog')->byDate('desc') as $post">
-    <?= $post->title ?>
-</li>
+// by any dot-path key
+$this->pages()->by('meta.weight', 'asc')
+
+// by date field
+$this->section('blog')->byDate('desc')                    // uses meta.date by default
+$this->section('blog')->byDate('desc', 'meta.published')  // custom date field
+
+// alphabetically
+$this->pages()->byTitle('asc')
 ```
 
 ## Filtering with `where`
 
-Supported operators include:
+`where` takes a dot-path key, an optional operator, and a value. When the operator is omitted, `=` is assumed.
+
+Supported operators:
 
 - equality: `=`, `==`, `eq`
 - inequality: `!=`, `<>`, `ne`
 - comparisons: `>`, `>=`, `<`, `<=`
-- set operators: `in`, `not in`, `intersect`
-- text operator: `like`
+- set membership: `in`, `not in`
+- intersection: `intersect`
+- pattern match: `like`
 
 ```php
-<li s:foreach="$this->where($this->pages(), 'meta.featured', true) as $page">
-    <?= $page->title ?>
-</li>
+// pages marked as featured
+$this->where($this->pages(), 'meta.featured', true)
 
-<li s:foreach="$this->where($this->pages(), 'weight', '>=', 10) as $page">
-    <?= $page->title ?>
-</li>
+// pages with weight >= 10
+$this->where($this->pages(), 'meta.weight', '>=', 10)
+
+// pages tagged with either 'php' or 'oss'
+$this->where($this->pages(), 'meta.tags', 'intersect', ['php', 'oss'])
 ```
 
 ## Type helpers
 
-- `SiteContext::type('name')`
-- `PageCollection::whereType('name')`
-
 ```php
-<li s:foreach="$this->type('docs')->byDate('desc') as $page">
-    <?= $page->title ?>
-</li>
+// via site context
+$this->type('docs')
+
+// via collection method
+$this->pages()->whereType('docs')
+
+// chained
+$this->type('blog')->byDate('desc')->take(5)
 ```
 
 ## Grouping
 
-- `groupBy('key')`
-- `groupByDate('Y-m', 'desc', 'meta.date')`
+```php
+// group by an arbitrary key
+$this->pages()->groupBy('meta.category')
+
+// group by date period
+$this->section('blog')->groupByDate('Y-m', 'desc')                    // uses meta.date
+$this->section('blog')->groupByDate('Y', 'desc', 'meta.published')   // custom date field
+```
+
+A grouped collection is a plain array where keys are group names and values are `PageCollection` instances:
 
 ```php
-<section s:foreach="$this->pages()->groupByDate('Y-m') as $month => $pages">
-    <h3><?= $month ?></h3>
-    <p><?= $pages->count() ?> page(s)</p>
+<section s:foreach="$this->section('blog')->groupByDate('Y-m', 'desc') as $month => $pages">
+    <h2><?= $month ?></h2>
+    <ul>
+        <li s:foreach="$pages as $post">
+            <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+        </li>
+    </ul>
 </section>
 ```
 
 ## Pagination
 
-Use the `paginate()` helper from site context:
-
 ```php
-<article s:foreach="$this->paginate($this->section('blog'), 10, 1, '/blog/')->items() as $post">
-    <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
-</article>
+<?php $pager = $this->paginate($this->section('blog'), 10, 1, '/blog/'); ?>
+
+<ul>
+    <li s:foreach="$pager->items() as $post">
+        <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+    </li>
+</ul>
+
+<nav>
+    <a s:if="$pager->hasPrev()" href="<?= $pager->prevUrl() ?>">Previous</a>
+    <a s:if="$pager->hasNext()" href="<?= $pager->nextUrl() ?>">Next</a>
+</nav>
 ```
 
-The pager also provides URL helpers for navigation links.
+Arguments: `paginate(collection, perPage, currentPage, baseUrl)`.
 
-## Navigation helpers on current page
+## Previous / next navigation
 
-- `$this->previousInSection()`
-- `$this->nextInSection()`
-- `$this->isCurrent('/some/path/')`
+These helpers work relative to the current page's section:
 
-This makes section-based "previous/next" UX very easy to build.
+```php
+<?php $prev = $this->previousInSection(); ?>
+<?php $next = $this->nextInSection(); ?>
+
+<nav>
+    <a s:if="$prev !== null" href="<?= $prev->urlPath ?>">&larr; <?= $prev->title ?></a>
+    <a s:if="$next !== null" href="<?= $next->urlPath ?>"><?= $next->title ?> &rarr;</a>
+</nav>
+```
+
+## Checking the current page
+
+```php
+<a
+    href="<?= $post->urlPath ?>"
+    s:class="['active' => $this->isCurrent($post->urlPath)]"
+>
+    <?= $post->title ?>
+</a>
+```
+

@@ -1,76 +1,147 @@
 ---
 title: Templating
+weight: 80
 ---
 # Templating
 
-Glaze uses [Sugar](https://josbeir.github.io/sugar/) templates for page rendering.
+Glaze uses [Sugar](https://josbeir.github.io/sugar/) for page rendering -- a PHP template engine with inheritance, blocks, components, and directives.
 
-Your main page template is `templates/page.sugar.php` (or whatever is configured as page template internally).
+Templates live in `templates/` and use the `.sugar.php` extension. Sugar automatically escapes output based on context (HTML, attribute, URL, JS, CSS), so you do not need a manual `h()` call for most values.
+
+This page covers Glaze-specific integration. For the full directive and language reference, see the [Sugar documentation](https://josbeir.github.io/sugar/).
+
+## Template inheritance
+
+Sugar uses `s:extends` and `s:block` for layout inheritance. A base layout defines named blocks; child templates fill them in.
+
+`templates/layout/base.sugar.php`:
+
+```php
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title s:block="title"><?= $site->title ?></title>
+</head>
+<body>
+    <main s:block="content"></main>
+</body>
+</html>
+```
+
+`templates/page.sugar.php`:
+
+```php
+<s-template s:extends="layout/base">
+
+<title s:prepend="title"><?= $page->title ?> | </title>
+
+<s-template s:block="content">
+    <article>
+        <h1><?= $page->title ?></h1>
+        <?= $content |> raw() ?>
+    </article>
+</s-template>
+```
+
+The `|> raw()` pipe disables escaping for the rendered `$content` HTML. All other output is escaped automatically by Sugar.
+
+For full inheritance options (`s:prepend`, `s:append`, `s:block` nesting), see the [Sugar inheritance docs](https://josbeir.github.io/sugar/guide/templates/inheritance.html).
 
 ## Per-page template override
 
-You can override the default page template in frontmatter:
+Override the template for a single page in frontmatter:
 
 ```djot
 ---
 title: Landing page
 template: landing
 ---
-# Welcome
 ```
 
-This renders the page with `templates/landing.sugar.php`.
+This renders the page with `templates/landing.sugar.php` instead of the configured default.
 
-## Base example
+## Available variables
+
+These variables are injected into every page template by Glaze:
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `$title` | `string` | Page title |
+| `$content` | `string` | Rendered Djot HTML |
+| `$url` | `string` | Current URL path |
+| `$page` | `ContentPage` | Full page object |
+| `$meta` | `array` | Merged page metadata |
+| `$site` | `SiteConfig` | Global site config |
+
+### `$page` properties
 
 ```php
-<s-template s:extends="layout/page">
-
-<title s:prepend="title"><?= $title ?></title>
-
-<s-template s:block="content">
-    <h1><?= $title ?></h1>
-    <?= $content |> raw() ?>
-</s-template>
+$page->title            // string
+$page->urlPath          // string -- e.g. /blog/my-post/
+$page->slug             // string -- e.g. blog/my-post
+$page->relativePath     // string -- e.g. blog/my-post.dj
+$page->source           // string -- raw Djot source
+$page->draft            // bool
+$page->type             // ?string -- resolved content type name
+$page->meta             // array<string, mixed> -- all frontmatter metadata (keys lowercased)
+$page->taxonomies       // array<string, array<string>>
 ```
 
-## Variables available to templates
+### `$site` properties
 
-Common values include:
-
-- `$title` → page title
-- `$content` → rendered Djot HTML
-- `$url` → current URL path
-- `$page` → current page object
-- `$meta` → merged page/site meta map (object-like)
-- `$site` → global site config object
+```php
+$site->title            // ?string
+$site->description      // ?string
+$site->baseUrl          // ?string
+$site->basePath         // ?string -- e.g. /blog for subfolder deploys
+```
 
 ## Site context (`$this`)
 
-`$this` is a `SiteContext` object with helper methods for querying pages and taxonomies.
-
-Examples:
+Inside every template, `$this` is a `SiteContext` instance with helpers for querying all site content:
 
 ```php
-<p>Total pages: <?= $this->pages()->count() ?></p>
-<p>Blog pages: <?= $this->section('blog')->count() ?></p>
-<p>PHP-tagged pages: <?= $this->taxonomyTerm('tags', 'php')->count() ?></p>
+$this->pages()                          // all pages
+$this->regularPages()                   // pages without a content type
+$this->section('blog')                  // pages under the blog/ path prefix
+$this->type('blog')                     // pages with content type 'blog'
+$this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
+$this->isCurrent('/blog/')              // bool
+$this->previousInSection()             // ?ContentPage
+$this->nextInSection()                 // ?ContentPage
 ```
 
-See [Page collections](page-collections.dj) for query helpers.
+See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination.
+
+## Sugar directives
+
+Sugar provides attribute-based directives for control flow, looping, and conditional class merging. A brief example:
+
+```php
+<!-- loop -->
+<li s:foreach="$this->section('blog')->take(5) as $post">
+    <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+</li>
+
+<!-- conditional -->
+<span s:if="$page->draft">Draft</span>
+<span s:else>Published</span>
+
+<!-- conditional class -->
+<a href="<?= $post->urlPath ?>" s:class="['active' => $this->isCurrent($post->urlPath)]">
+    <?= $post->title ?>
+</a>
+```
+
+For the complete directive reference -- including `s:unless`, `s:forelse`, `s:switch`, `s:isset`, loop metadata (`$loop->first`, `$loop->last`), components, and the pipe syntax -- see the [Sugar documentation](https://josbeir.github.io/sugar/).
 
 ## Debug helpers
 
-You can use:
+Available in all templates:
 
-- `dump(...)`
-- `debug(...)` (alias)
-- `dd(...)`
+- `dump(...)` -- formatted variable dump
+- `debug(...)` -- alias for `dump`
+- `dd(...)` -- dump and die
 
-In web responses, dumps are shown in styled `<pre>` blocks for readability.
-
-## Tips
-
-- Keep layout and page concerns separated using template inheritance.
-- Prefer collection helpers over manual array logic in templates.
-- Use `raw()` only for trusted HTML (`$content` is expected use-case).
+Output is rendered in a styled `<pre>` block when served via `glaze serve`.

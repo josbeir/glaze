@@ -1,21 +1,23 @@
 ---
 title: Configuration
+weight: 70
 ---
 # Configuration
 
-Glaze reads project configuration from `glaze.neon` in your project root.
+Glaze reads project configuration from `glaze.neon` in your project root. It uses [NEON](https://github.com/nette/neon) format -- the same format used for page frontmatter.
 
-Glaze uses [NEON](https://github.com/nette/neon) as its configuration format for both:
+A `glaze.neon` file is optional. Start minimal and add settings only when you need them.
 
-- project/site configuration (`glaze.neon`)
-- page frontmatter blocks in `.dj` files
-
-Keep it small and intentional. Start with defaults, then add only what you need.
-
-## Example `glaze.neon`
+## Full example
 
 ```neon
 pageTemplate: page
+
+site:
+  title: My Site
+  description: Notes on web, PHP, and experiments.
+  baseUrl: https://example.com
+  basePath: /blog
 
 images:
   driver: gd
@@ -28,12 +30,6 @@ images:
       w: 1200
       h: 630
 
-site:
-  title: My awesome site
-  description: Notes on web, PHP, and tiny experiments.
-  baseUrl: https://example.com
-  basePath: /blog
-
 taxonomies:
   - tags
   - categories
@@ -45,7 +41,7 @@ contentTypes:
         createPattern: blog/{date:Y/m}
     defaults:
       template: blog
-      description: Blog post
+      draft: false
 
   docs:
     paths:
@@ -59,31 +55,140 @@ codeHighlighting:
   withGutter: false
 ```
 
-## `pageTemplate` setting
+## `pageTemplate`
 
-- `pageTemplate`: default Sugar page template name (without `.sugar.php`), for example `page` or `landing`
+Default Sugar template name used to render pages. The value is a template name without the `.sugar.php` extension, resolved relative to `templates/`.
 
-## `images.presets` setting
+```neon
+pageTemplate: page
+```
 
-- `images.presets` is optional
-- when omitted, Glide still works with raw query args (for example `?h=500&w=800`)
-- each preset is a map of Glide params
+This means pages render with `templates/page.sugar.php` unless a per-page `template` frontmatter value overrides it.
 
-## `images.driver` setting
+## `site`
 
-- `images.driver` is optional
-- supported values are `gd` and `imagick`
-- when omitted, Glaze uses `gd`
+Global site metadata. All values are available in templates as properties on the `$site` object.
 
-## `codeHighlighting` settings
+- `title` -- site name; used in `<title>` tags and headings
+- `description` -- default meta description
+- `baseUrl` -- canonical base URL (used for sitemaps, feed links, etc.)
+- `basePath` -- URL prefix for subfolder deployments (e.g. `/blog`); prepended to all generated links
 
-Controls fenced code block highlighting in Djot rendering (live mode and build mode).
+## `images`
 
-- `enabled`: enable/disable Phiki highlighting (default `true`)
-- `theme`: Phiki theme name (default `nord`)
-- `withGutter`: show line-number gutter (default `false`)
+Controls [League Glide](https://glide.thephpleague.com/) image transform behavior.
 
-Example:
+### `images.driver`
+
+PHP image processing driver. Supported values: `gd` (default), `imagick`.
+
+```neon
+images:
+  driver: imagick
+```
+
+### `images.presets`
+
+Named transform presets. Each preset is a map of Glide parameters. Use a preset in content or templates with `?p=name` (or `?preset=name`).
+
+```neon
+images:
+  presets:
+    thumb:
+      w: 320
+      h: 180
+      fit: crop
+    hero:
+      w: 1200
+      h: 630
+      fm: webp
+```
+
+Raw query parameters still work when presets are defined. Raw values override preset values when both are present in the same URL.
+
+## `taxonomies`
+
+Lists which frontmatter keys are treated as taxonomy fields. Values are extracted from page frontmatter and made available through collection query helpers.
+
+```neon
+taxonomies:
+  - tags
+  - categories
+```
+
+With this config, `tags: [php, oss]` in a page's frontmatter becomes accessible via `$this->taxonomyTerm('tags', 'php')` in templates.
+
+## `contentTypes`
+
+Classifies pages by path prefix and optionally applies metadata defaults.
+
+```neon
+contentTypes:
+  blog:
+    paths:
+      - match: blog
+        createPattern: blog/{date:Y/m}
+    defaults:
+      template: blog
+      draft: false
+```
+
+### `paths`
+
+Each entry under `paths` is a rule with two keys:
+
+- `match` (required) -- path prefix; pages whose `relativePath` starts with this value are assigned to this type
+- `createPattern` (optional) -- path template used by `glaze new` when creating a page of this type
+
+`createPattern` supports the `{date:FORMAT}` placeholder, which is replaced with today's date formatted using PHP date format characters:
+
+```neon
+createPattern: blog/{date:Y/m}
+# creates pages under: blog/2026/02/
+```
+
+```neon
+createPattern: posts/{date:Y}
+# creates pages under: posts/2026/
+```
+
+Shorthand path entries (a plain string instead of a map) are also supported and behave as a `match`-only rule with no `createPattern`:
+
+```neon
+contentTypes:
+  docs:
+    paths:
+      - docs
+```
+
+### `defaults`
+
+A metadata map merged into all pages of this type, before page frontmatter is applied. Page frontmatter always wins over type defaults.
+
+```neon
+defaults:
+  template: blog
+  draft: false
+  meta:
+    layout: wide
+```
+
+### Explicit type override in frontmatter
+
+A page can declare its type directly in frontmatter, bypassing path matching:
+
+```djot
+---
+type: blog
+title: My post
+---
+```
+
+The resolved type is available in templates as `$page->type`.
+
+## `codeHighlighting`
+
+Controls syntax highlighting for fenced code blocks in Djot pages. Powered by [Phiki](https://github.com/phikiphp/phiki).
 
 ```neon
 codeHighlighting:
@@ -92,74 +197,11 @@ codeHighlighting:
   withGutter: true
 ```
 
-Example usage in URLs:
-
-- `/blog/photo.jpg?p=thumb`
-- `/blog/photo.jpg?p=hero&fm=webp`
-
-## `site` settings
-
-- `title`: global site title
-- `description`: default page description
-- `baseUrl`: canonical base URL
-- `basePath`: optional URL prefix for subfolder deployments (for example `/blog`)
-
-These values are available in templates through the `site` object.
-
-## `taxonomies` settings
-
-This list defines which frontmatter keys are treated as taxonomy fields.
-
-If you set:
-
-```neon
-taxonomies:
-  - tags
-  - categories
-```
-
-then `tags` and `categories` are extracted from page frontmatter and available through taxonomy helpers.
-
-## `contentTypes` settings
-
-Use `contentTypes` to classify pages and apply metadata defaults.
-
-- type names are keys (`blog`, `docs`, ...)
-- `paths` is a list of path rules (`match` + optional `createPattern`)
-- shorthand path entries are also supported (for example `- simple`)
-- `createPattern` is optional and controls where `glaze new` creates pages for that rule
-- `defaults` is a metadata map merged into matching pages
-- page frontmatter overrides type defaults
-- explicit frontmatter `type` overrides path matching
-
-Shorthand example:
-
-```neon
-contentTypes:
-  docs:
-    paths:
-      - simple
-```
-
-Example frontmatter override:
-
-```djot
----
-title: Deep dive
-type: docs
----
-# Deep dive
-```
-
-Resolved type is exposed as `$page->type` in templates and can be queried via collection helpers.
-
-## Frontmatter fence format
-
-Glaze supports both `+++` and `---` fenced [NEON](https://github.com/nette/neon) frontmatter at the top of `.dj` files.
+- `enabled` -- enable or disable highlighting (default `true`)
+- `theme` -- Phiki theme name (default `nord`); see [Phiki themes](https://github.com/phikiphp/phiki) for options
+- `withGutter` -- show line-number gutter beside code (default `false`)
 
 ## Notes
 
-- Missing `glaze.neon` is fine; Glaze uses defaults.
-- Unknown extra keys are ignored by core config loading.
-
-Next: [Templating](templating.dj).
+- A missing `glaze.neon` is valid; Glaze uses sensible defaults.
+- Unknown top-level keys are ignored.

@@ -181,6 +181,10 @@ final class PageScaffoldService
             $frontmatter['type'] = $options->type;
         }
 
+        if (is_int($options->weight)) {
+            $frontmatter['weight'] = $options->weight;
+        }
+
         return "---\n"
             . Neon::encode($frontmatter, true)
             . "---\n"

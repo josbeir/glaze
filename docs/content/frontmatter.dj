@@ -1,20 +1,17 @@
 ---
 title: Frontmatter
+weight: 50
 ---
 # Frontmatter
 
-Frontmatter is metadata at the top of a Djot page.
+Frontmatter is optional metadata placed at the very top of a Djot page, before any content. Glaze reads it as [NEON](https://github.com/nette/neon) -- the same format used by `glaze.neon`.
 
-Glaze reads frontmatter as [NEON](https://github.com/nette/neon), the same format used by `glaze.neon`.
+## Fence syntax
 
-## Supported fences
-
-You can use either `+++` or `---` as opening/closing fences.
-
-Example with `+++`:
+You can use either `+++` or `---` as opening and closing fences:
 
 ```djot
-+++
+---
 title: Hello world
 slug: /
 draft: false
@@ -24,74 +21,159 @@ tags:
   - welcome
 meta:
   robots: index,follow
-+++
+---
 # Hello world
 
 Welcome to Glaze.
 ```
 
-Example with `---`:
+Both fence styles are equivalent. Frontmatter is entirely optional -- pages without it will have their title inferred from the filename.
+
+## Field reference
+
+### `title`
+
+Human-readable page title. When omitted, Glaze infers a title from the slug (e.g. `my-post` becomes `My Post`).
 
 ```djot
 ---
-title: Hello world
+title: Getting started with Glaze
+---
+```
+
+### `slug`
+
+Overrides the URL path derived from the file path. Useful for custom routes like `/` for the home page.
+
+```djot
+---
 slug: /
-draft: false
-template: page
 ---
-# Hello world
-
-Welcome to Glaze.
 ```
 
-## Dates and datetimes
+Slug values are normalized (lowercased and slugified).
 
-For page dates, use the `date` key in frontmatter.
+### `date`
+
+Publish date or datetime. Must be a value parseable as a date or datetime.
 
 ```djot
 ---
-title: Release note
+date: 2026-02-24
+---
+```
+
+```djot
+---
 date: 2026-02-24T14:30:00+01:00
 ---
-# Release note
 ```
 
-Glaze strictly normalizes `date` and `meta.date` to `Cake\Chronos\Chronos`.
-If a provided value cannot be parsed as a valid date/datetime, discovery throws an exception.
+Glaze normalizes `date` to a `Cake\Chronos\Chronos` instance. If the value cannot be parsed, content discovery throws an exception.
 
-In templates, retrieve it from page metadata:
+In templates:
 
 ```php
-<?php $publishedAt = $page->meta['date'] ?? null; ?>
+<?php $date = $page->meta['date'] ?? null; ?>
 
-<?php if ($publishedAt instanceof \Cake\Chronos\Chronos): ?>
-    <time datetime="<?= $publishedAt->toIso8601String() ?>">
-        <?= $publishedAt->format('Y-m-d H:i') ?>
+<?php if ($date instanceof \Cake\Chronos\Chronos): ?>
+    <time datetime="<?= $date->toIso8601String() ?>">
+        <?= $date->format('F j, Y') ?>
     </time>
 <?php endif; ?>
 ```
 
-## Common fields
+### `weight`
 
-- `title` (string): page title
-- `slug` (string): override generated route slug
-- `type` (string): explicit content type override when `contentTypes` are configured
-- `date` (date/datetime): publish date exposed as Chronos in templates
-- `draft` (bool): exclude from static build unless `--drafts` is used
-- `template` (string): per-page template override
-- taxonomy fields (`tags`, `categories`, etc.): based on your configured `taxonomies`
-- `meta` (map): custom meta values exposed to templates
+Integer sort order for page collections. Lower values sort first. Useful for controlling navigation menus, ordered documentation sections, or any list where file-path ordering is not sufficient.
 
-## How Glaze uses it
+```djot
+---
+weight: 10
+---
+```
 
-- routes are generated from file paths unless `slug` overrides them
-- page title defaults are inferred when `title` is missing
-- taxonomy terms are extracted from configured taxonomy keys
-- `meta` values are merged into effective page metadata
+In templates, sort a collection by weight:
 
-## Notes
+```php
+<li s:foreach="$this->pages()->by('meta.weight', 'asc') as $p">
+    <a href="<?= $p->urlPath ?>"><?= $p->title ?></a>
+</li>
+```
 
-- unknown fields are kept in page metadata
-- frontmatter is optional
+### `draft`
 
-Next: [Configuration](configuration) and [Templating](templating).
+Marks the page as a draft. Draft pages are excluded from `glaze build` output unless `--drafts` is passed. The live server (`glaze serve`) includes drafts by default.
+
+```djot
+---
+draft: true
+---
+```
+
+### `type`
+
+Explicitly assigns a content type when `contentTypes` are configured in `glaze.neon`. Normally the type is resolved automatically from the file path. Use this to override:
+
+```djot
+---
+type: blog
+---
+```
+
+### `template`
+
+Overrides the default page template for this page. The value is a template name (without `.sugar.php` extension) relative to `templates/`.
+
+```djot
+---
+template: landing
+---
+```
+
+This causes the page to render with `templates/landing.sugar.php` instead of the configured default.
+
+### Taxonomy fields
+
+Any key listed under `taxonomies` in `glaze.neon` is extracted as a taxonomy. Values can be a single string or a NEON list.
+
+```djot
+---
+tags:
+  - php
+  - static-sites
+categories:
+  - tutorials
+---
+```
+
+### `meta`
+
+A free-form map of custom key/value pairs. Accessible in templates as `$page->meta['key']`. Useful for SEO fields, per-page settings, or any custom data.
+
+```djot
+---
+meta:
+  description: A short summary for search engines.
+  og_image: /images/cover.jpg
+  featured: true
+---
+```
+
+In templates:
+
+```php
+<?php $desc = $page->meta['description'] ?? $site->description; ?>
+<meta name="description" content="<?= $desc ?>" />
+```
+
+## How Glaze processes frontmatter
+
+- All keys are normalized to lowercase
+- `date` is converted to `Chronos`; an unparseable value is an error
+- Taxonomy keys are extracted into `$page->taxonomies`; the rest lands in `$page->meta`
+- Unknown keys are kept in `$page->meta` without validation
+- Content type `defaults` from `glaze.neon` are merged in, with page frontmatter taking precedence
+- `type` resolves via path matching first, then explicit frontmatter override
+
+Next: [Configuration](configuration.dj) and [Templating](templating.dj).

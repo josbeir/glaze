@@ -1,5 +1,9 @@
 <h1 align="center">🍬 Glaze — static site generator for modern PHP</h1>
 
+<div align="center" style="margin-bottom: 2rem;">
+	<img src="docs/static/images/glaze-logo.svg" alt="Sugar cube" width="200" />
+</div>
+
 <div align="center">
 	<a href="https://github.com/josbeir/glaze/actions" style="text-decoration: none;">
 		<img src="https://github.com/josbeir/glaze/actions/workflows/ci.yml/badge.svg" alt="Build Status" />

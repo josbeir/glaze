@@ -33,6 +33,7 @@ final class NewCommandTest extends TestCase
         $this->assertArrayHasKey('root', $parser->options());
         $this->assertArrayHasKey('path', $parser->options());
         $this->assertArrayHasKey('date', $parser->options());
+        $this->assertArrayHasKey('weight', $parser->options());
         $this->assertArrayHasKey('type', $parser->options());
         $this->assertArrayHasKey('draft', $parser->options());
         $this->assertArrayHasKey('index', $parser->options());
@@ -122,6 +123,7 @@ final class NewCommandTest extends TestCase
             [
                 'yes' => true,
                 'date' => '2026-02-24T10:00:00+00:00',
+                'weight' => '10',
                 'type' => 'blog',
                 'draft' => true,
                 'slug' => null,
@@ -132,7 +134,7 @@ final class NewCommandTest extends TestCase
         $input = $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
 
         $this->assertIsArray($input);
-        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool} $input */
+        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool, weight: int|null} $input */
 
         $this->assertSame('My Post', $input['title']);
         $this->assertSame('2026-02-24T10:00:00+00:00', $input['date']);
@@ -142,6 +144,7 @@ final class NewCommandTest extends TestCase
         $this->assertSame(['match' => 'blog', 'createPattern' => null], $input['pathRule']);
         $this->assertNull($input['pathPrefix']);
         $this->assertFalse($input['index']);
+        $this->assertSame(10, $input['weight']);
     }
 
     /**
@@ -170,7 +173,7 @@ final class NewCommandTest extends TestCase
         $input = $this->callProtected($command, 'resolvePageInput', $args, $io, $config);
 
         $this->assertIsArray($input);
-        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool} $input */
+        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool, weight: int|null} $input */
         $this->assertSame('My Post', $input['title']);
         $this->assertNull($input['type']);
         $this->assertFalse($input['draft']);
@@ -178,6 +181,7 @@ final class NewCommandTest extends TestCase
         $this->assertNull($input['pathRule']);
         $this->assertNull($input['pathPrefix']);
         $this->assertFalse($input['index']);
+        $this->assertNull($input['weight']);
         $this->assertSame($input['date'], $this->callProtected($command, 'normalizeDateInput', $input['date']));
     }
 
@@ -203,9 +207,10 @@ final class NewCommandTest extends TestCase
         $input = $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
 
         $this->assertIsArray($input);
-        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool} $input */
+        /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool, weight: int|null} $input */
         $this->assertSame('My New Post', $input['title']);
         $this->assertSame('posts/my-new-post', $input['slug']);
+        $this->assertNull($input['weight']);
     }
 
     /**
@@ -279,6 +284,7 @@ final class NewCommandTest extends TestCase
                 'root' => $projectRoot,
                 'yes' => true,
                 'date' => '2026-02-24T10:00:00+00:00',
+                'weight' => '5',
                 'type' => 'blog',
                 'draft' => true,
                 'slug' => null,
@@ -300,6 +306,7 @@ final class NewCommandTest extends TestCase
         $this->assertStringContainsString("date: '2026-02-24T10:00:00+00:00'", $output);
         $this->assertStringContainsString('type: blog', $output);
         $this->assertStringContainsString('draft: true', $output);
+        $this->assertStringContainsString('weight: 5', $output);
     }
 
     /**

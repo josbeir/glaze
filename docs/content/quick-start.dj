@@ -1,71 +1,128 @@
 ---
 title: Quick Start
+weight: 30
 ---
 # Quick start
 
-This is the fastest path from zero to a running site.
+The fastest path from zero to a running Glaze site.
 
-In Glaze, a new project is scaffolded with `glaze init`.
+## 1. Scaffold a project
 
-## 1) Scaffold a project
-
-With Glaze installed as a Composer binary:
+With Glaze installed globally:
 
 ```bash
-glaze init my-glaze-site
+glaze init my-site
 ```
 
-You can also run non-interactive:
+Glaze asks a few questions interactively (title, base URL, taxonomies). To skip all prompts:
 
 ```bash
-glaze init my-glaze-site --base-path "/blog" --yes
+glaze init my-site --title "My Site" --yes
 ```
 
-## 2) Move into the project
+This creates:
+
+```
+my-site/
+  content/
+    index.dj
+  static/
+  templates/
+    page.sugar.php
+  glaze.neon
+```
+
+## 2. Explore the scaffold
+
+`glaze.neon` is the site configuration:
+
+```neon
+pageTemplate: page
+
+site:
+  title: My Site
+```
+
+`content/index.dj` is the home page:
+
+```djot
+---
+title: Home
+slug: /
+---
+# Welcome
+
+This is my site.
+```
+
+`templates/page.sugar.php` is the default page template:
+
+```php
+<s-template s:extends="layout/page">
+<s-template s:block="content">
+    <h1><?= $title ?></h1>
+    <?= $content |> raw() ?>
+</s-template>
+```
+
+## 3. Start the development server
 
 ```bash
-cd my-glaze-site
+cd my-site
+glaze serve
 ```
 
-## 3) Build static output
+Open `http://127.0.0.1:8080`. The server renders each page on request -- edit content or templates and refresh to see changes immediately.
+
+## 4. Add a page
+
+Create a new content page interactively:
+
+```bash
+glaze new
+```
+
+Or skip the prompts:
+
+```bash
+glaze new "My first post" --yes
+```
+
+This writes `content/my-first-post.dj` with a frontmatter stub:
+
+```djot
+---
+title: My first post
+date: 2026-02-24
+draft: false
+---
+# My first post
+```
+
+## 5. Build static output
+
+When you are ready to ship:
 
 ```bash
 glaze build
 ```
 
-This writes generated HTML files into `public/`.
-It also copies files from `static/` into `public/` as-is.
-
-## 4) Start live development server
+Output lands in `public/`. To clean before building:
 
 ```bash
-glaze serve
+glaze build --clean
 ```
 
-Default address is `http://127.0.0.1:8080`.
+During build, Glaze:
 
-## 5) Edit content and templates
+- renders all non-draft `.dj` files to HTML in `public/`
+- copies non-Djot files from `content/` to matching paths in `public/`
+- copies everything in `static/` verbatim to `public/`
+- bakes Glide image transforms to static files under `public/_glide/`
 
-- Djot pages live in `content/`
-- Public static files live in `static/`
-- [Sugar](https://josbeir.github.io/sugar/) templates live in `templates/`
+## Next steps
 
-Glaze uses the [php-collective/djot-php](https://github.com/php-collective/djot-php) implementation for Djot parsing/rendering.
-
-Change a page, refresh your browser, and iterate.
-
-## Frontmatter example
-
-```djot
-+++
-title: Hello world
-slug: /
-tags:
-  - intro
-+++
-# Hello world
-
-Welcome to Glaze.
-```
-
-Next: see [Usage](usage.dj) for day-to-day workflow and [Glide images](glide-images.dj) for image transforms.
+- [Usage](usage.dj) -- project layout, routing, and daily workflow
+- [Frontmatter](frontmatter.dj) -- metadata fields reference
+- [Templating](templating.dj) -- Sugar template system
+- [Commands](commands.dj) -- full CLI reference

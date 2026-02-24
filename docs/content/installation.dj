@@ -1,76 +1,70 @@
 ---
 title: Installation
+weight: 20
 ---
 # Installation
 
-Let’s get Glaze running on your machine.
-
 Glaze is distributed as a Composer package with a CLI binary (`glaze`).
 
-## Install as a global Composer binary (recommended)
+## Requirements
+
+- PHP 8.2 or higher
+- Composer 2 or higher
+- GD or Imagick PHP extension (for image transforms; GD ships with most PHP builds and is the default)
+
+## Global install (recommended)
+
+Installing globally makes `glaze` available from any directory:
 
 ```bash
 composer global require josbeir/glaze
 ```
 
-Then run:
+Verify it works:
 
 ```bash
 glaze --help
 ```
 
-If `glaze` is not found, add Composer’s global bin directory to your `PATH`.
-
-## Alternative: install in a project (no global install)
-
-If you prefer keeping tools local to a specific project, create a Composer project and require Glaze there.
+If `glaze` is not found, Composer's global bin directory is not in your shell `$PATH`. Find it and add it:
 
 ```bash
-mkdir my-site
-cd my-site
+# Find the path
+composer global config bin-dir --absolute
+
+# Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+export PATH="$HOME/.composer/vendor/bin:$PATH"
+```
+
+Reload your profile (`source ~/.zshrc`) and run `glaze --help` again.
+
+## Per-project install
+
+If you prefer to pin Glaze to a specific project:
+
+```bash
+mkdir my-site && cd my-site
 composer init --no-interaction
 composer require josbeir/glaze
 ```
 
-Run Glaze through the local vendor binary:
+Then use the project-local binary for every command:
 
 ```bash
 vendor/bin/glaze --help
+vendor/bin/glaze init .
+vendor/bin/glaze build
 ```
 
-## Requirements
+## Available commands
 
-- PHP 8.2+
-- Composer 2+
+Once the CLI is working you will see four commands:
 
-## Verify the CLI works
-
-```bash
-glaze --help
-```
-
-Or, for project-local installs:
-
-```bash
-vendor/bin/glaze --help
-```
-
-You should see available commands such as `init`, `build`, and `serve`.
-
-## Scaffold a new project
-
-Once the CLI is available, create a site scaffold with:
-
-```bash
-glaze init my-site
-```
-
-Or for project-local installs:
-
-```bash
-vendor/bin/glaze init my-site
-```
+- `init` -- scaffold a new project
+- `build` -- generate static output from content and templates
+- `new` -- create a new content page interactively
+- `serve` -- start a local development server
 
 ## Next step
 
-Continue with [Quick start](quick-start.dj) to generate your first site.
+Continue with [Quick start](quick-start.dj) to scaffold and run your first site.

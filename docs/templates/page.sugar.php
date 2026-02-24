@@ -1,4 +1,6 @@
 <?php
+use function Sugar\Core\Runtime\raw;
+
 /**
  * @var Glaze\Content\ContentPage $page
  * @var Glaze\Template\SiteContext $this

@@ -1,42 +1,42 @@
 ---
 title: Glaze Documentation
+weight: 10
+navigationTitle: Introduction
 ---
 # Glaze documentation
 
-Welcome! This is the main documentation hub for Glaze.
+Glaze is a fast, modern PHP static site generator built for people who like clean content pipelines and quick iteration.
 
-Glaze is a fast, modern PHP static site generator built for people who like clean files and quick iteration.
+You write content in [Djot](https://djot.net/), render it with [Sugar](https://josbeir.github.io/sugar/) PHP templates, and ship plain static HTML files. No JavaScript runtime. No build graph. Just files.
 
-It combines:
+## Core stack
 
-- [Djot](https://djot.net/) for expressive modern markup
-- [Djot](https://djot.net/) for expressive modern markup (powered by [php-collective/djot-php](https://github.com/php-collective/djot-php))
-- [Sugar](https://josbeir.github.io/sugar/) for clean, component-friendly PHP templating
-- a simple content + template workflow that feels lightweight but powerful
+- **[Djot](https://djot.net/)** (via [php-collective/djot-php](https://github.com/php-collective/djot-php)) -- modern, unambiguous markup language
+- **[Sugar](https://josbeir.github.io/sugar/)** -- lightweight PHP template engine with inheritance and directives
+- **[NEON](https://github.com/nette/neon)** -- clean config/frontmatter format used in both `glaze.neon` and page frontmatter
+- **[League Glide](https://glide.thephpleague.com/)** -- on-demand image transforms with build-time static output
+- **[Phiki](https://github.com/phikiphp/phiki)** -- syntax highlighting for fenced code blocks
+- **[CakePHP](https://cakephp.org/)** (Console, HTTP, Chronos) -- CLI commands, development server request handling, and immutable date values
 
-Write in modern markup, render with modern PHP templates, and ship static output fast.
+## How it works
 
-## Start here
+1. Content files (`content/**/*.dj`) are discovered and parsed.
+2. Frontmatter metadata drives routing, templating, taxonomies, and sort order.
+3. Sugar templates render pages with full access to page metadata, site config, and page collections.
+4. `glaze build` writes static HTML, copies assets, and bakes Glide-transformed image variants.
+5. `glaze serve` starts a live development server that renders pages on request.
 
-- [Installation](installation)
-- [Quick start](quick-start)
-- [Usage](usage)
-- [Frontmatter](frontmatter)
-- [Glide images](glide-images)
-- [Configuration](configuration)
-- [Templating](templating)
-- [Page collections](page-collections)
-- [Commands](commands)
-- [Why not Markdown?](why-not-markdown)
+## What you will find in these docs
 
-## What you’ll learn
+- [Installation](installation.dj) -- Composer setup and CLI verification
+- [Quick start](quick-start.dj) -- scaffold, build, and run your first site in minutes
+- [Usage](usage.dj) -- project structure, daily workflow, and content conventions
+- [Frontmatter](frontmatter.dj) -- full reference for per-page metadata fields
+- [Glide images](glide-images.dj) -- image transforms in content and templates
+- [Configuration](configuration.dj) -- `glaze.neon` settings reference
+- [Templating](templating.dj) -- Sugar templates, layout inheritance, and available variables
+- [Page collections](page-collections.dj) -- querying, sorting, filtering, and grouping pages
+- [Commands](commands.dj) -- CLI reference for `init`, `build`, `new`, and `serve`
+- [Why not Markdown?](why-not-markdown.dj) -- why Djot was chosen and what it changes
 
-- How to install and scaffold a project
-- How content and templates map to routes
-- How frontmatter metadata drives routing and rendering
-- How to configure taxonomies and global site metadata
-- How to transform images with Glide params and optional presets
-- How to query pages and taxonomies in templates
-- How to run build and live development workflows
 
-Take your time and jump to the section you need most.

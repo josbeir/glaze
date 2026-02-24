@@ -66,6 +66,10 @@ final class NewCommand extends BaseCommand
                 'help' => 'Page date/datetime value parseable by Chronos. Defaults to current time.',
                 'default' => null,
             ])
+            ->addOption('weight', [
+                'help' => 'Optional page sort weight (integer). Lower values sort first.',
+                'default' => null,
+            ])
             ->addOption('type', [
                 'help' => 'Content type name, must exist in configured contentTypes.',
                 'default' => null,
@@ -119,6 +123,7 @@ final class NewCommand extends BaseCommand
                     pathPrefix: $input['pathPrefix'],
                     asIndex: $input['index'],
                     force: (bool)$args->getOption('force'),
+                    weight: $input['weight'],
                 ),
             );
         } catch (RuntimeException $runtimeException) {
@@ -138,7 +143,7 @@ final class NewCommand extends BaseCommand
      * @param \Cake\Console\Arguments $args Parsed command arguments.
      * @param \Cake\Console\ConsoleIo $io Console IO service.
      * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @return array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool}
+     * @return array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool, weight: int|null}
      */
     protected function resolvePageInput(Arguments $args, ConsoleIo $io, BuildConfig $config): array
     {
@@ -169,6 +174,7 @@ final class NewCommand extends BaseCommand
         }
 
         $date = $this->normalizeDateInput($dateInput ?? $dateDefault);
+        $weight = $this->normalizeWeightInput($args->getOption('weight'));
 
         $type = $this->resolveTypeInput($args, $io, $config->contentTypes, $nonInteractive);
         $pathRule = $this->resolveTypePathRule($io, $config->contentTypes, $type, $pathPrefix, $nonInteractive);
@@ -190,6 +196,7 @@ final class NewCommand extends BaseCommand
             'pathRule' => $pathRule,
             'pathPrefix' => $pathPrefix,
             'index' => $asIndex,
+            'weight' => $weight,
         ];
     }
 
@@ -360,6 +367,26 @@ final class NewCommand extends BaseCommand
         } catch (Throwable) {
             throw new RuntimeException('Invalid date value. Use a date/datetime parseable by Chronos.');
         }
+    }
+
+    /**
+     * Normalize optional weight input to an integer value.
+     *
+     * @param mixed $weightInput Raw weight input.
+     */
+    protected function normalizeWeightInput(mixed $weightInput): ?int
+    {
+        $normalized = $this->normalizeString($weightInput);
+        if ($normalized === null) {
+            return null;
+        }
+
+        $weight = filter_var($normalized, FILTER_VALIDATE_INT);
+        if (!is_int($weight)) {
+            throw new RuntimeException('Invalid weight value. Use an integer.');
+        }
+
+        return $weight;
     }
 
     /**

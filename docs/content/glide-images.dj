@@ -1,21 +1,25 @@
 ---
 title: Glide Images
+weight: 60
 ---
 # Glide images
 
-Glaze supports image transformation with [League Glide](https://glide.thephpleague.com/).
+Glaze integrates [League Glide](https://glide.thephpleague.com/) for on-demand image transformation. Apply transforms by appending query parameters directly to local image URLs -- no separate build step required.
 
-You can use Glide parameters directly in image URLs from Djot content or templates.
+## Basic usage in Djot content
 
-## Basic usage from Djot
+Pass Glide parameters as query string values on any local image URL:
 
 ```djot
 ![Hero](images/cover.jpg?w=1200&h=500&fit=crop)
+![Portrait](photos/author.jpg?w=200&h=200&fit=crop&filt=greyscale)
 ```
 
-This works in live mode and in static build mode.
+This works in both live mode (`glaze serve`) and build mode (`glaze build`).
 
-## Optional presets in `glaze.neon`
+## Using presets
+
+Define named presets in `glaze.neon` to avoid repeating the same parameters:
 
 ```neon
 images:
@@ -28,56 +32,90 @@ images:
     hero:
       w: 1200
       h: 630
+    avatar:
+      w: 80
+      h: 80
+      fit: crop
 ```
 
-Then use a preset in content:
+Then reference a preset with `?p=`:
 
 ```djot
-![Thumb](images/cover.jpg?p=thumb)
+![Hero](images/cover.jpg?p=hero)
+![Thumbnail](images/photo.jpg?p=thumb)
 ```
 
-You can also use `preset` as query key:
+The `?preset=` key is also accepted as an alias for `?p=`.
+
+Raw params and presets can be combined. Raw values take precedence over preset values when both are present:
 
 ```djot
-![Thumb](images/cover.jpg?preset=thumb)
+![Custom hero](images/cover.jpg?p=hero&fm=webp)
 ```
 
-Raw parameters still work when presets are configured, and raw values override preset values when both are present.
+## Using Glide in PHP templates
 
-## Optional Glide driver
+The same URL patterns work in templates. Use the `basePath` prefix if your site is deployed to a subfolder:
 
-Set the driver in `glaze.neon` when needed:
+```php
+<?php
+$base = $site->basePath ?? '';
+$imageUrl = $base . '/images/cover.jpg?p=hero';
+?>
+<img src="<?= $imageUrl ?>" alt="Cover" />
+```
+
+Or inline:
+
+```php
+<img
+    src="<?= ($site->basePath ?? '') . $post->meta['image'] . '?p=thumb' ?>"
+    alt="<?= $post->title ?>"
+/>
+```
+
+You can also hardcode the transform parameters directly:
+
+```php
+<img src="/images/cover.jpg?w=800&h=400&fit=crop" alt="Cover" />
+```
+
+## Image driver
+
+Set the image processing driver in `glaze.neon`:
 
 ```neon
 images:
   driver: imagick
 ```
 
-Supported values are `gd` and `imagick`. If omitted, Glaze defaults to `gd`.
+Supported values: `gd` (default), `imagick`. Most PHP installations include GD. Imagick provides better color profile handling for certain image types.
 
-## Live mode behavior (`glaze serve`)
+## Live mode behavior
+
+In `glaze serve`:
 
 - image requests with Glide params are transformed on demand
-- transformed files are cached under `tmp/cache/glide`
-- regular template cache stays under `tmp/cache/sugar`
+- transformed results are cached under `tmp/cache/glide/`
+- subsequent requests for the same URL/params are served from cache
+- template cache lives separately under `tmp/cache/sugar/`
 
-## Build mode behavior (`glaze build`)
+## Build mode behavior
 
-- image URLs with Glide params are rewritten to static files under `/_glide/`
-- transformed files are written into `public/_glide/`
-- original assets are still copied to `public/` as source/fallback assets
+In `glaze build`:
+
+- all image URLs with Glide params found in rendered HTML are rewritten
+- transforms are computed and written to `public/_glide/`
+- the original source images are also copied to `public/` at their original paths
 
 Example:
 
-- source URL: `/blog/images/cover.jpg?w=1200&h=500`
-- built output URL: `/_glide/<hash>.jpg`
+- Source URL: `/images/cover.jpg?w=1200&h=500&fit=crop`
+- Output URL: `/_glide/abc123.jpg` (content-hash based name)
+- Output file: `public/_glide/abc123.jpg`
 
 ## Notes
 
-- Glide only runs for local image URLs.
-- External URLs (for example `https://...`) are not transformed.
-- If no Glide params are present, URLs remain unchanged.
-
-Next: [Usage](usage.dj) and [Configuration](configuration.dj).
-
-````
+- Glide only processes local image URLs. External URLs (`https://...`) pass through unchanged.
+- If no Glide params are present in a URL, it is not transformed.
+- Glide supports many parameters beyond `w`, `h`, and `fit` -- see the [Glide docs](https://glide.thephpleague.com/2.0/api/quick-reference/) for the full list.

@@ -1,33 +1,69 @@
 ---
 title: Why Not Markdown?
+weight: 110
 ---
 # Why not Markdown?
 
-Short answer: Markdown is great, but Glaze leans on [Djot](https://djot.net/) for a more consistent and expressive authoring experience.
+Glaze uses [Djot](https://djot.net/) instead of Markdown. This page explains why and what that means in practice.
 
-In Glaze, Djot support is provided by [php-collective/djot-php](https://github.com/php-collective/djot-php).
+Djot support is provided by [php-collective/djot-php](https://github.com/php-collective/djot-php).
 
-If you already write Markdown, you’re not doing anything wrong. This is about picking a format that gives cleaner rules and fewer surprises as a site grows.
+## The core reason: Markdown is ambiguous
 
-## The practical reasons
+Markdown's grammar has real parsing ambiguities. Different renderers make different choices, which is why there are so many flavors: CommonMark, GitHub Flavored Markdown, Pandoc, Kramdown, and dozens more. A page that renders correctly in one flavor may render differently in another.
 
-- **Fewer edge-case surprises**: Djot is designed with a clearer parsing model.
-- **More expressive syntax**: richer structure when you need it, still lightweight for normal writing.
-- **Better long-term maintainability**: fewer “which Markdown flavor does this support?” moments.
-- **Great fit for static-site authoring**: predictable input means predictable output.
+Djot was designed by John MacFarlane (the author of pandoc and CommonMark) specifically to fix these ambiguities. The parsing rules are fully specified and unambiguous.
 
-## Is Markdown bad then?
+## Practical differences
 
-Not at all.
+### Emphasis
 
-Markdown is simple, popular, and easy to learn. If your content needs are minimal, it can be perfect.
+Markdown uses `*` and `_` for emphasis with complex precedence rules. Djot uses `_` for emphasis and `*` for strong, always:
 
-Glaze simply chooses Djot because it scales better for the kind of structured content + templating workflow this project targets.
+```
+Markdown: *italic* **bold** _also italic_
+Djot:     _italic_ *bold*
+```
 
-## What this means for you
+### Raw inline HTML vs. attributes
 
-- You still write plain text content files.
-- Frontmatter is still simple (NEON in this project).
-- Your templates stay focused on rendering, not parsing quirks.
+In Markdown, you drop to raw HTML to add attributes. Djot has a clean attribute syntax built in:
 
-If you want to compare syntax details, check the [Djot docs](https://djot.net/).
+```djot
+[link text](url){.class #id target=_blank}
+![image](photo.jpg){width=800}
+```
+
+No raw HTML needed.
+
+### Code spans and fences
+
+Djot code handling is more predictable -- no special-case rules for backtick counts or indented code blocks.
+
+### Pipe tables
+
+Djot has pipe table support as a standard extension, consistent across implementations.
+
+## What stays the same
+
+- You still write plain text files
+- Headings use `#`
+- Bullet lists use `-` or `*`
+- Links are `[text](url)`
+- Images are `![alt](url)`
+- Bold/italic use `_` and `*` (just with swapped meaning)
+
+The learning curve for Djot is minimal if you already know Markdown.
+
+## Is Markdown bad?
+
+No. Markdown is simple, widely supported, and perfectly suitable for many use cases. If your content is minimal and your rendering environment is fixed, Markdown is fine.
+
+Glaze chooses Djot because it scales better for structured content pipelines where consistency and reliable attribute handling matter.
+
+## Resources
+
+- [Djot syntax reference](https://djot.net/)
+- [Djot rationale](https://johnmacfarlane.net/djot-rationale.html) -- John MacFarlane's explanation of the design decisions
+- [php-collective/djot-php](https://github.com/php-collective/djot-php) -- the parser used by Glaze
+

@@ -21,6 +21,7 @@ final class PageScaffoldOptions
      * @param string|null $pathPrefix Optional explicit path prefix.
      * @param bool $asIndex Whether to create page as a folder with index.dj.
      * @param bool $force Whether overwrite is allowed.
+     * @param int|null $weight Optional page sort weight.
      */
     public function __construct(
         public readonly string $title,
@@ -33,6 +34,7 @@ final class PageScaffoldOptions
         public readonly ?string $pathPrefix,
         public readonly bool $asIndex,
         public readonly bool $force,
+        public readonly ?int $weight = null,
     ) {
     }
 }

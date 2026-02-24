@@ -39,6 +39,7 @@ final class PageScaffoldServiceTest extends TestCase
                 pathPrefix: null,
                 asIndex: false,
                 force: false,
+                weight: 10,
             ),
         );
 
@@ -54,6 +55,7 @@ final class PageScaffoldServiceTest extends TestCase
         $this->assertStringContainsString("date: '2026-02-24T10:00:00+00:00'", $source);
         $this->assertStringContainsString('type: blog', $source);
         $this->assertStringContainsString('draft: true', $source);
+        $this->assertStringContainsString('weight: 10', $source);
     }
 
     /**

@@ -1,120 +1,181 @@
 ---
 title: Usage
+weight: 40
 ---
 # Usage
 
-This page covers the everyday way of working with Glaze.
+Day-to-day working with Glaze: project layout, routing rules, content creation, and building.
 
 ## Project structure
 
-Typical layout:
+A Glaze project follows this layout:
 
-- `content/` → Djot source files
-- `static/` → public assets copied as-is to `public/`
-- `templates/` → [Sugar](https://josbeir.github.io/sugar/) templates
-- `public/` → generated static output
-- `tmp/cache/` → template cache
-- `glaze.neon` → project configuration
-
-## Content routing basics
-
-Glaze maps `.dj` files to URLs.
-
-- `content/index.dj` → `/`
-- `content/blog/post.dj` → `/blog/post/`
-- `content/blog/index.dj` → `/blog/`
-
-You can override route behavior using frontmatter `slug`.
-
-## Frontmatter fields you’ll use most
-
-Frontmatter is written in [NEON](https://github.com/nette/neon), the same format used by `glaze.neon`.
-
-For full details and examples, see [Frontmatter](frontmatter).
-
-- `title` (string)
-- `slug` (string)
-- `draft` (bool)
-- `template` (string, optional per-page template override)
-- taxonomy fields like `tags`, `categories`, etc. (based on config)
-- `meta` map for arbitrary values
-
-## Images with Glide params
-
-Glide transforms are applied for image requests in live mode.
-
-From Djot content you can use raw query args directly:
-
-```djot
-![Hero](images/cover.jpg?h=500&w=1200&fit=crop)
+```
+my-site/
+  content/       Djot source files (.dj)
+  static/        Public assets -- copied verbatim to public/ during build
+  templates/     Sugar PHP templates (.sugar.php)
+  public/        Generated static output (do not commit)
+  tmp/cache/     Template render cache (do not commit)
+  glaze.neon     Project configuration
 ```
 
-If you define optional `images.presets` in `glaze.neon`, you can also use:
+## Content routing
+
+Glaze derives each page URL from its file path inside `content/`.
+
+- `content/index.dj` -> `/`
+- `content/about.dj` -> `/about/`
+- `content/blog/index.dj` -> `/blog/`
+- `content/blog/my-post.dj` -> `/blog/my-post/`
+- `content/blog/2026/hello.dj` -> `/blog/2026/hello/`
+
+Nested `index.dj` files collapse to the parent directory URL. Override any URL with the `slug` frontmatter field:
 
 ```djot
-![Thumb](images/cover.jpg?p=thumb)
+---
+title: About me
+slug: about-the-author
+---
 ```
 
-The same URL patterns can be used from templates when generating image links.
+## Writing content
 
-When running `glaze build`, transformed image URLs are rewritten to static files under `/_glide/` in `public/`.
+Pages are Djot files with optional NEON frontmatter:
 
-Code fences are syntax-highlighted by default via Phiki. You can configure or disable this with `codeHighlighting` in `glaze.neon`.
+```djot
+---
+title: Hello world
+date: 2026-02-24T10:00:00+01:00
+draft: false
+tags:
+  - hello
+  - news
+meta:
+  description: A quick hello from the new site.
+---
+# Hello world
 
-For a full reference (presets, cache behavior, and build output details), see [Glide images](glide-images.dj).
+Welcome! This is the first post.
+```
+
+Djot is similar in spirit to Markdown but with a cleaner, unambiguous grammar. See [Why not Markdown?](why-not-markdown.dj) for a comparison.
+
+## Frontmatter quick reference
+
+Key fields available on every page. Full reference: [Frontmatter](frontmatter.dj).
+
+- `title` (string) -- page title; inferred from slug when omitted
+- `slug` (string) -- override the auto-generated URL path
+- `date` (datetime) -- exposed as `Cake\Chronos\Chronos` in templates
+- `weight` (int) -- sort position in collections (lower sorts first)
+- `draft` (bool) -- excluded from build unless `--drafts` is passed
+- `template` (string) -- per-page template override
+- taxonomy fields (`tags`, `categories`, etc.) -- based on `glaze.neon` config
+- `meta` (map) -- custom key/value pairs available as `$page->meta` in templates
+
+## Static files
+
+Files in `static/` are copied verbatim into `public/` during build:
+
+- `static/robots.txt` is available at `/robots.txt`
+- `static/favicon.ico` is available at `/favicon.ico`
+- `static/styles/app.css` is available at `/styles/app.css`
+
+During `glaze serve`, `static/` is also served directly at its matching URL path.
+
+## Images
+
+Glaze integrates [League Glide](https://glide.thephpleague.com/) for on-demand image transforms. Append query params inline in content:
+
+```djot
+![Hero](images/cover.jpg?w=1200&h=500&fit=crop)
+```
+
+Or use named presets defined in `glaze.neon`:
+
+```djot
+![Thumb](images/photo.jpg?p=thumb)
+```
+
+Full details and template usage: [Glide images](glide-images.dj).
+
+## Syntax highlighting
+
+Fenced code blocks are highlighted by [Phiki](https://github.com/phikiphp/phiki) by default. Configure it in `glaze.neon`:
+
+```neon
+codeHighlighting:
+  enabled: true
+  theme: github-dark
+  withGutter: true
+```
 
 ## Build workflow
+
+Generate static output:
 
 ```bash
 glaze build
 ```
 
-Use `--clean` to clear `public/` before writing:
+Useful flags:
 
-```bash
-glaze build --clean
-```
+- `--clean` -- clear `public/` before writing
+- `--drafts` -- include draft pages in output
 
-During build:
+What happens during build:
 
-- pages are rendered from `content/` + `templates/`
-- non-Djot assets inside `content/` are copied to matching paths in `public/`
-- files inside `static/` are copied directly to `public/` root
-
-Use `static/` for files that should be publicly available but are not part of the content pipeline (for example `robots.txt`, `favicon.ico`, or prebuilt bundles).
+1. All non-draft `.dj` files in `content/` are rendered to HTML in `public/`
+2. Non-Djot files in `content/` are copied to matching paths in `public/`
+3. Everything in `static/` is copied verbatim to `public/`
+4. Glide image transforms are baked to static files under `public/_glide/`
 
 ## Creating new pages
 
-Use the page generator command:
+Use the interactive page generator:
 
 ```bash
 glaze new
 ```
 
-It prompts for title, date, post folder mode (`index.dj` vs `file.dj`), and draft state. When `contentTypes` are configured it also asks for type and places the page under that type path.
+Or pass values directly to skip prompts:
 
-Useful variants:
+```bash
+glaze new "My post title" --yes
+```
 
-- `--path "posts/2026"` to create pages in a subfolder
-- `--index` to create `folder/index.dj` instead of `file.dj`
-- `--type` is available when `contentTypes` are configured
+With a content type:
+
+```bash
+glaze new "Release 2.0" --type blog --yes
+```
+
+Use `--index` to create a bundle-style `folder/index.dj` instead of `folder.dj`:
+
+```bash
+glaze new "Project notes" --path notes --index --yes
+```
+
+Full option reference: [Commands](commands.dj).
 
 ## Draft behavior
 
-- Build mode excludes drafts by default
-- Use `--drafts` in build mode to include them
-- Live mode includes drafts by default
+- `glaze serve` includes drafts by default
+- `glaze build` excludes drafts by default; use `--drafts` to include them
 
-## Local development workflow
+## Local development
+
+Start the live server:
 
 ```bash
 glaze serve
 ```
 
-For static preview from `public/`:
+Pages are rendered on each request -- no rebuild needed. Edit content or templates and refresh.
+
+Preview the built `public/` output:
 
 ```bash
 glaze serve --static --build
 ```
-
-Next: [Glide images](glide-images.dj), [Templating](templating.dj), and [Page collections](page-collections.dj).
