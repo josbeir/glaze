@@ -3,26 +3,13 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Integration\Command;
 
-use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
-use Cake\Core\ConsoleApplicationInterface;
-use Glaze\Application;
-use PHPUnit\Framework\TestCase;
+use Glaze\Tests\Helper\IntegrationCommandTestCase;
 
 /**
  * Integration tests for the serve command.
  */
-final class ServeCommandTest extends TestCase
+final class ServeCommandTest extends IntegrationCommandTestCase
 {
-    use ConsoleIntegrationTestTrait;
-
-    /**
-     * Return the console application for command runner tests.
-     */
-    protected function createApp(): ConsoleApplicationInterface
-    {
-        return new Application();
-    }
-
     /**
      * Ensure help output includes available serve options.
      */
@@ -57,7 +44,7 @@ final class ServeCommandTest extends TestCase
      */
     public function testServeCommandBuildRequiresStaticMode(): void
     {
-        $projectRoot = $this->createTempDirectory();
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $this->exec(sprintf('serve --root "%s" --build', $projectRoot));
 
@@ -70,7 +57,7 @@ final class ServeCommandTest extends TestCase
      */
     public function testServeCommandRejectsInvalidPort(): void
     {
-        $projectRoot = $this->createTempDirectory();
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $this->exec(sprintf('serve --root "%s" --port 99999', $projectRoot));
 
@@ -92,13 +79,34 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
-     * Create a temporary directory for isolated test execution.
+     * Ensure static build errors are surfaced and command exits with error.
      */
-    protected function createTempDirectory(): string
+    public function testServeCommandStaticBuildReportsBuildFailure(): void
     {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
-        mkdir($path, 0755, true);
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents($projectRoot . '/public', 'not-a-directory');
 
-        return $path;
+        set_error_handler(static fn(): bool => true);
+        try {
+            $this->exec(sprintf('serve --root "%s" --static --build', $projectRoot));
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertExitCode(1);
+        $this->assertErrorContains('Unable to create output directory');
+    }
+
+    /**
+     * Ensure missing live router configuration is reported as command error.
+     */
+    public function testServeCommandLiveModeFailsWhenRouterIsMissing(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        $this->exec(sprintf('serve --root "%s"', $projectRoot));
+
+        $this->assertExitCode(1);
+        $this->assertErrorContains('Live router script not found');
     }
 }

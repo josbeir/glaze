@@ -3,23 +3,38 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Content;
 
+use Closure;
 use Glaze\Content\ContentDiscoveryService;
+use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * Tests for Djot content discovery and route mapping.
  */
 final class ContentDiscoveryServiceTest extends TestCase
 {
+    use FilesystemTestTrait;
+
+    /**
+     * Validate discover returns no pages for missing content directory.
+     */
+    public function testDiscoverReturnsEmptyArrayWhenContentDirectoryMissing(): void
+    {
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover($this->createTempDirectory() . '/missing');
+
+        $this->assertSame([], $pages);
+    }
+
     /**
      * Validate page discovery and derived route metadata.
      */
     public function testDiscoverBuildsPageMetadata(): void
     {
-        $rootPath = $this->createTempDirectory();
+        $rootPath = $this->copyFixtureToTemp('projects/basic');
         $contentPath = $rootPath . '/content';
         mkdir($contentPath . '/blog', 0755, true);
-        file_put_contents($contentPath . '/index.dj', "# Home\n");
         file_put_contents($contentPath . '/blog/Hello World.dj', "# Blog\n");
 
         $service = new ContentDiscoveryService();
@@ -76,7 +91,7 @@ final class ContentDiscoveryServiceTest extends TestCase
      */
     public function testDiscoverMapsNestedIndexToDirectoryUrl(): void
     {
-        $rootPath = $this->createTempDirectory();
+        $rootPath = $this->copyFixtureToTemp('projects/basic');
         $contentPath = $rootPath . '/content';
         mkdir($contentPath . '/blog', 0755, true);
         file_put_contents($contentPath . '/blog/index.dj', "# Blog\n");
@@ -84,7 +99,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $service = new ContentDiscoveryService();
         $pages = $service->discover($contentPath);
 
-        $this->assertCount(1, $pages);
+        $this->assertCount(2, $pages);
         $page = $pages[0];
         $this->assertSame('blog', $page->slug);
         $this->assertSame('/blog/', $page->urlPath);
@@ -92,13 +107,71 @@ final class ContentDiscoveryServiceTest extends TestCase
     }
 
     /**
-     * Create a temporary directory for isolated test execution.
+     * Validate metadata normalization for arrays and non-scalar values.
      */
-    protected function createTempDirectory(): string
+    public function testDiscoverNormalizesComplexMetadataValues(): void
     {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
-        mkdir($path, 0755, true);
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
 
-        return $path;
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nslug: ///\nname: 123\ntags:\n  - one\n  - 2\n  - null\n  - { bad: value }\nobj: { foo: bar }\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertSame('index', $page->slug);
+        $this->assertSame('/', $page->urlPath);
+        $this->assertSame(['one', 2, null], $page->meta['tags']);
+        $this->assertSame(123, $page->meta['name']);
+        $this->assertSame(['bar'], $page->meta['obj']);
+    }
+
+    /**
+     * Ensure protected helper methods handle fallback and error branches.
+     */
+    public function testProtectedHelpersHandleFallbackPaths(): void
+    {
+        $service = new ContentDiscoveryService();
+
+        $slug = $this->callProtected($service, 'slugifyPath', '///');
+        $title = $this->callProtected($service, 'resolveTitle', 'blog/my-post', ['title' => '']);
+
+        $this->assertSame('index', $slug);
+        $this->assertSame('My post', $title);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unable to read content file');
+        set_error_handler(static fn(): bool => true);
+        try {
+            $this->callProtected($service, 'readFile', '/missing-file.dj');
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    /**
+     * Invoke a protected method using scope-bound closure.
+     *
+     * @param object $object Object to invoke method on.
+     * @param string $method Protected method name.
+     * @param mixed ...$arguments Method arguments.
+     */
+    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
+    {
+        $invoker = Closure::bind(
+            function (string $method, mixed ...$arguments): mixed {
+                return $this->{$method}(...$arguments);
+            },
+            $object,
+            $object::class,
+        );
+
+        return $invoker($method, ...$arguments);
     }
 }

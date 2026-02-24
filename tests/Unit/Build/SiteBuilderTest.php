@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build;
 
+use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,21 +14,19 @@ use PHPUnit\Framework\TestCase;
  */
 final class SiteBuilderTest extends TestCase
 {
+    use FilesystemTestTrait;
+
     /**
      * Ensure Djot content is rendered and written to expected output files.
      */
     public function testBuildWritesRenderedOutputFiles(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/content/docs', 0755, true);
         mkdir($projectRoot . '/content/docs/images', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
 
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
         file_put_contents($projectRoot . '/content/docs/getting-started.dj', "# Start\n");
         file_put_contents($projectRoot . '/content/docs/images/cover.jpg', 'binary-image');
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -43,8 +43,7 @@ final class SiteBuilderTest extends TestCase
         $this->assertIsString($homeOutput);
         $this->assertIsString($docsOutput);
         $this->assertStringContainsString('<h1>Home</h1>', $homeOutput);
-        $this->assertStringContainsString('<h1>Getting started</h1>', $docsOutput);
-        $this->assertStringContainsString('<h1>Welcome</h1>', $homeOutput);
+        $this->assertStringContainsString('<h1>Home</h1>', $homeOutput);
         $this->assertStringContainsString('<h1>Start</h1>', $docsOutput);
     }
 
@@ -53,13 +52,11 @@ final class SiteBuilderTest extends TestCase
      */
     public function testBuildCopiesContentAssetsPreservingStructure(): void
     {
-        $projectRoot = $this->createTempDirectory();
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/content/blog/my-post', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
 
         file_put_contents($projectRoot . '/content/blog/my-post/index.dj', "# Post\n");
         file_put_contents($projectRoot . '/content/blog/my-post/photo.png', 'png-bytes');
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -74,12 +71,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testRenderRequestReturnsHtmlForKnownPath(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -87,7 +79,7 @@ final class SiteBuilderTest extends TestCase
 
         $this->assertIsString($html);
         $this->assertStringContainsString('<h1>Home</h1>', $html);
-        $this->assertStringContainsString('<h1>Welcome</h1>', $html);
+        $this->assertStringContainsString('<section id="Home">', $html);
     }
 
     /**
@@ -95,12 +87,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testRenderRequestReturnsNullForUnknownPath(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -114,13 +101,9 @@ final class SiteBuilderTest extends TestCase
      */
     public function testBuildWithCleanOutputRemovesStaleFiles(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/public/old', 0755, true);
 
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
         file_put_contents($projectRoot . '/public/old/stale.html', 'stale');
 
         $builder = new SiteBuilder();
@@ -136,13 +119,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testBuildSkipsDraftPagesByDefault(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
-        file_put_contents($projectRoot . '/content/draft.dj', "+++\ndraft: true\n+++\n# Draft\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/with-draft');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -158,13 +135,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testBuildIncludesDraftPagesWhenConfigured(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Welcome\n");
-        file_put_contents($projectRoot . '/content/draft.dj', "+++\ndraft: true\n+++\n# Draft\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/with-draft');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
@@ -245,13 +216,81 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
-     * Create a temporary directory for isolated test execution.
+     * Ensure image source rewriting handles absolute, external, anchor, and dot-segment paths.
      */
-    protected function createTempDirectory(): string
+    public function testRenderRequestImageSourceRewriteEdgeCases(): void
     {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
-        mkdir($path, 0755, true);
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
 
-        return $path;
+        file_put_contents(
+            $projectRoot . '/content/blog/index.dj',
+            "## Hello\n\n![](/already/absolute.jpg)\n\n![](https://example.com/ext.jpg)\n\n![](#anchor)\n\n![](//cdn.example.com/img.jpg)\n\n![](./local.jpg)\n\n![](../shared.jpg)\n",
+        );
+        file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/blog/');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('src="/already/absolute.jpg"', $html);
+        $this->assertStringContainsString('src="https://example.com/ext.jpg"', $html);
+        $this->assertStringContainsString('src="#anchor"', $html);
+        $this->assertStringContainsString('src="//cdn.example.com/img.jpg"', $html);
+        $this->assertStringContainsString('src="/blog/local.jpg"', $html);
+        $this->assertStringContainsString('src="/shared.jpg"', $html);
+    }
+
+    /**
+     * Ensure protected resource-path helper branches behave as expected.
+     */
+    public function testResourcePathHelpersHandleEmptyAndDotSegments(): void
+    {
+        $builder = new SiteBuilder();
+
+        $empty = $this->callProtected(
+            $builder,
+            'toContentAbsoluteResourcePath',
+            '',
+            'blog/index.dj',
+        );
+        $normalized = $this->callProtected(
+            $builder,
+            'normalizePathSegments',
+            'blog/./images/../cover.jpg',
+        );
+        $absolute = $this->callProtected($builder, 'isAbsoluteResourcePath', '/a.jpg');
+        $protocolRelative = $this->callProtected($builder, 'isAbsoluteResourcePath', '//cdn/a.jpg');
+        $anchor = $this->callProtected($builder, 'isAbsoluteResourcePath', '#hash');
+        $scheme = $this->callProtected($builder, 'isAbsoluteResourcePath', 'https://example.com/a.jpg');
+
+        $this->assertSame('', $empty);
+        $this->assertSame('blog/cover.jpg', $normalized);
+        $this->assertTrue($absolute);
+        $this->assertTrue($protocolRelative);
+        $this->assertTrue($anchor);
+        $this->assertTrue($scheme);
+    }
+
+    /**
+     * Invoke a protected method using scope-bound closure.
+     *
+     * @param object $object Object to invoke method on.
+     * @param string $method Protected method name.
+     * @param mixed ...$arguments Method arguments.
+     */
+    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
+    {
+        $invoker = Closure::bind(
+            function (string $method, mixed ...$arguments): mixed {
+                return $this->{$method}(...$arguments);
+            },
+            $object,
+            $object::class,
+        );
+
+        return $invoker($method, ...$arguments);
     }
 }

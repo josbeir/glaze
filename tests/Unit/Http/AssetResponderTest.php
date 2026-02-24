@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Http;
 
 use Cake\Http\Response;
 use Glaze\Http\AssetResponder;
+use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,6 +13,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class AssetResponderTest extends TestCase
 {
+    use FilesystemTestTrait;
+
     /**
      * Ensure existing files return HTTP responses.
      */
@@ -33,6 +36,20 @@ final class AssetResponderTest extends TestCase
     }
 
     /**
+     * Ensure empty request paths are ignored.
+     */
+    public function testCreateFileResponseReturnsNullForEmptyRequestPath(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $response = (new AssetResponder())->createFileResponse(
+            rootPath: $rootPath,
+            requestPath: '/',
+        );
+
+        $this->assertNotInstanceOf(Response::class, $response);
+    }
+
+    /**
      * Ensure djot source files are blocked by default.
      */
     public function testCreateFileResponseBlocksDjotFilesByDefault(): void
@@ -46,6 +63,24 @@ final class AssetResponderTest extends TestCase
         );
 
         $this->assertNotInstanceOf(Response::class, $response);
+    }
+
+    /**
+     * Ensure djot files can be served when explicitly allowed.
+     */
+    public function testCreateFileResponseAllowsDjotFilesWhenEnabled(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        file_put_contents($rootPath . '/index.dj', '# source');
+
+        $response = (new AssetResponder())->createFileResponse(
+            rootPath: $rootPath,
+            requestPath: '/index.dj',
+            allowDjot: true,
+        );
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame(200, $response->getStatusCode());
     }
 
     /**
@@ -66,13 +101,38 @@ final class AssetResponderTest extends TestCase
     }
 
     /**
-     * Create a temporary directory for isolated test execution.
+     * Ensure invalid asset root paths return no response.
      */
-    protected function createTempDirectory(): string
+    public function testCreateFileResponseReturnsNullForInvalidRootPath(): void
     {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
-        mkdir($path, 0755, true);
+        $response = (new AssetResponder())->createFileResponse(
+            rootPath: $this->createTempDirectory() . '/missing',
+            requestPath: '/image.jpg',
+        );
 
-        return $path;
+        $this->assertNotInstanceOf(Response::class, $response);
+    }
+
+    /**
+     * Ensure symlink traversal outside root is rejected by root-prefix guard.
+     */
+    public function testCreateFileResponseRejectsSymlinkTraversalOutsideRoot(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $outsidePath = $this->createTempDirectory();
+        file_put_contents($outsidePath . '/external.txt', 'external');
+
+        if (!function_exists('symlink')) {
+            $this->markTestSkipped('Symlink support is required for this test.');
+        }
+
+        symlink($outsidePath . '/external.txt', $rootPath . '/link.txt');
+
+        $response = (new AssetResponder())->createFileResponse(
+            rootPath: $rootPath,
+            requestPath: '/link.txt',
+        );
+
+        $this->assertNotInstanceOf(Response::class, $response);
     }
 }

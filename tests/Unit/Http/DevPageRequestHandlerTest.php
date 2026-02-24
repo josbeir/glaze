@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Http;
 use Cake\Http\ServerRequestFactory;
 use Glaze\Config\BuildConfig;
 use Glaze\Http\DevPageRequestHandler;
+use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -13,17 +14,14 @@ use PHPUnit\Framework\TestCase;
  */
 final class DevPageRequestHandlerTest extends TestCase
 {
+    use FilesystemTestTrait;
+
     /**
      * Ensure known content paths return rendered HTML.
      */
     public function testHandleReturnsOkResponseForKnownPage(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Hello\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $handler = new DevPageRequestHandler($config);
@@ -41,12 +39,7 @@ final class DevPageRequestHandlerTest extends TestCase
      */
     public function testHandleReturnsNotFoundForUnknownPage(): void
     {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
-        file_put_contents($projectRoot . '/content/index.dj', "# Hello\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $handler = new DevPageRequestHandler($config);
@@ -63,12 +56,9 @@ final class DevPageRequestHandlerTest extends TestCase
      */
     public function testHandleRedirectsDirectoryPathToTrailingSlash(): void
     {
-        $projectRoot = $this->createTempDirectory();
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/content/blog', 0755, true);
-        mkdir($projectRoot . '/templates', 0755, true);
-
         file_put_contents($projectRoot . '/content/blog/index.dj', "# Blog\n");
-        file_put_contents($projectRoot . '/templates/page.sugar.php', '<h1><?= htmlspecialchars((string)$title, ENT_QUOTES, "UTF-8") ?></h1><?= $content |> raw() ?>');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $handler = new DevPageRequestHandler($config);
@@ -78,16 +68,5 @@ final class DevPageRequestHandlerTest extends TestCase
 
         $this->assertSame(301, $response->getStatusCode());
         $this->assertSame('/blog/', $response->getHeaderLine('Location'));
-    }
-
-    /**
-     * Create a temporary directory for isolated test execution.
-     */
-    protected function createTempDirectory(): string
-    {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
-        mkdir($path, 0755, true);
-
-        return $path;
     }
 }

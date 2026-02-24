@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="Sugar">
+<ruleset name="Glaze">
     <arg value="p"/>
     <rule ref="CakePHP"/>
     <file>src/</file>
