@@ -6,16 +6,16 @@ namespace Glaze\Tests\Integration\Command;
 use Glaze\Tests\Helper\IntegrationCommandTestCase;
 
 /**
- * Integration tests for the new command.
+ * Integration tests for the init command.
  */
-final class NewCommandTest extends IntegrationCommandTestCase
+final class InitCommandTest extends IntegrationCommandTestCase
 {
     /**
-     * Ensure help output includes available new command options.
+     * Ensure help output includes available init command options.
      */
-    public function testNewCommandHelpContainsOptions(): void
+    public function testInitCommandHelpContainsOptions(): void
     {
-        $this->exec('new --help');
+        $this->exec('init --help');
 
         $this->assertExitCode(0);
         $this->assertOutputContains('--name');
@@ -29,14 +29,14 @@ final class NewCommandTest extends IntegrationCommandTestCase
     }
 
     /**
-     * Ensure new command scaffolds project from command arguments.
+     * Ensure init command scaffolds project from command arguments.
      */
-    public function testNewCommandCreatesProjectWithArguments(): void
+    public function testInitCommandCreatesProjectWithArguments(): void
     {
         $target = $this->createTempDirectory() . '/arg-site';
 
         $this->exec(sprintf(
-            'new "%s" --name "arg-site" --title "Arg Site" --page-template "landing" --description "Arg description" --base-url "https://arg.example" --base-path "/blog" --taxonomies tags,categories --yes',
+            'init "%s" --name "arg-site" --title "Arg Site" --page-template "landing" --description "Arg description" --base-url "https://arg.example" --base-path "/blog" --taxonomies tags,categories --yes',
             $target,
         ));
 
@@ -53,12 +53,12 @@ final class NewCommandTest extends IntegrationCommandTestCase
     /**
      * Ensure interactive flow collects values and creates scaffold.
      */
-    public function testNewCommandInteractiveFlowCreatesProject(): void
+    public function testInitCommandInteractiveFlowCreatesProject(): void
     {
         $target = $this->createTempDirectory() . '/interactive-site';
 
         $this->exec(
-            sprintf('new "%s"', $target),
+            sprintf('init "%s"', $target),
             ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories'],
         );
 
@@ -74,12 +74,12 @@ final class NewCommandTest extends IntegrationCommandTestCase
     /**
      * Ensure interactive flow asks for project directory when omitted.
      */
-    public function testNewCommandInteractiveFlowAsksForDirectoryWhenMissing(): void
+    public function testInitCommandInteractiveFlowAsksForDirectoryWhenMissing(): void
     {
         $target = $this->createTempDirectory() . '/prompted-directory-site';
 
         $this->exec(
-            'new',
+            'init',
             [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories'],
         );
 
@@ -92,13 +92,13 @@ final class NewCommandTest extends IntegrationCommandTestCase
     /**
      * Ensure non-empty target fails without force option.
      */
-    public function testNewCommandRejectsNonEmptyDirectoryWithoutForce(): void
+    public function testInitCommandRejectsNonEmptyDirectoryWithoutForce(): void
     {
         $target = $this->createTempDirectory() . '/existing';
         mkdir($target, 0755, true);
         file_put_contents($target . '/keep.txt', 'keep');
 
-        $this->exec(sprintf('new "%s" --yes', $target));
+        $this->exec(sprintf('init "%s" --yes', $target));
 
         $this->assertExitCode(1);
         $this->assertErrorContains('is not empty');
@@ -107,9 +107,9 @@ final class NewCommandTest extends IntegrationCommandTestCase
     /**
      * Ensure non-interactive mode requires either directory argument or --name.
      */
-    public function testNewCommandRejectsMissingDirectoryInNonInteractiveMode(): void
+    public function testInitCommandRejectsMissingDirectoryInNonInteractiveMode(): void
     {
-        $this->exec('new --yes');
+        $this->exec('init --yes');
 
         $this->assertExitCode(1);
         $this->assertErrorContains('Project directory is required.');
@@ -118,11 +118,11 @@ final class NewCommandTest extends IntegrationCommandTestCase
     /**
      * Ensure --name is used as target directory when directory argument is absent.
      */
-    public function testNewCommandUsesNameAsDirectoryWhenMissingArgument(): void
+    public function testInitCommandUsesNameAsDirectoryWhenMissingArgument(): void
     {
         $target = $this->createTempDirectory() . '/name-derived-site';
 
-        $this->exec(sprintf('new --name "%s" --title "Name Derived" --yes', $target));
+        $this->exec(sprintf('init --name "%s" --title "Name Derived" --yes', $target));
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');

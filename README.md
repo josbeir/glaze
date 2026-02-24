@@ -31,7 +31,7 @@ It gives you a clean workflow:
 - shape output with Sugar templates
 - generate static files for reliable, simple deployment
 
-Under the hood, Glaze stays intentionally lightweight while still giving you practical features like frontmatter, taxonomy-aware content discovery, template context helpers, and an ergonomic CLI (`glaze new`, `glaze build`, `glaze serve`).
+Under the hood, Glaze stays intentionally lightweight while still giving you practical features like frontmatter, taxonomy-aware content discovery, template context helpers, and an ergonomic CLI (`glaze init`, `glaze build`, `glaze serve`).
 
 Glaze is built around:
 
@@ -53,14 +53,14 @@ glaze --help
 ## Scaffold a new site
 
 ```bash
-glaze new my-site
+glaze init my-site
 cd my-site
 ```
 
 For local installs:
 
 ```bash
-vendor/bin/glaze new my-site
+vendor/bin/glaze init my-site
 cd my-site
 ```
 

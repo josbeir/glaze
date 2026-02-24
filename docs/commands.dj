@@ -21,12 +21,12 @@ php bin/glaze --help
 ./bin/glaze --help
 ```
 
-## `new`
+## `init`
 
 Create a new Glaze project scaffold.
 
 ```bash
-glaze new my-site
+glaze init my-site
 ```
 
 Useful options:
@@ -44,7 +44,7 @@ Useful options:
 Example:
 
 ```bash
-glaze new my-site \
+glaze init my-site \
   --title "My Site" \
   --page-template "landing" \
   --description "Small notes and experiments" \
@@ -96,6 +96,6 @@ glaze serve --static --build
 
 ## Typical workflow
 
-1. `new` (once)
+1. `init` (once)
 2. `serve` during development
 3. `build` for deployment artifacts

@@ -6,20 +6,20 @@ slug: /docs/quick-start/
 
 This is the fastest path from zero to a running site.
 
-In Glaze, a new project is scaffolded with `glaze new`.
+In Glaze, a new project is scaffolded with `glaze init`.
 
 ## 1) Scaffold a project
 
 With Glaze installed as a Composer binary:
 
 ```bash
-glaze new my-glaze-site
+glaze init my-glaze-site
 ```
 
 You can also run non-interactive:
 
 ```bash
-glaze new my-glaze-site --base-path "/blog" --yes
+glaze init my-glaze-site --base-path "/blog" --yes
 ```
 
 ## 2) Move into the project

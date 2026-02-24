@@ -13,10 +13,10 @@ use Glaze\Scaffold\ScaffoldOptions;
 use RuntimeException;
 
 /**
- * Scaffold a new Glaze project directory.
+ * Initialize a new Glaze project directory.
  */
 /** @phpstan-ignore-next-line */
-final class NewCommand extends BaseCommand
+final class InitCommand extends BaseCommand
 {
     protected ?ProjectScaffoldService $scaffoldService = null;
 

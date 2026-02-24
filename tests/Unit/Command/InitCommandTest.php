@@ -6,23 +6,23 @@ namespace Glaze\Tests\Unit\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Closure;
-use Glaze\Command\NewCommand;
+use Glaze\Command\InitCommand;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 /**
- * Unit tests for new command internals.
+ * Unit tests for init command internals.
  */
-final class NewCommandTest extends TestCase
+final class InitCommandTest extends TestCase
 {
     /**
      * Ensure taxonomy parsing handles empty values and deduplication.
      */
     public function testParseTaxonomiesNormalizesInput(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $parsed = $this->callProtected($command, 'parseTaxonomies', ' Tags, categories, tags, , ');
         $fallback = $this->callProtected($command, 'parseTaxonomies', ' , ');
@@ -36,7 +36,7 @@ final class NewCommandTest extends TestCase
      */
     public function testPathAndTitleHelpers(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $title = $this->callProtected($command, 'defaultTitle', 'my-site');
         $relative = $this->callProtected($command, 'normalizePath', 'tmp/new-site/');
@@ -59,7 +59,7 @@ final class NewCommandTest extends TestCase
      */
     public function testScaffoldServiceAccessorCachesInstance(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $first = $this->callProtected($command, 'scaffoldService');
         $second = $this->callProtected($command, 'scaffoldService');
@@ -73,7 +73,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeStringReturnsNullForInvalidValues(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $empty = $this->callProtected($command, 'normalizeString', '   ');
         $nonString = $this->callProtected($command, 'normalizeString', ['site']);
@@ -89,7 +89,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeBasePathNormalizesInput(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $empty = $this->callProtected($command, 'normalizeBasePath', null);
         $root = $this->callProtected($command, 'normalizeBasePath', '/');
@@ -107,7 +107,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeTemplateNameNormalizesInput(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
 
         $defaultTemplate = $this->callProtected($command, 'normalizeTemplateName', null);
         $emptyTemplate = $this->callProtected($command, 'normalizeTemplateName', '  ');
@@ -123,7 +123,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsNormalizesRelativeDirectory(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
         $arguments = new Arguments(
             ['relative-site'],
             ['yes' => true, 'base-path' => 'docs'],
@@ -145,7 +145,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsRejectsMissingDirectory(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
         $arguments = new Arguments([], ['yes' => true], ['directory']);
         $io = new ConsoleIo();
 
@@ -160,7 +160,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsRejectsMissingDerivedSiteName(): void
     {
-        $command = new NewCommand();
+        $command = new InitCommand();
         $arguments = new Arguments(['/'], ['yes' => true], ['directory']);
         $io = new ConsoleIo();
 

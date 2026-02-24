@@ -56,20 +56,20 @@ Or, for project-local installs:
 vendor/bin/glaze --help
 ```
 
-You should see available commands such as `new`, `build`, and `serve`.
+You should see available commands such as `init`, `build`, and `serve`.
 
 ## Scaffold a new project
 
 Once the CLI is available, create a site scaffold with:
 
 ```bash
-glaze new my-site
+glaze init my-site
 ```
 
 Or for project-local installs:
 
 ```bash
-vendor/bin/glaze new my-site
+vendor/bin/glaze init my-site
 ```
 
 ## Next step
