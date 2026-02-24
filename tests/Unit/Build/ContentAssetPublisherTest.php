@@ -42,11 +42,13 @@ final class ContentAssetPublisherTest extends TestCase
         $temp = $this->createTempDirectory();
         $source = $temp . '/source.jpg';
         file_put_contents($source, 'bytes');
+        $blockedDirectory = $temp . '/blocked';
+        file_put_contents($blockedDirectory, 'file-not-directory');
 
         $publisher = new ContentAssetPublisher();
         set_error_handler(static fn(): bool => true);
         try {
-            $this->callProtected($publisher, 'copyFile', $source, '/dev/null/subdir/image.jpg');
+            $this->callProtected($publisher, 'copyFile', $source, $blockedDirectory . '/image.jpg');
         } finally {
             restore_error_handler();
         }

@@ -28,7 +28,7 @@ You can override route behavior using frontmatter `slug`.
 
 ## Frontmatter fields you’ll use most
 
-Frontmatter is written in [NEON](https://doc.nette.org/en/neon), the same format used by `glaze.neon`.
+Frontmatter is written in [NEON](https://github.com/nette/neon), the same format used by `glaze.neon`.
 
 - `title` (string)
 - `slug` (string)

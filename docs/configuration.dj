@@ -6,7 +6,7 @@ slug: /docs/configuration/
 
 Glaze reads project configuration from `glaze.neon` in your project root.
 
-Glaze uses [NEON](https://doc.nette.org/en/neon) as its configuration format for both:
+Glaze uses [NEON](https://github.com/nette/neon) as its configuration format for both:
 
 - project/site configuration (`glaze.neon`)
 - page frontmatter blocks in `.dj` files
@@ -50,7 +50,7 @@ then `tags` and `categories` are extracted from page frontmatter and available t
 
 ## Frontmatter fence format
 
-Glaze supports both `+++` and `---` fenced [NEON](https://doc.nette.org/en/neon) frontmatter at the top of `.dj` files.
+Glaze supports both `+++` and `---` fenced [NEON](https://github.com/nette/neon) frontmatter at the top of `.dj` files.
 
 ## Notes
 

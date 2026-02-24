@@ -239,7 +239,7 @@ final class NewCommand extends BaseCommand
             return false;
         }
 
-        if (str_starts_with($path, DIRECTORY_SEPARATOR)) {
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
             return true;
         }
 

@@ -37,7 +37,7 @@ Glaze is built around:
 
 - [Djot](https://djot.net/) content (via [php-collective/djot-php](https://github.com/php-collective/djot-php))
 - [Sugar](https://josbeir.github.io/sugar/) templates
-- [NEON](https://ne-on.org/) configuration for both page frontmatter and project/site config
+- [NEON](https://github.com/nette/neon/) configuration for both page frontmatter and project/site config
 
 If you like clean files, modern templating, and quick iteration, Glaze is made for you.
 
