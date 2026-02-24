@@ -1,0 +1,6 @@
+vendor/
+.github/instructions/
+cache/
+tmp/
+public/*
+content/*
