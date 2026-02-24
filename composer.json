@@ -2,6 +2,9 @@
     "name": "josbeir/glaze",
     "description": "A sweet static site generaror for PHP",
     "type": "project",
+    "bin": [
+        "bin/glaze"
+    ],
     "require": {
         "cakephp/console": "^5.3",
         "cakephp/http": "^5.3",

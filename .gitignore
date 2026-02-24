@@ -2,6 +2,6 @@ vendor/
 .github/instructions/
 cache/
 tmp/
-public/*
-content/*
+public/
+build/
 composer.lock
