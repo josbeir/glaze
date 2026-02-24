@@ -66,6 +66,57 @@ Options:
 - `--clean` clean output directory before build
 - `--drafts` include draft pages
 
+## `new`
+
+Create a new Djot content page with frontmatter.
+
+```bash
+glaze new
+```
+
+Interactive prompts ask for:
+
+- title
+- type (only shown when contentTypes are configured)
+- date (defaults to current time)
+- create post folder (`index.dj`) or single file (`my-title.dj`)
+- draft (yes/no)
+
+Options:
+
+- `--root <path>` project root
+- `--title <title>` page title (also available as positional argument)
+- `--slug <slug>` explicit page slug/path
+- `--path <path>` optional subfolder path prefix under `content/`
+- `--date <date>` date/datetime parseable by Chronos
+- `--type <type>` content type name (required when `contentTypes` are configured)
+- `--draft` mark page as draft
+- `--index` create page as `folder/index.dj` instead of `file.dj`
+- `--force` overwrite existing target file
+- `--yes` non-interactive mode
+
+Examples:
+
+```bash
+# interactive
+glaze new
+
+# fully non-interactive
+glaze new "Post title" --date "2026-02-24T14:30:00+01:00" --type blog --draft --yes
+
+# create under a subfolder path
+glaze new "Post title" --path "posts/2026" --yes
+
+# smart placement from type path rule (for example `contentTypes.blog.paths[0].match: posts`)
+glaze new "Post title" --type blog --yes
+
+# when a type has multiple path rules, select one with --path (must match a `match` value)
+glaze new "Post title" --type blog --path posts --yes
+
+# create a bundle-style page with index.dj
+glaze new "Post title" --path "blog" --index --yes
+```
+
 ## `serve`
 
 Run local web server for development.

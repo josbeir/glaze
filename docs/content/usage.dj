@@ -72,6 +72,22 @@ Use `--clean` to clear `public/` before writing:
 glaze build --clean
 ```
 
+## Creating new pages
+
+Use the page generator command:
+
+```bash
+glaze new
+```
+
+It prompts for title, date, post folder mode (`index.dj` vs `file.dj`), and draft state. When `contentTypes` are configured it also asks for type and places the page under that type path.
+
+Useful variants:
+
+- `--path "posts/2026"` to create pages in a subfolder
+- `--index` to create `folder/index.dj` instead of `file.dj`
+- `--type` is available when `contentTypes` are configured
+
 ## Draft behavior
 
 - Build mode excludes drafts by default

@@ -26,7 +26,7 @@ final class BuildConfig
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
-     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
@@ -82,7 +82,7 @@ final class BuildConfig
      * Normalize configured content type rules.
      *
      * @param mixed $contentTypes Raw configured content type map.
-     * @return array<string, array{paths: array<string>, defaults: array<string, mixed>}>
+     * @return array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}>
      */
     protected static function normalizeContentTypes(mixed $contentTypes): array
     {
@@ -119,22 +119,84 @@ final class BuildConfig
                 ));
             }
 
-            $paths = array_map(
-                static fn(string $path): string => trim(str_replace('\\', '/', $path), '/'),
-                Normalization::stringList($typeConfiguration['paths'] ?? null),
+            $normalizedPaths = self::normalizeContentTypePaths(
+                $normalizedTypeName,
+                $typeConfiguration['paths'] ?? null,
             );
             $defaults = self::normalizeContentTypeDefaults($normalizedTypeName, $typeConfiguration['defaults'] ?? null);
 
             $normalized[$normalizedTypeName] = [
-                'paths' => array_values(array_unique(array_filter(
-                    $paths,
-                    static fn(string $path): bool => $path !== '',
-                ))),
+                'paths' => $normalizedPaths,
                 'defaults' => $defaults,
             ];
         }
 
         return $normalized;
+    }
+
+    /**
+     * Normalize content type paths.
+     *
+     * @param string $contentTypeName Content type name.
+     * @param mixed $paths Raw paths configuration.
+     * @return array<array{match: string, createPattern: string|null}>
+     */
+    protected static function normalizeContentTypePaths(
+        string $contentTypeName,
+        mixed $paths,
+    ): array {
+        if ($paths === null) {
+            return [];
+        }
+
+        if (!is_array($paths)) {
+            throw new RuntimeException(sprintf(
+                'Invalid project configuration: content type "%s" paths must be a list.',
+                $contentTypeName,
+            ));
+        }
+
+        $normalized = [];
+        foreach ($paths as $entry) {
+            if (is_string($entry)) {
+                $match = trim(str_replace('\\', '/', $entry), '/');
+                if ($match === '') {
+                    continue;
+                }
+
+                $normalized[$match] = [
+                    'match' => $match,
+                    'createPattern' => null,
+                ];
+
+                continue;
+            }
+
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $match = Normalization::optionalString($entry['match'] ?? null);
+            if ($match === null) {
+                continue;
+            }
+
+            $normalizedMatch = trim(str_replace('\\', '/', $match), '/');
+            if ($normalizedMatch === '') {
+                continue;
+            }
+
+            $createPattern = Normalization::optionalString($entry['createPattern'] ?? null);
+
+            $normalized[$normalizedMatch] = [
+                'match' => $normalizedMatch,
+                'createPattern' => $createPattern !== null
+                    ? trim(str_replace('\\', '/', $createPattern), '/')
+                    : null,
+            ];
+        }
+
+        return array_values($normalized);
     }
 
     /**

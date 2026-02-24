@@ -250,7 +250,9 @@ final class ContentDiscoveryServiceTest extends TestCase
             ['tags'],
             [
                 'blog' => [
-                    'paths' => ['blog'],
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => null],
+                    ],
                     'defaults' => [
                         'template' => 'blog-post',
                         'description' => 'Blog description',
@@ -288,11 +290,15 @@ final class ContentDiscoveryServiceTest extends TestCase
             ['tags'],
             [
                 'blog' => [
-                    'paths' => ['blog'],
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => null],
+                    ],
                     'defaults' => ['template' => 'blog-post'],
                 ],
                 'docs' => [
-                    'paths' => ['docs'],
+                    'paths' => [
+                        ['match' => 'docs', 'createPattern' => null],
+                    ],
                     'defaults' => ['template' => 'docs-page'],
                 ],
             ],
@@ -327,7 +333,9 @@ final class ContentDiscoveryServiceTest extends TestCase
             ['tags'],
             [
                 'blog' => [
-                    'paths' => ['blog'],
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => null],
+                    ],
                     'defaults' => [],
                 ],
             ],
@@ -354,7 +362,9 @@ final class ContentDiscoveryServiceTest extends TestCase
             ['tags'],
             [
                 'blog' => [
-                    'paths' => ['blog'],
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => null],
+                    ],
                     'defaults' => ['template' => 'blog-post'],
                 ],
             ],

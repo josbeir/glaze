@@ -41,14 +41,15 @@ taxonomies:
 contentTypes:
   blog:
     paths:
-      - blog
+      - match: blog
+        createPattern: blog/{date:Y/m}
     defaults:
       template: blog
       description: Blog post
 
   docs:
     paths:
-      - docs
+      - match: docs
     defaults:
       template: docs
 ```
@@ -102,10 +103,21 @@ then `tags` and `categories` are extracted from page frontmatter and available t
 Use `contentTypes` to classify pages and apply metadata defaults.
 
 - type names are keys (`blog`, `docs`, ...)
-- `paths` is a list of content path prefixes
+- `paths` is a list of path rules (`match` + optional `createPattern`)
+- shorthand path entries are also supported (for example `- simple`)
+- `createPattern` is optional and controls where `glaze new` creates pages for that rule
 - `defaults` is a metadata map merged into matching pages
 - page frontmatter overrides type defaults
 - explicit frontmatter `type` overrides path matching
+
+Shorthand example:
+
+```neon
+contentTypes:
+  docs:
+    paths:
+      - simple
+```
 
 Example frontmatter override:
 

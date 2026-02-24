@@ -7,6 +7,7 @@ use Cake\Console\CommandCollection;
 use Cake\Core\ConsoleApplicationInterface;
 use Glaze\Command\BuildCommand;
 use Glaze\Command\InitCommand;
+use Glaze\Command\NewCommand;
 use Glaze\Command\ServeCommand;
 
 /**
@@ -30,6 +31,7 @@ final class Application implements ConsoleApplicationInterface
     {
         $commands->add('build', BuildCommand::class);
         $commands->add('init', InitCommand::class);
+        $commands->add('new', NewCommand::class);
         $commands->add('serve', ServeCommand::class);
 
         return $commands;

@@ -222,7 +222,8 @@ final class ProjectScaffoldService
 # contentTypes:
 #   blog:
 #     paths:
-#       - blog
+#       - match: blog
+#         createPattern: 'blog/{date:Y/m}'
 #     defaults:
 #       template: blog
 NEON;

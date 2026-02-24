@@ -8,6 +8,11 @@ taxonomies:
 	- tags
 	- categories
 
+contentTypes:
+	blog:
+		paths:
+			- match: blog
+			  createPattern: 'blog/{date:Y/m}'
 
 # --- Available options (uncomment and adjust as needed) ---
 # pageTemplate: page
@@ -31,3 +36,13 @@ taxonomies:
 # taxonomies:
 #   - tags
 #   - categories
+#
+# contentTypes:
+#   blog:
+#     paths:
+#       - match: blog
+#         createPattern: 'blog/{date:Y/m}'
+#       # shorthand also works:
+#       # - simple
+#     defaults:
+#       template: blog

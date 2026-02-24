@@ -157,7 +157,12 @@ final class BuildConfigTest extends TestCase
 
         $this->assertSame([
             'blog' => [
-                'paths' => ['blog'],
+                'paths' => [
+                    [
+                        'match' => 'blog',
+                        'createPattern' => null,
+                    ],
+                ],
                 'defaults' => [
                     'template' => 'article',
                     'draft' => false,

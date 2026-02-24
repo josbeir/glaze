@@ -36,7 +36,7 @@ final class ContentDiscoveryService
      *
      * @param string $contentPath Absolute content directory path.
      * @param array<string> $taxonomies Enabled taxonomy keys.
-     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @return array<\Glaze\Content\ContentPage>
      */
     public function discover(
@@ -106,7 +106,7 @@ final class ContentDiscoveryService
      *
      * @param string $relativePath Relative source file path.
      * @param array<string, mixed> $meta Normalized page metadata.
-     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      */
     protected function resolveContentType(string $relativePath, array $meta, array $contentTypes): ?string
     {
@@ -131,7 +131,7 @@ final class ContentDiscoveryService
         $normalizedRelativePath = trim(str_replace('\\', '/', $relativePath), '/');
 
         foreach ($contentTypes as $typeName => $typeConfiguration) {
-            foreach ($typeConfiguration['paths'] as $prefix) {
+            foreach ($this->typePathPrefixes($typeConfiguration['paths'] ?? []) as $prefix) {
                 if ($prefix === '') {
                     continue;
                 }
@@ -150,7 +150,7 @@ final class ContentDiscoveryService
      *
      * @param array<string, mixed> $meta Normalized page metadata.
      * @param string|null $type Resolved content type.
-     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @return array<string, mixed>
      */
     protected function mergeContentTypeDefaults(array $meta, ?string $type, array $contentTypes): array
@@ -165,6 +165,44 @@ final class ContentDiscoveryService
         $merged['type'] = $type;
 
         return $merged;
+    }
+
+    /**
+     * Extract path prefixes from normalized or legacy type path configuration.
+     *
+     * @param array<mixed> $paths Content type paths.
+     * @return array<string>
+     */
+    protected function typePathPrefixes(array $paths): array
+    {
+        $prefixes = [];
+
+        foreach ($paths as $path) {
+            if (is_string($path)) {
+                $normalized = trim(str_replace('\\', '/', $path), '/');
+                if ($normalized !== '') {
+                    $prefixes[] = $normalized;
+                }
+
+                continue;
+            }
+
+            if (!is_array($path)) {
+                continue;
+            }
+
+            $match = Normalization::optionalString($path['match'] ?? null);
+            if ($match === null) {
+                continue;
+            }
+
+            $normalizedMatch = trim(str_replace('\\', '/', $match), '/');
+            if ($normalizedMatch !== '') {
+                $prefixes[] = $normalizedMatch;
+            }
+        }
+
+        return array_values(array_unique($prefixes));
     }
 
     /**
