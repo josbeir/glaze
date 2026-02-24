@@ -11,7 +11,8 @@ final class ProjectRootResolver
     /**
      * Resolve project root from optional CLI root value.
      *
-     * If no explicit root is provided, current working directory is used.
+     * If no explicit root is provided, shell-reported current directory (`PWD`) is preferred
+     * and falls back to process working directory (`getcwd()`).
      * When `glaze.neon` exists in current working directory, it is always treated as project root.
      *
      * @param string|null $rootOption Optional CLI root option.
@@ -23,8 +24,21 @@ final class ProjectRootResolver
             return $normalizedOption;
         }
 
-        $currentDirectory = Normalization::optionalPath(getcwd() ?: '.');
+        $currentDirectory = self::resolveCurrentDirectory();
 
         return $currentDirectory ?? '.';
+    }
+
+    /**
+     * Resolve current directory from environment and runtime context.
+     */
+    protected static function resolveCurrentDirectory(): ?string
+    {
+        $shellDirectory = Normalization::optionalPath(getenv('PWD') ?: null);
+        if ($shellDirectory !== null && is_dir($shellDirectory)) {
+            return $shellDirectory;
+        }
+
+        return Normalization::optionalPath(getcwd() ?: '.');
     }
 }
