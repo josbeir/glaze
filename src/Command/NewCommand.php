@@ -52,8 +52,16 @@ final class NewCommand extends BaseCommand
                 'help' => 'Default site description.',
                 'default' => null,
             ])
+            ->addOption('page-template', [
+                'help' => 'Default page template name.',
+                'default' => null,
+            ])
             ->addOption('base-url', [
                 'help' => 'Site base URL.',
+                'default' => null,
+            ])
+            ->addOption('base-path', [
+                'help' => 'Site base path for subfolder deployments, for example /docs.',
                 'default' => null,
             ])
             ->addOption('taxonomies', [
@@ -134,14 +142,17 @@ final class NewCommand extends BaseCommand
         }
 
         $titleDefault = $this->normalizeString($args->getOption('title')) ?? $this->defaultTitle($siteName);
+        $pageTemplateDefault = $this->normalizeTemplateName($this->normalizeString($args->getOption('page-template')));
         $descriptionDefault = $this->normalizeString($args->getOption('description')) ?? '';
         $baseUrlDefault = $this->normalizeString($args->getOption('base-url'));
+        $basePathDefault = $this->normalizeBasePath($this->normalizeString($args->getOption('base-path')));
         $taxonomiesDefault = $this->normalizeString($args->getOption('taxonomies')) ?? 'tags,categories';
 
         if (!$nonInteractive) {
             $titleDefault = $io->ask('Site title', $titleDefault);
             $descriptionDefault = $io->ask('Default description', $descriptionDefault);
             $baseUrlDefault = $io->ask('Base URL (optional)', $baseUrlDefault ?? '');
+            $basePathDefault = $this->normalizeBasePath($io->ask('Base path (optional)', $basePathDefault ?? ''));
             $taxonomiesDefault = $io->ask('Taxonomies (comma separated)', $taxonomiesDefault);
         }
 
@@ -155,8 +166,10 @@ final class NewCommand extends BaseCommand
             targetDirectory: $directoryPath,
             siteName: $siteName,
             siteTitle: $titleDefault,
+            pageTemplate: $pageTemplateDefault,
             description: $descriptionDefault,
             baseUrl: $this->normalizeString($baseUrlDefault),
+            basePath: $basePathDefault,
             taxonomies: $this->parseTaxonomies($taxonomiesDefault),
             force: (bool)$args->getOption('force'),
         );
@@ -226,6 +239,43 @@ final class NewCommand extends BaseCommand
         $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
 
         return rtrim($normalized, DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Normalize optional base path values for config output.
+     *
+     * @param string|null $basePath Raw base path value.
+     */
+    protected function normalizeBasePath(?string $basePath): ?string
+    {
+        if ($basePath === null) {
+            return null;
+        }
+
+        $trimmed = trim($basePath);
+        if ($trimmed === '' || $trimmed === '/') {
+            return null;
+        }
+
+        $normalized = '/' . trim($trimmed, '/');
+
+        return $normalized === '/' ? null : $normalized;
+    }
+
+    /**
+     * Normalize optional template name values.
+     *
+     * @param string|null $template Raw template value.
+     */
+    protected function normalizeTemplateName(?string $template): string
+    {
+        if ($template === null) {
+            return 'page';
+        }
+
+        $normalized = trim($template);
+
+        return $normalized === '' ? 'page' : $normalized;
     }
 
     /**

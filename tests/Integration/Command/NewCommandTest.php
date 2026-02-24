@@ -20,8 +20,10 @@ final class NewCommandTest extends IntegrationCommandTestCase
         $this->assertExitCode(0);
         $this->assertOutputContains('--name');
         $this->assertOutputContains('--title');
+        $this->assertOutputContains('--page-template');
         $this->assertOutputContains('--description');
         $this->assertOutputContains('--base-url');
+        $this->assertOutputContains('--base-path');
         $this->assertOutputContains('--taxonomies');
         $this->assertOutputContains('--yes');
     }
@@ -34,7 +36,7 @@ final class NewCommandTest extends IntegrationCommandTestCase
         $target = $this->createTempDirectory() . '/arg-site';
 
         $this->exec(sprintf(
-            'new "%s" --name "arg-site" --title "Arg Site" --description "Arg description" --base-url "https://arg.example" --taxonomies tags,categories --yes',
+            'new "%s" --name "arg-site" --title "Arg Site" --page-template "landing" --description "Arg description" --base-url "https://arg.example" --base-path "/blog" --taxonomies tags,categories --yes',
             $target,
         ));
 
@@ -44,6 +46,8 @@ final class NewCommandTest extends IntegrationCommandTestCase
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');
         $this->assertOutputContains('<success>created</success>');
+        $this->assertStringContainsString('pageTemplate: landing', (string)file_get_contents($target . '/glaze.neon'));
+        $this->assertStringContainsString('basePath: /blog', (string)file_get_contents($target . '/glaze.neon'));
     }
 
     /**
@@ -55,12 +59,32 @@ final class NewCommandTest extends IntegrationCommandTestCase
 
         $this->exec(
             sprintf('new "%s"', $target),
-            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', 'tags,categories'],
+            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories'],
         );
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/templates/page.sugar.php');
+        $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/glaze.neon');
+        $this->assertStringContainsString('pageTemplate: page', (string)file_get_contents($target . '/glaze.neon'));
+        $this->assertStringContainsString('basePath: /interactive', (string)file_get_contents($target . '/glaze.neon'));
+    }
+
+    /**
+     * Ensure interactive flow asks for project directory when omitted.
+     */
+    public function testNewCommandInteractiveFlowAsksForDirectoryWhenMissing(): void
+    {
+        $target = $this->createTempDirectory() . '/prompted-directory-site';
+
+        $this->exec(
+            'new',
+            [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories'],
+        );
+
+        $this->assertExitCode(0);
+        $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');
     }

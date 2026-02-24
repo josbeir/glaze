@@ -54,10 +54,27 @@ final class BuildConfig
 
         return new self(
             projectRoot: $normalizedRoot,
+            pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             site: self::normalizeSiteConfiguration($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize configured page template value.
+     *
+     * @param mixed $pageTemplate Raw configured template value.
+     */
+    protected static function normalizePageTemplate(mixed $pageTemplate): string
+    {
+        if (!is_string($pageTemplate)) {
+            return 'page';
+        }
+
+        $normalized = trim($pageTemplate);
+
+        return $normalized === '' ? 'page' : $normalized;
     }
 
     /**

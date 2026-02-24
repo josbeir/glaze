@@ -5,6 +5,7 @@ namespace Glaze\Build;
 
 use ArrayObject;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
 use Glaze\Render\DjotRenderer;
@@ -188,12 +189,18 @@ final class SiteBuilder
         ?SugarPageRenderer $pageRenderer = null,
         ?SiteIndex $siteIndex = null,
     ): string {
-        $pageRenderer ??= new SugarPageRenderer(
-            templatePath: $config->templatePath(),
-            cachePath: $config->cachePath(),
-            template: $config->pageTemplate,
-            debug: $debug,
-        );
+        $pageTemplate = $this->resolvePageTemplate($page, $config);
+        $activeRenderer = $pageRenderer;
+
+        if (!$activeRenderer instanceof SugarPageRenderer || $pageTemplate !== $config->pageTemplate) {
+            $activeRenderer = new SugarPageRenderer(
+                templatePath: $config->templatePath(),
+                cachePath: $config->cachePath(),
+                template: $pageTemplate,
+                debug: $debug,
+            );
+        }
+
         $siteIndex ??= new SiteIndex([$page]);
         $templateContext = new SiteContext(
             siteIndex: $siteIndex,
@@ -201,11 +208,13 @@ final class SiteBuilder
         );
 
         $htmlContent = $this->djotRenderer->render($page->source);
-        $htmlContent = $this->rewriteRelativeImageSources($htmlContent, $page);
+        $htmlContent = $this->rewriteInternalResourceSources($htmlContent, $page, $config->site);
 
-        return $pageRenderer->render([
+        $pageUrl = $this->applyBasePathToPath($page->urlPath, $config->site);
+
+        return $activeRenderer->render([
             'title' => $page->title,
-            'url' => $page->urlPath,
+            'url' => $pageUrl,
             'content' => $htmlContent,
             'page' => $page,
             'meta' => new ArrayObject(
@@ -217,22 +226,48 @@ final class SiteBuilder
     }
 
     /**
+     * Resolve effective page template from frontmatter metadata or build defaults.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page metadata.
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     */
+    protected function resolvePageTemplate(ContentPage $page, BuildConfig $config): string
+    {
+        $template = $page->meta['template'] ?? null;
+        if (!is_string($template)) {
+            return $config->pageTemplate;
+        }
+
+        $normalized = trim($template);
+
+        return $normalized === '' ? $config->pageTemplate : $normalized;
+    }
+
+    /**
      * Rewrite relative image sources to content-root absolute paths.
      *
      * @param string $html Rendered Djot HTML.
      * @param \Glaze\Content\ContentPage $page Source page metadata.
      */
-    protected function rewriteRelativeImageSources(string $html, ContentPage $page): string
+    protected function rewriteInternalResourceSources(string $html, ContentPage $page, SiteConfig $siteConfig): string
     {
         $rewritten = preg_replace_callback(
-            '/<img\b([^>]*?)\bsrc=("|\')(.*?)\2([^>]*)>/i',
-            function (array $matches) use ($page): string {
-                $source = $matches[3];
+            '/<(img|a)\b([^>]*?)\b(src|href)=("|\')(.*?)\4([^>]*)>/i',
+            function (array $matches) use ($page, $siteConfig): string {
+                $source = $matches[5];
                 if ($source === '') {
                     return $matches[0];
                 }
 
-                $rewrittenSource = $this->toContentAbsoluteResourcePath($source, $page->relativePath);
+                if ($this->isExternalResourcePath($source)) {
+                    return $matches[0];
+                }
+
+                $internalPath = str_starts_with($source, '/')
+                    ? $source
+                    : $this->toContentAbsoluteResourcePath($source, $page->relativePath);
+                $rewrittenSource = $this->applyBasePathToPath($internalPath, $siteConfig);
+
                 if ($rewrittenSource === $source) {
                     return $matches[0];
                 }
@@ -294,6 +329,62 @@ final class SiteBuilder
         }
 
         return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
+    }
+
+    /**
+     * Detect whether a resource path points to external or non-rewritable targets.
+     *
+     * @param string $resourcePath Resource path from rendered HTML.
+     */
+    protected function isExternalResourcePath(string $resourcePath): bool
+    {
+        if ($resourcePath === '') {
+            return true;
+        }
+
+        if (str_starts_with($resourcePath, '#')) {
+            return true;
+        }
+
+        if (str_starts_with($resourcePath, '//')) {
+            return true;
+        }
+
+        return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
+    }
+
+    /**
+     * Apply configured site base path to an internal URL path.
+     *
+     * @param string $path Internal URL path.
+     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration.
+     */
+    protected function applyBasePathToPath(string $path, SiteConfig $siteConfig): string
+    {
+        $basePath = $siteConfig->basePath;
+        if ($basePath === null || $basePath === '') {
+            return $path;
+        }
+
+        $parts = [];
+        preg_match('/^([^?#]*)(.*)$/', $path, $parts);
+        $pathPart = $parts[1] ?? $path;
+        $suffix = $parts[2] ?? '';
+
+        $normalizedPath = '/' . ltrim($pathPart, '/');
+        if ($normalizedPath === '//') {
+            $normalizedPath = '/';
+        }
+
+        if ($normalizedPath === '/') {
+            return $basePath . '/' . $suffix;
+        }
+
+        if ($normalizedPath === $basePath || str_starts_with($normalizedPath, $basePath . '/')) {
+            return $normalizedPath . $suffix;
+        }
+
+        return rtrim($basePath, '/') . $normalizedPath . $suffix;
     }
 
     /**

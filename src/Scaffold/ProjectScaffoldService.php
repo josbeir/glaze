@@ -180,7 +180,12 @@ final class ProjectScaffoldService
             $siteConfig['baseUrl'] = trim($options->baseUrl);
         }
 
+        if (is_string($options->basePath) && trim($options->basePath) !== '') {
+            $siteConfig['basePath'] = trim($options->basePath);
+        }
+
         $projectConfig = [
+            'pageTemplate' => $options->pageTemplate,
             'site' => $siteConfig,
             'taxonomies' => $options->taxonomies,
         ];

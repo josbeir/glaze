@@ -64,15 +64,17 @@ final class BuildConfigTest extends TestCase
         mkdir($projectRoot, 0755, true);
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "site:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  metaDefaults:\n    robots: \"index,follow\"\n",
+            "pageTemplate: landing\nsite:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  basePath: /docs\n  metaDefaults:\n    robots: \"index,follow\"\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertInstanceOf(SiteConfig::class, $config->site);
+        $this->assertSame('landing', $config->pageTemplate);
         $this->assertSame('Example Site', $config->site->title);
         $this->assertSame('Default site description', $config->site->description);
         $this->assertSame('https://example.com', $config->site->baseUrl);
+        $this->assertSame('/docs', $config->site->basePath);
         $this->assertSame(['robots' => 'index,follow'], $config->site->metaDefaults);
     }
 

@@ -33,6 +33,7 @@ Frontmatter is written in [NEON](https://github.com/nette/neon), the same format
 - `title` (string)
 - `slug` (string)
 - `draft` (bool)
+- `template` (string, optional per-page template override)
 - taxonomy fields like `tags`, `categories`, etc. (based on config)
 - `meta` map for arbitrary values
 

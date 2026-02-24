@@ -8,6 +8,20 @@ Glaze uses [Sugar](https://josbeir.github.io/sugar/) templates for page renderin
 
 Your main page template is `templates/page.sugar.php` (or whatever is configured as page template internally).
 
+## Per-page template override
+
+You can override the default page template in frontmatter:
+
+```djot
+---
+title: Landing page
+template: landing
+---
+# Welcome
+```
+
+This renders the page with `templates/landing.sugar.php`.
+
 ## Base example
 
 ```php

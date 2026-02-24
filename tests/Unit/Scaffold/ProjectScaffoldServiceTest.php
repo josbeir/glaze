@@ -30,8 +30,10 @@ final class ProjectScaffoldServiceTest extends TestCase
             targetDirectory: $target,
             siteName: 'my-site',
             siteTitle: 'My Site',
+            pageTemplate: 'landing',
             description: 'My description',
             baseUrl: 'https://example.com',
+            basePath: '/blog',
             taxonomies: ['tags', 'categories'],
             force: false,
         ));
@@ -58,7 +60,9 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertArrayHasKey('taxonomies', $decoded);
         $this->assertIsArray($decoded['site']);
         $this->assertIsArray($decoded['taxonomies']);
+        $this->assertSame('landing', $decoded['pageTemplate'] ?? null);
         $this->assertSame('My Site', $decoded['site']['title'] ?? null);
+        $this->assertSame('/blog', $decoded['site']['basePath'] ?? null);
         $this->assertSame(['tags', 'categories'], $decoded['taxonomies']);
     }
 
@@ -80,8 +84,10 @@ final class ProjectScaffoldServiceTest extends TestCase
             targetDirectory: $target,
             siteName: 'site',
             siteTitle: 'Site',
+            pageTemplate: 'page',
             description: '',
             baseUrl: null,
+            basePath: null,
             taxonomies: ['tags'],
             force: false,
         ));
@@ -101,8 +107,10 @@ final class ProjectScaffoldServiceTest extends TestCase
             targetDirectory: $target,
             siteName: 'site',
             siteTitle: 'Site',
+            pageTemplate: 'page',
             description: '',
             baseUrl: null,
+            basePath: null,
             taxonomies: ['tags'],
             force: true,
         ));

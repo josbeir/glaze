@@ -33,8 +33,10 @@ Useful options:
 
 - `--name`
 - `--title`
+- `--page-template`
 - `--description`
 - `--base-url`
+- `--base-path` (for subfolder deployments, for example `/blog`)
 - `--taxonomies`
 - `--force`
 - `--yes` (non-interactive)
@@ -44,7 +46,9 @@ Example:
 ```bash
 glaze new my-site \
   --title "My Site" \
+  --page-template "landing" \
   --description "Small notes and experiments" \
+  --base-path "/blog" \
   --taxonomies tags,categories \
   --yes
 ```

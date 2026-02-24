@@ -14,12 +14,14 @@ final class SiteConfig
      * @param string|null $title Site title.
      * @param string|null $description Default site description.
      * @param string|null $baseUrl Canonical site base URL.
+     * @param string|null $basePath Site base path/prefix (for example `/docs`).
      * @param array<string, string> $metaDefaults Default meta tags.
      */
     public function __construct(
         public readonly ?string $title = null,
         public readonly ?string $description = null,
         public readonly ?string $baseUrl = null,
+        public readonly ?string $basePath = null,
         public readonly array $metaDefaults = [],
     ) {
     }
@@ -39,6 +41,7 @@ final class SiteConfig
             title: self::normalizeString($value['title'] ?? null),
             description: self::normalizeString($value['description'] ?? null),
             baseUrl: self::normalizeString($value['baseUrl'] ?? null),
+            basePath: self::normalizeBasePath($value['basePath'] ?? null),
             metaDefaults: self::normalizeMetaMap($value['metaDefaults'] ?? null),
         );
     }
@@ -54,8 +57,33 @@ final class SiteConfig
             'title' => $this->title,
             'description' => $this->description,
             'baseUrl' => $this->baseUrl,
+            'basePath' => $this->basePath,
             'metaDefaults' => $this->metaDefaults,
         ];
+    }
+
+    /**
+     * Normalize optional base path values.
+     *
+     * @param mixed $value Raw input value.
+     */
+    protected static function normalizeBasePath(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = '/' . trim($normalized, '/');
+        if ($normalized === '/') {
+            return null;
+        }
+
+        return $normalized;
     }
 
     /**

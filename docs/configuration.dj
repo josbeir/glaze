@@ -16,21 +16,29 @@ Keep it small and intentional. Start with defaults, then add only what you need.
 ## Example `glaze.neon`
 
 ```neon
+pageTemplate: page
+
 site:
   title: My awesome site
   description: Notes on web, PHP, and tiny experiments.
   baseUrl: https://example.com
+  basePath: /blog
 
 taxonomies:
   - tags
   - categories
 ```
 
+## `pageTemplate` setting
+
+- `pageTemplate`: default Sugar page template name (without `.sugar.php`), for example `page` or `landing`
+
 ## `site` settings
 
 - `title`: global site title
 - `description`: default page description
 - `baseUrl`: canonical base URL
+- `basePath`: optional URL prefix for subfolder deployments (for example `/blog`)
 
 These values are available in templates through the `site` object.
 

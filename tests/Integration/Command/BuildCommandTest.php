@@ -142,4 +142,35 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertStringContainsString('<p class="meta-description">About page description</p>', $aboutOutput);
         $this->assertStringContainsString('<p class="meta-robots">noindex</p>', $aboutOutput);
     }
+
+    /**
+     * Ensure frontmatter template override selects the configured custom template.
+     */
+    public function testBuildCommandSupportsFrontmatterTemplateOverride(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "---\ntitle: Home\ntemplate: landing\n---\n# Hello\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<p class="template">default</p><?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/templates/landing.sugar.php',
+            '<p class="template">landing</p><?= $content |> raw() ?>',
+        );
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('<p class="template">landing</p>', $output);
+        $this->assertStringNotContainsString('<p class="template">default</p>', $output);
+    }
 }

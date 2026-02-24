@@ -85,12 +85,50 @@ final class NewCommandTest extends TestCase
     }
 
     /**
+     * Ensure base path normalization handles empty and relative values.
+     */
+    public function testNormalizeBasePathNormalizesInput(): void
+    {
+        $command = new NewCommand();
+
+        $empty = $this->callProtected($command, 'normalizeBasePath', null);
+        $root = $this->callProtected($command, 'normalizeBasePath', '/');
+        $relative = $this->callProtected($command, 'normalizeBasePath', 'docs');
+        $trimmed = $this->callProtected($command, 'normalizeBasePath', '/blog/');
+
+        $this->assertNull($empty);
+        $this->assertNull($root);
+        $this->assertSame('/docs', $relative);
+        $this->assertSame('/blog', $trimmed);
+    }
+
+    /**
+     * Ensure template normalization falls back to default template.
+     */
+    public function testNormalizeTemplateNameNormalizesInput(): void
+    {
+        $command = new NewCommand();
+
+        $defaultTemplate = $this->callProtected($command, 'normalizeTemplateName', null);
+        $emptyTemplate = $this->callProtected($command, 'normalizeTemplateName', '  ');
+        $customTemplate = $this->callProtected($command, 'normalizeTemplateName', ' landing ');
+
+        $this->assertSame('page', $defaultTemplate);
+        $this->assertSame('page', $emptyTemplate);
+        $this->assertSame('landing', $customTemplate);
+    }
+
+    /**
      * Ensure non-interactive options resolve relative paths against current directory.
      */
     public function testResolveScaffoldOptionsNormalizesRelativeDirectory(): void
     {
         $command = new NewCommand();
-        $arguments = new Arguments(['relative-site'], ['yes' => true], ['directory']);
+        $arguments = new Arguments(
+            ['relative-site'],
+            ['yes' => true, 'base-path' => 'docs'],
+            ['directory'],
+        );
         $io = new ConsoleIo();
 
         $options = $this->callProtected($command, 'resolveScaffoldOptions', $arguments, $io);
@@ -98,6 +136,8 @@ final class NewCommandTest extends TestCase
         $this->assertInstanceOf(ScaffoldOptions::class, $options);
         $this->assertSame(getcwd() . DIRECTORY_SEPARATOR . 'relative-site', $options->targetDirectory);
         $this->assertSame('relative-site', $options->siteName);
+        $this->assertSame('page', $options->pageTemplate);
+        $this->assertSame('/docs', $options->basePath);
     }
 
     /**
@@ -111,6 +151,21 @@ final class NewCommandTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Project directory is required.');
+
+        $this->callProtected($command, 'resolveScaffoldOptions', $arguments, $io);
+    }
+
+    /**
+     * Ensure non-interactive mode rejects empty site name derived from root directory.
+     */
+    public function testResolveScaffoldOptionsRejectsMissingDerivedSiteName(): void
+    {
+        $command = new NewCommand();
+        $arguments = new Arguments(['/'], ['yes' => true], ['directory']);
+        $io = new ConsoleIo();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Site name is required.');
 
         $this->callProtected($command, 'resolveScaffoldOptions', $arguments, $io);
     }

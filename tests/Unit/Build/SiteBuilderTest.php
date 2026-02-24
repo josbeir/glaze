@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Build;
 use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\SiteConfig;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -288,6 +289,37 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure configured basePath prefixes internal links, images, and URL template value.
+     */
+    public function testRenderRequestAppliesBasePathToInternalUrls(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
+        file_put_contents(
+            $projectRoot . '/content/blog/index.dj',
+            "## Hello\n\n[About](/about/)\n\n![Local](test2.jpg)\n\n[External](https://example.com)\n",
+        );
+        file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<p class="url"><?= $url ?></p><?= $content |> raw() ?>',
+        );
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/blog/');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('<p class="url">/docs/blog/</p>', $html);
+        $this->assertStringContainsString('href="/docs/about/"', $html);
+        $this->assertStringContainsString('src="/docs/blog/test2.jpg"', $html);
+        $this->assertStringContainsString('href="https://example.com"', $html);
+    }
+
+    /**
      * Ensure protected resource-path helper branches behave as expected.
      */
     public function testResourcePathHelpersHandleEmptyAndDotSegments(): void
@@ -316,6 +348,29 @@ final class SiteBuilderTest extends TestCase
         $this->assertTrue($protocolRelative);
         $this->assertTrue($anchor);
         $this->assertTrue($scheme);
+    }
+
+    /**
+     * Ensure basePath URL helper handles root, suffixes, pre-prefixed, and no-prefix cases.
+     */
+    public function testApplyBasePathToPathHandlesVariants(): void
+    {
+        $builder = new SiteBuilder();
+
+        $withBasePath = new SiteConfig(basePath: '/docs');
+        $withoutBasePath = new SiteConfig(basePath: null);
+
+        $root = $this->callProtected($builder, 'applyBasePathToPath', '/', $withBasePath);
+        $withSuffix = $this->callProtected($builder, 'applyBasePathToPath', '/about/?q=1#x', $withBasePath);
+        $prefixed = $this->callProtected($builder, 'applyBasePathToPath', '/docs/about/', $withBasePath);
+        $unchanged = $this->callProtected($builder, 'applyBasePathToPath', '/about/', $withoutBasePath);
+        $externalMailto = $this->callProtected($builder, 'isExternalResourcePath', 'mailto:test@example.com');
+
+        $this->assertSame('/docs/', $root);
+        $this->assertSame('/docs/about/?q=1#x', $withSuffix);
+        $this->assertSame('/docs/about/', $prefixed);
+        $this->assertSame('/about/', $unchanged);
+        $this->assertTrue($externalMailto);
     }
 
     /**

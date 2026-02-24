@@ -21,6 +21,7 @@ final class SiteConfigTest extends TestCase
         $this->assertNull($config->title);
         $this->assertNull($config->description);
         $this->assertNull($config->baseUrl);
+        $this->assertNull($config->basePath);
         $this->assertSame([], $config->metaDefaults);
     }
 
@@ -33,6 +34,7 @@ final class SiteConfigTest extends TestCase
             'title' => '  Glaze Site  ',
             'description' => '  Site description  ',
             'baseUrl' => ' https://example.com ',
+            'basePath' => ' /docs/ ',
             'metaDefaults' => [
                 'robots' => ' index,follow ',
                 '' => 'ignored',
@@ -44,6 +46,7 @@ final class SiteConfigTest extends TestCase
         $this->assertSame('Glaze Site', $config->title);
         $this->assertSame('Site description', $config->description);
         $this->assertSame('https://example.com', $config->baseUrl);
+        $this->assertSame('/docs', $config->basePath);
         $this->assertSame([
             'robots' => 'index,follow',
             'viewport' => 'width=device-width, initial-scale=1',
@@ -59,6 +62,7 @@ final class SiteConfigTest extends TestCase
             title: 'Title',
             description: 'Description',
             baseUrl: 'https://example.com',
+            basePath: '/docs',
             metaDefaults: ['robots' => 'index,follow'],
         );
 
@@ -66,6 +70,7 @@ final class SiteConfigTest extends TestCase
             'title' => 'Title',
             'description' => 'Description',
             'baseUrl' => 'https://example.com',
+            'basePath' => '/docs',
             'metaDefaults' => ['robots' => 'index,follow'],
         ], $config->toArray());
     }
@@ -79,6 +84,7 @@ final class SiteConfigTest extends TestCase
             'title' => 123,
             'description' => null,
             'baseUrl' => false,
+            'basePath' => true,
             'metaDefaults' => [
                 1 => 'ignored-numeric-key',
                 'robots' => 'noindex',
@@ -88,6 +94,19 @@ final class SiteConfigTest extends TestCase
         $this->assertNull($config->title);
         $this->assertNull($config->description);
         $this->assertNull($config->baseUrl);
+        $this->assertNull($config->basePath);
         $this->assertSame(['robots' => 'noindex'], $config->metaDefaults);
+    }
+
+    /**
+     * Ensure basePath normalization handles root-only and relative input values.
+     */
+    public function testFromProjectConfigNormalizesBasePathVariants(): void
+    {
+        $root = SiteConfig::fromProjectConfig(['basePath' => '/']);
+        $relative = SiteConfig::fromProjectConfig(['basePath' => 'docs']);
+
+        $this->assertNull($root->basePath);
+        $this->assertSame('/docs', $relative->basePath);
     }
 }
