@@ -4,3 +4,4 @@ cache/
 tmp/
 public/*
 content/*
+composer.lock
