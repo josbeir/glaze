@@ -41,58 +41,14 @@ Glaze is built around:
 
 If you like clean files, modern templating, and quick iteration, Glaze is made for you.
 
-## Install
+## Documentation and more information
 
-### Global Composer binary
-
-```bash
-composer global require josbeir/glaze
-glaze --help
-```
-
-## Scaffold a new site
-
-```bash
-glaze init my-site
-cd my-site
-```
-
-For local installs:
-
-```bash
-vendor/bin/glaze init my-site
-cd my-site
-```
-
-## Build and serve
-
-```bash
-glaze build
-glaze serve
-```
-
-Static preview mode:
-
-```bash
-glaze serve --static --build
-```
-
-## Documentation
-
-Documentation is currently work in progress.
-
-For now, see the docs source in the [docs](docs) folder.
-
-## Development
-
-```bash
-composer install
-composer test
-composer phpstan
-composer cs-check
-composer rector-check
-```
+Read the [Documentation](https://josbeir.github.io/glaze/)
 
 ## License
 
 Glaze is licensed under the MIT License. See [LICENSE](LICENSE.md).
+
+## Contributing
+
+Contributions are welcome. Please read [Contributing](https://josbeir.github.io/sugar/guide/reference/contributing.html) for setup steps and guidelines.
