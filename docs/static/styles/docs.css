@@ -184,6 +184,7 @@ main {
 	h2 {
 		padding-bottom: 0.35rem;
 		border-bottom: 1px solid var(--border);
+		padding-bottom: .8rem;
 	}
 
 	p,
@@ -254,6 +255,55 @@ main {
 		border-top: 1px solid var(--border);
 		margin: 2rem 0;
 	}
+
+	.doc-pager {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.75rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.doc-pager-link {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding: 0.75rem 0.9rem;
+		border: 1px solid var(--border);
+		border-radius: 0.45rem;
+		color: var(--text);
+		text-decoration: none;
+		background: var(--bg-elevated);
+	}
+
+	.doc-pager-link:hover {
+		color: var(--text);
+		border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+	}
+
+	.doc-pager-link.next {
+		text-align: right;
+	}
+
+	.doc-pager.only-next {
+		.doc-pager-link.next {
+			grid-column: 2;
+		}
+	}
+
+	.doc-pager-label {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.doc-pager-title {
+		font-size: 0.95rem;
+		font-weight: 600;
+		line-height: 1.35;
+	}
 }
 
 @media (max-width: 900px) {
@@ -269,6 +319,22 @@ main {
 
 	.docs-layout {
 		grid-template-columns: 1fr;
+	}
+
+	main {
+		.doc-pager {
+			grid-template-columns: 1fr;
+		}
+
+		.doc-pager.only-next {
+			.doc-pager-link.next {
+				grid-column: auto;
+			}
+		}
+
+		.doc-pager-link.next {
+			text-align: left;
+		}
 	}
 
 	.docs-sidebar {

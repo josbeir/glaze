@@ -17,9 +17,9 @@
 	<a href="https://www.php.net/releases/8.2/en.php" style="text-decoration: none;">
 		<img src="https://img.shields.io/badge/php-8.2%2B-blue.svg" alt="PHP Version" />
 	</a>
-	<a href="https://codecov.io/github/josbeir/glaze" style="text-decoration: none;">
-		<img src="https://codecov.io/github/josbeir/glaze/graph/badge.svg" alt="codecov" />
-	</a>
+    <a href="https://codecov.io/github/josbeir/glaze" >
+        <img src="https://codecov.io/github/josbeir/glaze/graph/badge.svg?token=WH6IX5EWK9"/>
+    </a>
 	<a href="https://packagist.org/packages/josbeir/glaze" style="text-decoration: none;">
 		<img src="https://img.shields.io/packagist/dt/josbeir/glaze" alt="Packagist Downloads" />
 	</a>
