@@ -69,6 +69,26 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure build copies static assets into output root preserving relative paths.
+     */
+    public function testBuildCopiesStaticAssetsToOutputRoot(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/static/js', 0755, true);
+
+        file_put_contents($projectRoot . '/static/robots.txt', "User-agent: *\nAllow: /\n");
+        file_put_contents($projectRoot . '/static/js/app.js', 'console.log("ok");');
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder->build($config);
+
+        $this->assertFileExists($projectRoot . '/public/robots.txt');
+        $this->assertFileExists($projectRoot . '/public/js/app.js');
+        $this->assertSame('console.log("ok");', file_get_contents($projectRoot . '/public/js/app.js'));
+    }
+
+    /**
      * Ensure request rendering reuses the build rendering pipeline.
      */
     public function testRenderRequestReturnsHtmlForKnownPath(): void

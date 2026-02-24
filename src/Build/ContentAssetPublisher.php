@@ -22,13 +22,46 @@ final class ContentAssetPublisher
      */
     public function publish(string $contentPath, string $outputPath): array
     {
-        if (!is_dir($contentPath)) {
+        return $this->publishDirectory(
+            sourcePath: $contentPath,
+            outputPath: $outputPath,
+            shouldCopy: static fn(SplFileInfo $file): bool => strtolower($file->getExtension()) !== 'dj',
+        );
+    }
+
+    /**
+     * Copy files from static directory into output root.
+     *
+     * @param string $staticPath Absolute static directory.
+     * @param string $outputPath Absolute output directory.
+     * @return array<string> Copied asset file paths.
+     */
+    public function publishStatic(string $staticPath, string $outputPath): array
+    {
+        return $this->publishDirectory(
+            sourcePath: $staticPath,
+            outputPath: $outputPath,
+            shouldCopy: static fn(SplFileInfo $file): bool => true,
+        );
+    }
+
+    /**
+     * Copy files from source tree to output tree preserving relative structure.
+     *
+     * @param string $sourcePath Absolute source directory.
+     * @param string $outputPath Absolute output directory.
+     * @param callable $shouldCopy File inclusion callback.
+     * @return array<string> Copied file paths.
+     */
+    protected function publishDirectory(string $sourcePath, string $outputPath, callable $shouldCopy): array
+    {
+        if (!is_dir($sourcePath)) {
             return [];
         }
 
         $copiedFiles = [];
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($contentPath, RecursiveDirectoryIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($sourcePath, RecursiveDirectoryIterator::SKIP_DOTS),
             RecursiveIteratorIterator::LEAVES_ONLY,
         );
 
@@ -41,15 +74,15 @@ final class ContentAssetPublisher
                 continue;
             }
 
-            if (strtolower($file->getExtension()) === 'dj') {
+            if (!$shouldCopy($file)) {
                 continue;
             }
 
-            $sourcePath = $file->getPathname();
-            $relativePath = $this->relativePath($contentPath, $sourcePath);
+            $fileSourcePath = $file->getPathname();
+            $relativePath = $this->relativePath($sourcePath, $fileSourcePath);
             $destinationPath = $outputPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
 
-            $this->copyFile($sourcePath, $destinationPath);
+            $this->copyFile($fileSourcePath, $destinationPath);
             $copiedFiles[] = $destinationPath;
         }
 
@@ -59,15 +92,15 @@ final class ContentAssetPublisher
     /**
      * Build source-relative path.
      *
-     * @param string $contentPath Content root path.
+     * @param string $rootPath Source root path.
      * @param string $sourcePath Source file path.
      */
-    protected function relativePath(string $contentPath, string $sourcePath): string
+    protected function relativePath(string $rootPath, string $sourcePath): string
     {
-        $normalizedContentPath = rtrim(str_replace('\\', '/', $contentPath), '/');
+        $normalizedRootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
         $normalizedSourcePath = str_replace('\\', '/', $sourcePath);
 
-        return ltrim(substr($normalizedSourcePath, strlen($normalizedContentPath)), '/');
+        return ltrim(substr($normalizedSourcePath, strlen($normalizedRootPath)), '/');
     }
 
     /**

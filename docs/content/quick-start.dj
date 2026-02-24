@@ -34,6 +34,7 @@ glaze build
 ```
 
 This writes generated HTML files into `public/`.
+It also copies files from `static/` into `public/` as-is.
 
 ## 4) Start live development server
 
@@ -46,6 +47,7 @@ Default address is `http://127.0.0.1:8080`.
 ## 5) Edit content and templates
 
 - Djot pages live in `content/`
+- Public static files live in `static/`
 - [Sugar](https://josbeir.github.io/sugar/) templates live in `templates/`
 
 Glaze uses the [php-collective/djot-php](https://github.com/php-collective/djot-php) implementation for Djot parsing/rendering.

@@ -21,6 +21,7 @@ final class BuildConfig
      * @param string $projectRoot Absolute project root path.
      * @param string $contentDir Relative content directory.
      * @param string $templateDir Relative template directory.
+     * @param string $staticDir Relative static asset directory.
      * @param string $outputDir Relative output directory.
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
@@ -35,6 +36,7 @@ final class BuildConfig
         public readonly string $projectRoot,
         public readonly string $contentDir = 'content',
         public readonly string $templateDir = 'templates',
+        public readonly string $staticDir = 'static',
         public readonly string $outputDir = 'public',
         public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
         public readonly string $pageTemplate = 'page',
@@ -379,6 +381,14 @@ final class BuildConfig
     public function templatePath(): string
     {
         return $this->resolvePath($this->templateDir);
+    }
+
+    /**
+     * Get absolute static asset directory.
+     */
+    public function staticPath(): string
+    {
+        return $this->resolvePath($this->staticDir);
     }
 
     /**

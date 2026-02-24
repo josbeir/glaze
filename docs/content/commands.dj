@@ -56,6 +56,11 @@ glaze init my-site \
 
 Generate static output from `content/` + `templates/`.
 
+Build also copies:
+
+- non-Djot assets from `content/` to matching paths in `public/`
+- all files from `static/` to `public/` root
+
 ```bash
 glaze build
 ```

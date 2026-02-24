@@ -181,6 +181,25 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure build command copies static directory assets into public output.
+     */
+    public function testBuildCommandCopiesStaticAssets(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/static/fonts', 0755, true);
+
+        file_put_contents($projectRoot . '/static/robots.txt', "User-agent: *\nAllow: /\n");
+        file_put_contents($projectRoot . '/static/fonts/site.woff2', 'woff2-binary');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertFileExists($projectRoot . '/public/robots.txt');
+        $this->assertFileExists($projectRoot . '/public/fonts/site.woff2');
+        $this->assertSame('woff2-binary', file_get_contents($projectRoot . '/public/fonts/site.woff2'));
+    }
+
+    /**
      * Build a small JPEG image file for Glide integration tests.
      *
      * @param string $path Destination file path.

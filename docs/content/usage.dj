@@ -10,6 +10,7 @@ This page covers the everyday way of working with Glaze.
 Typical layout:
 
 - `content/` → Djot source files
+- `static/` → public assets copied as-is to `public/`
 - `templates/` → [Sugar](https://josbeir.github.io/sugar/) templates
 - `public/` → generated static output
 - `tmp/cache/` → template cache
@@ -71,6 +72,14 @@ Use `--clean` to clear `public/` before writing:
 ```bash
 glaze build --clean
 ```
+
+During build:
+
+- pages are rendered from `content/` + `templates/`
+- non-Djot assets inside `content/` are copied to matching paths in `public/`
+- files inside `static/` are copied directly to `public/` root
+
+Use `static/` for files that should be publicly available but are not part of the content pipeline (for example `robots.txt`, `favicon.ico`, or prebuilt bundles).
 
 ## Creating new pages
 

@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Command;
 
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
+use Cake\Console\ConsoleOutput;
 use Closure;
 use Glaze\Command\NewCommand;
 use Glaze\Config\BuildConfig;
@@ -128,7 +129,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $input = $this->callProtected($command, 'resolvePageInput', $args, new ConsoleIo(), $config);
+        $input = $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
 
         $this->assertIsArray($input);
         /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool} $input */
@@ -163,7 +164,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $io = new ConsoleIo();
+        $io = $this->createConsoleIo();
         $io->setInteractive(false);
 
         $input = $this->callProtected($command, 'resolvePageInput', $args, $io, $config);
@@ -199,7 +200,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $input = $this->callProtected($command, 'resolvePageInput', $args, new ConsoleIo(), $config);
+        $input = $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
 
         $this->assertIsArray($input);
         /** @var array{title: string, date: string, type: string|null, draft: bool, slug: string, pathRule: array{match: string, createPattern: string|null}|null, pathPrefix: string|null, index: bool} $input */
@@ -242,7 +243,7 @@ final class NewCommandTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('has multiple paths');
 
-        $this->callProtected($command, 'resolvePageInput', $args, new ConsoleIo(), $config);
+        $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
     }
 
     /**
@@ -257,7 +258,7 @@ final class NewCommandTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Page title is required');
 
-        $this->callProtected($command, 'resolvePageInput', $args, new ConsoleIo(), $config);
+        $this->callProtected($command, 'resolvePageInput', $args, $this->createConsoleIo(), $config);
     }
 
     /**
@@ -287,7 +288,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $code = $command->execute($args, new ConsoleIo());
+        $code = $command->execute($args, $this->createConsoleIo());
         $targetPath = $projectRoot . '/content/blog/my-post.dj';
 
         $this->assertSame(NewCommand::CODE_SUCCESS, $code);
@@ -330,7 +331,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $code = $command->execute($args, new ConsoleIo());
+        $code = $command->execute($args, $this->createConsoleIo());
         $targetPath = $projectRoot . '/content/posts/my-post.dj';
 
         $this->assertSame(NewCommand::CODE_SUCCESS, $code);
@@ -366,7 +367,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $code = $command->execute($args, new ConsoleIo());
+        $code = $command->execute($args, $this->createConsoleIo());
         $targetPath = $projectRoot . '/content/blog/2026/02/my-post.dj';
 
         $this->assertSame(NewCommand::CODE_SUCCESS, $code);
@@ -398,7 +399,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $code = $command->execute($args, new ConsoleIo());
+        $code = $command->execute($args, $this->createConsoleIo());
         $targetPath = $projectRoot . '/content/blog/my-post/index.dj';
 
         $this->assertSame(NewCommand::CODE_SUCCESS, $code);
@@ -432,7 +433,7 @@ final class NewCommandTest extends TestCase
             ['title'],
         );
 
-        $code = $command->execute($args, new ConsoleIo());
+        $code = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(NewCommand::CODE_ERROR, $code);
     }
@@ -464,8 +465,8 @@ final class NewCommandTest extends TestCase
         $withoutForce = new Arguments(['My Post'], $baseOptions + ['force' => false], ['title']);
         $withForce = new Arguments(['My Post'], $baseOptions + ['force' => true], ['title']);
 
-        $this->assertSame(NewCommand::CODE_ERROR, $command->execute($withoutForce, new ConsoleIo()));
-        $this->assertSame(NewCommand::CODE_SUCCESS, $command->execute($withForce, new ConsoleIo()));
+        $this->assertSame(NewCommand::CODE_ERROR, $command->execute($withoutForce, $this->createConsoleIo()));
+        $this->assertSame(NewCommand::CODE_SUCCESS, $command->execute($withForce, $this->createConsoleIo()));
     }
 
     /**
@@ -497,6 +498,23 @@ final class NewCommandTest extends TestCase
         mkdir($path, 0755, true);
 
         return $path;
+    }
+
+    /**
+     * Create a ConsoleIo instance that writes to in-memory streams.
+     */
+    protected function createConsoleIo(): ConsoleIo
+    {
+        $stdoutPath = tempnam(sys_get_temp_dir(), 'glaze-test-out-');
+        $stderrPath = tempnam(sys_get_temp_dir(), 'glaze-test-err-');
+
+        $this->assertIsString($stdoutPath);
+        $this->assertIsString($stderrPath);
+
+        return new ConsoleIo(
+            new ConsoleOutput($stdoutPath),
+            new ConsoleOutput($stderrPath),
+        );
     }
 
     /**

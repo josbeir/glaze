@@ -39,6 +39,7 @@ final class ProjectScaffoldServiceTest extends TestCase
         ));
 
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/.gitignore');
@@ -129,6 +130,7 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertFileExists($target . '/keep.txt');
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
     }
 

@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Scaffold;
 use Glaze\Scaffold\PageScaffoldOptions;
 use Glaze\Scaffold\PageScaffoldService;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -41,7 +42,10 @@ final class PageScaffoldServiceTest extends TestCase
             ),
         );
 
-        $this->assertSame($contentPath . '/blog/my-post.dj', $targetPath);
+        $this->assertSame(
+            Normalization::path($contentPath . '/blog/my-post.dj'),
+            Normalization::path($targetPath),
+        );
         $this->assertFileExists($targetPath);
 
         $source = file_get_contents($targetPath);
@@ -77,7 +81,10 @@ final class PageScaffoldServiceTest extends TestCase
             ),
         );
 
-        $this->assertSame($contentPath . '/posts/2026/my-post/index.dj', $targetPath);
+        $this->assertSame(
+            Normalization::path($contentPath . '/posts/2026/my-post/index.dj'),
+            Normalization::path($targetPath),
+        );
         $this->assertFileExists($targetPath);
     }
 
@@ -106,7 +113,10 @@ final class PageScaffoldServiceTest extends TestCase
             ),
         );
 
-        $this->assertSame($contentPath . '/blog/2026/02/my-post.dj', $targetPath);
+        $this->assertSame(
+            Normalization::path($contentPath . '/blog/2026/02/my-post.dj'),
+            Normalization::path($targetPath),
+        );
         $this->assertFileExists($targetPath);
     }
 

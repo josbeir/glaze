@@ -42,6 +42,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/.gitignore');
@@ -66,6 +67,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/.gitignore');
@@ -89,6 +91,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');
     }
@@ -130,6 +133,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($target . '/content/index.dj');
+        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
         $this->assertFileExists($target . '/glaze.neon');
     }

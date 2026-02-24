@@ -120,6 +120,11 @@ final class SiteBuilder
             outputPath: $config->outputPath(),
         );
 
+        $this->assetPublisher->publishStatic(
+            staticPath: $config->staticPath(),
+            outputPath: $config->outputPath(),
+        );
+
         return $writtenFiles;
     }
 
