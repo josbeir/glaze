@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Template;
 
+use Cake\Chronos\Chronos;
 use Cake\Utility\Hash;
-use DateTimeImmutable;
 use Glaze\Content\ContentPage;
 use Throwable;
 
@@ -267,7 +267,7 @@ final class SiteIndex
         }
 
         try {
-            return (new DateTimeImmutable($value))->getTimestamp();
+            return Chronos::parse($value)->getTimestamp();
         } catch (Throwable) {
             return 0;
         }

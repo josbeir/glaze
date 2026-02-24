@@ -67,9 +67,49 @@ abstract class AbstractAssetMiddleware implements MiddlewareInterface
     {
         return $this->assetResponder->createFileResponse(
             rootPath: $this->assetRootPath(),
-            requestPath: $request->getUri()->getPath(),
+            requestPath: $this->assetRequestPath($request),
             allowDjot: false,
         );
+    }
+
+    /**
+     * Resolve middleware asset request path with optional basePath stripping.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Current request.
+     */
+    protected function assetRequestPath(ServerRequestInterface $request): string
+    {
+        $requestPath = $request->getUri()->getPath();
+        if ($requestPath === '') {
+            $requestPath = '/';
+        }
+
+        return $this->stripBasePathFromRequestPath($requestPath);
+    }
+
+    /**
+     * Strip configured base path from request path for filesystem resolution.
+     *
+     * @param string $requestPath Request URI path.
+     */
+    protected function stripBasePathFromRequestPath(string $requestPath): string
+    {
+        $basePath = $this->config->site->basePath;
+        $normalizedPath = '/' . ltrim($requestPath, '/');
+
+        if ($basePath === null || $basePath === '') {
+            return $normalizedPath;
+        }
+
+        if ($normalizedPath === $basePath) {
+            return '/';
+        }
+
+        if (str_starts_with($normalizedPath, $basePath . '/')) {
+            return substr($normalizedPath, strlen($basePath)) ?: '/';
+        }
+
+        return $normalizedPath;
     }
 
     /**

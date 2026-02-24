@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Content;
 
+use Cake\Chronos\Chronos;
 use Closure;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Tests\Helper\FilesystemTestTrait;
@@ -67,7 +68,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         mkdir($contentPath, 0755, true);
         file_put_contents(
             $contentPath . '/index.dj',
-            "+++\ntitle: Front Home\nslug: custom/home\ndraft: true\n+++\n# Home\n",
+            "+++\ntitle: Front Home\nslug: custom/home\ndraft: true\ndate: 2026-02-24T14:30:00+01:00\n+++\n# Home\n",
         );
 
         $service = new ContentDiscoveryService();
@@ -83,7 +84,77 @@ final class ContentDiscoveryServiceTest extends TestCase
         $this->assertSame('Front Home', $page->meta['title']);
         $this->assertSame('custom/home', $page->meta['slug']);
         $this->assertTrue($page->meta['draft']);
+        $this->assertInstanceOf(Chronos::class, $page->meta['date']);
+        $this->assertSame('2026-02-24T14:30:00+01:00', $page->meta['date']->format('Y-m-d\TH:i:sP'));
         $this->assertSame("# Home\n", $page->source);
+    }
+
+    /**
+     * Validate quoted date values are normalized to Chronos in metadata.
+     */
+    public function testDiscoverNormalizesQuotedDateMetadataToChronos(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\ndate: \"2026-02-24T14:30:00+01:00\"\nmeta:\n  date: \"2026-02-01\"\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $date = $page->meta['date'] ?? null;
+        $metaMap = $page->meta['meta'] ?? null;
+        $nestedDate = is_array($metaMap) ? ($metaMap['date'] ?? null) : null;
+
+        $this->assertInstanceOf(Chronos::class, $date);
+        $this->assertInstanceOf(Chronos::class, $nestedDate);
+        $this->assertSame('2026-02-24T14:30:00+01:00', $date->format('Y-m-d\TH:i:sP'));
+        $this->assertSame('2026-02-01', $nestedDate->format('Y-m-d'));
+    }
+
+    /**
+     * Validate invalid top-level date metadata throws an explicit exception.
+     */
+    public function testDiscoverThrowsOnInvalidDateMetadata(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\ndate: not-a-date\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid frontmatter "date" value');
+        $service->discover($contentPath);
+    }
+
+    /**
+     * Validate invalid nested meta.date metadata throws an explicit exception.
+     */
+    public function testDiscoverThrowsOnInvalidNestedDateMetadata(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nmeta:\n  date: invalid-date\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid frontmatter "date" value');
+        $service->discover($contentPath);
     }
 
     /**

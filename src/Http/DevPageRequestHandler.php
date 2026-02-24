@@ -38,9 +38,12 @@ final class DevPageRequestHandler implements RequestHandlerInterface
         $requestPath = $request->getUri()->getPath();
         $requestPath = $requestPath !== '' ? $requestPath : '/';
 
+        $lookupPath = $this->stripBasePathFromRequestPath($requestPath);
+
         $canonicalPath = $this->canonicalDirectoryPath($requestPath);
         if (is_string($canonicalPath)) {
-            $canonicalHtml = $this->siteBuilder->renderRequest($this->config, $canonicalPath);
+            $canonicalLookupPath = $this->stripBasePathFromRequestPath($canonicalPath);
+            $canonicalHtml = $this->siteBuilder->renderRequest($this->config, $canonicalLookupPath);
             if (is_string($canonicalHtml)) {
                 return (new Response(['charset' => 'UTF-8']))
                     ->withStatus(301)
@@ -48,7 +51,7 @@ final class DevPageRequestHandler implements RequestHandlerInterface
             }
         }
 
-        $html = $this->siteBuilder->renderRequest($this->config, $requestPath);
+        $html = $this->siteBuilder->renderRequest($this->config, $lookupPath);
         if (!is_string($html)) {
             return (new Response(['charset' => 'UTF-8']))
                 ->withStatus(404)
@@ -93,5 +96,30 @@ final class DevPageRequestHandler implements RequestHandlerInterface
         }
 
         return $path . '?' . $query;
+    }
+
+    /**
+     * Strip configured base path prefix from incoming request path.
+     *
+     * @param string $requestPath Incoming request path.
+     */
+    protected function stripBasePathFromRequestPath(string $requestPath): string
+    {
+        $basePath = $this->config->site->basePath;
+        $normalizedPath = '/' . ltrim($requestPath, '/');
+
+        if ($basePath === null || $basePath === '') {
+            return $normalizedPath;
+        }
+
+        if ($normalizedPath === $basePath) {
+            return '/';
+        }
+
+        if (str_starts_with($normalizedPath, $basePath . '/')) {
+            return substr($normalizedPath, strlen($basePath)) ?: '/';
+        }
+
+        return $normalizedPath;
     }
 }

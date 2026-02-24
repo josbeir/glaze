@@ -3,12 +3,15 @@ declare(strict_types=1);
 
 namespace Glaze\Content;
 
+use Cake\Chronos\Chronos;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
+use DateTimeInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
 use SplFileInfo;
+use Throwable;
 
 /**
  * Discovers Djot content files and maps them to static routes.
@@ -197,10 +200,26 @@ final class ContentDiscoveryService
                 continue;
             }
 
-            $normalized[$normalizedKey] = $this->normalizeMetaValue($value);
+            $normalized[$normalizedKey] = $this->normalizeMetaEntry($normalizedKey, $value);
         }
 
         return $normalized;
+    }
+
+    /**
+     * Normalize a metadata entry while applying key-specific conversions.
+     *
+     * @param string $key Normalized metadata key.
+     * @param mixed $value Metadata value.
+     */
+    protected function normalizeMetaEntry(string $key, mixed $value): mixed
+    {
+        $normalized = $this->normalizeMetaValue($value);
+        if ($key !== 'date') {
+            return $normalized;
+        }
+
+        return $this->normalizeDateMetaValue($normalized, $key);
     }
 
     /**
@@ -283,15 +302,30 @@ final class ContentDiscoveryService
      */
     protected function normalizeMetaValue(mixed $value): mixed
     {
+        if ($value instanceof DateTimeInterface) {
+            return Chronos::instance($value);
+        }
+
         if (is_scalar($value) || $value === null) {
             return $value;
         }
 
         if (is_array($value)) {
-            return array_values(array_filter(
-                $value,
-                static fn(mixed $item): bool => is_scalar($item) || $item === null,
-            ));
+            $normalizedItems = [];
+            foreach ($value as $item) {
+                $normalizedItem = $this->normalizeMetaValue($item);
+                if (
+                    !is_scalar($normalizedItem)
+                    && $normalizedItem !== null
+                    && !$normalizedItem instanceof DateTimeInterface
+                ) {
+                    continue;
+                }
+
+                $normalizedItems[] = $normalizedItem;
+            }
+
+            return $normalizedItems;
         }
 
         if (is_object($value) && method_exists($value, '__toString')) {
@@ -305,7 +339,7 @@ final class ContentDiscoveryService
      * Normalize map-like metadata values while preserving keys.
      *
      * @param array<mixed> $value Raw metadata map.
-     * @return array<string, scalar|null>
+     * @return array<string, mixed>
      */
     protected function normalizeMetaMap(array $value): array
     {
@@ -321,14 +355,51 @@ final class ContentDiscoveryService
                 continue;
             }
 
-            if (!is_scalar($item) && $item !== null) {
+            $normalizedItem = $this->normalizeMetaEntry(strtolower($normalizedKey), $item);
+            if (is_array($normalizedItem)) {
                 continue;
             }
 
-            $normalized[$normalizedKey] = $item;
+            if (
+                !is_scalar($normalizedItem)
+                && $normalizedItem !== null
+                && !$normalizedItem instanceof DateTimeInterface
+            ) {
+                continue;
+            }
+
+            $normalized[$normalizedKey] = $normalizedItem;
         }
 
         return $normalized;
+    }
+
+    /**
+     * Convert frontmatter date values into Chronos instances when possible.
+     *
+     * @param mixed $value Metadata date value.
+     */
+    protected function normalizeDateMetaValue(mixed $value, string $key): Chronos
+    {
+        if ($value instanceof DateTimeInterface) {
+            return Chronos::instance($value);
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            throw new RuntimeException(sprintf(
+                'Invalid frontmatter "%s" value: expected a valid date/datetime parseable by Chronos.',
+                $key,
+            ));
+        }
+
+        try {
+            return Chronos::parse($value);
+        } catch (Throwable) {
+            throw new RuntimeException(sprintf(
+                'Invalid frontmatter "%s" value: expected a valid date/datetime parseable by Chronos.',
+                $key,
+            ));
+        }
     }
 
     /**

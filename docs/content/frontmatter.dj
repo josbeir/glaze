@@ -1,0 +1,96 @@
+---
+title: Frontmatter
+---
+# Frontmatter
+
+Frontmatter is metadata at the top of a Djot page.
+
+Glaze reads frontmatter as [NEON](https://github.com/nette/neon), the same format used by `glaze.neon`.
+
+## Supported fences
+
+You can use either `+++` or `---` as opening/closing fences.
+
+Example with `+++`:
+
+```djot
++++
+title: Hello world
+slug: /
+draft: false
+template: page
+tags:
+  - intro
+  - welcome
+meta:
+  robots: index,follow
++++
+# Hello world
+
+Welcome to Glaze.
+```
+
+Example with `---`:
+
+```djot
+---
+title: Hello world
+slug: /
+draft: false
+template: page
+---
+# Hello world
+
+Welcome to Glaze.
+```
+
+## Dates and datetimes
+
+For page dates, use the `date` key in frontmatter.
+
+```djot
+---
+title: Release note
+date: 2026-02-24T14:30:00+01:00
+---
+# Release note
+```
+
+Glaze strictly normalizes `date` and `meta.date` to `Cake\Chronos\Chronos`.
+If a provided value cannot be parsed as a valid date/datetime, discovery throws an exception.
+
+In templates, retrieve it from page metadata:
+
+```php
+<?php $publishedAt = $page->meta['date'] ?? null; ?>
+
+<?php if ($publishedAt instanceof \Cake\Chronos\Chronos): ?>
+    <time datetime="<?= $publishedAt->toIso8601String() ?>">
+        <?= $publishedAt->format('Y-m-d H:i') ?>
+    </time>
+<?php endif; ?>
+```
+
+## Common fields
+
+- `title` (string): page title
+- `slug` (string): override generated route slug
+- `date` (date/datetime): publish date exposed as Chronos in templates
+- `draft` (bool): exclude from static build unless `--drafts` is used
+- `template` (string): per-page template override
+- taxonomy fields (`tags`, `categories`, etc.): based on your configured `taxonomies`
+- `meta` (map): custom meta values exposed to templates
+
+## How Glaze uses it
+
+- routes are generated from file paths unless `slug` overrides them
+- page title defaults are inferred when `title` is missing
+- taxonomy terms are extracted from configured taxonomy keys
+- `meta` values are merged into effective page metadata
+
+## Notes
+
+- unknown fields are kept in page metadata
+- frontmatter is optional
+
+Next: [Configuration](configuration) and [Templating](templating).

@@ -38,7 +38,7 @@ abstract class AbstractGlideAssetMiddleware extends AbstractAssetMiddleware
      */
     protected function createAssetResponse(ServerRequestInterface $request): ?ResponseInterface
     {
-        $requestPath = $request->getUri()->getPath();
+        $requestPath = $this->assetRequestPath($request);
 
         if ($this->isImagePath($requestPath)) {
             $transformedResponse = $this->imageTransformer->createResponse(

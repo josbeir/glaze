@@ -21,6 +21,7 @@ Write in modern markup, render with modern PHP templates, and ship static output
 - [Installation](installation)
 - [Quick start](quick-start)
 - [Usage](usage)
+- [Frontmatter](frontmatter)
 - [Glide images](glide-images)
 - [Configuration](configuration)
 - [Templating](templating)
@@ -32,6 +33,7 @@ Write in modern markup, render with modern PHP templates, and ship static output
 
 - How to install and scaffold a project
 - How content and templates map to routes
+- How frontmatter metadata drives routing and rendering
 - How to configure taxonomies and global site metadata
 - How to transform images with Glide params and optional presets
 - How to query pages and taxonomies in templates

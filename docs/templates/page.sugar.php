@@ -1,5 +1,6 @@
 <?php
 /**
+ * @var Glaze\Content\ContentPage $page
  * @var Glaze\Template\SiteContext $this
  */
 ?>

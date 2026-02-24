@@ -45,6 +45,27 @@ final class AssetMiddlewareTest extends TestCase
     }
 
     /**
+     * Ensure public asset middleware resolves basePath-prefixed requests.
+     */
+    public function testPublicAssetMiddlewareResolvesBasePathPrefixedAssetResponse(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public/images', 0755, true);
+        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new PublicAssetMiddleware($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/images/logo.jpg');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('image/jpeg', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('jpg-bytes', (string)$response->getBody());
+    }
+
+    /**
      * Ensure content asset middleware falls back when no matching asset exists.
      */
     public function testContentAssetMiddlewareFallsBackWhenMissingAsset(): void
@@ -95,6 +116,52 @@ final class AssetMiddlewareTest extends TestCase
         $middleware = new PublicAssetMiddleware($config, null, $transformer);
         $request = (new ServerRequestFactory())
             ->createServerRequest('GET', '/images/logo.jpg')
+            ->withQueryParams(['h' => '500']);
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('transformed-jpg', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure image transformer receives stripped request path for basePath-prefixed URLs.
+     */
+    public function testPublicAssetMiddlewareUsesImageTransformerForBasePathPrefixedImageRequests(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public/images', 0755, true);
+        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $transformer = new class implements ImageTransformerInterface {
+            public function createResponse(
+                string $rootPath,
+                string $requestPath,
+                array $queryParams,
+                array $presets,
+                string $cachePath,
+                array $options = [],
+            ): ?ResponseInterface {
+                if ($requestPath !== '/images/logo.jpg') {
+                    return null;
+                }
+
+                if (($queryParams['h'] ?? null) !== '500') {
+                    return null;
+                }
+
+                return (new Response(['charset' => 'UTF-8']))
+                    ->withStatus(206)
+                    ->withHeader('Content-Type', 'image/jpeg')
+                    ->withStringBody('transformed-jpg');
+            }
+        };
+
+        $middleware = new PublicAssetMiddleware($config, null, $transformer);
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('GET', '/glaze/images/logo.jpg')
             ->withQueryParams(['h' => '500']);
 
         $response = $middleware->process($request, $this->fallbackHandler());

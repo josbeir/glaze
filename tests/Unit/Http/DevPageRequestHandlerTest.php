@@ -69,4 +69,42 @@ final class DevPageRequestHandlerTest extends TestCase
         $this->assertSame(301, $response->getStatusCode());
         $this->assertSame('/blog/', $response->getHeaderLine('Location'));
     }
+
+    /**
+     * Ensure configured basePath request prefixes are tolerated in live mode.
+     */
+    public function testHandleResolvesPrefixedPathWhenBasePathConfigured(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = new DevPageRequestHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/docs/');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('<h1>Home</h1>', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure prefixed directory-like requests keep canonical redirect behavior.
+     */
+    public function testHandleRedirectsPrefixedDirectoryPathToTrailingSlash(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        file_put_contents($projectRoot . '/content/blog/index.dj', "# Blog\n");
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = new DevPageRequestHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/docs/blog');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(301, $response->getStatusCode());
+        $this->assertSame('/docs/blog/', $response->getHeaderLine('Location'));
+    }
 }

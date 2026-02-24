@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace Glaze\Template;
 
 use ArrayIterator;
+use Cake\Chronos\Chronos;
 use Cake\Utility\Hash;
 use Countable;
-use DateTimeImmutable;
 use DateTimeInterface;
 use Glaze\Content\ContentPage;
 use IteratorAggregate;
@@ -496,7 +496,7 @@ final class PageCollection implements IteratorAggregate, Countable
         }
 
         try {
-            return (new DateTimeImmutable($value))->getTimestamp();
+            return Chronos::parse($value)->getTimestamp();
         } catch (Throwable) {
             return null;
         }
