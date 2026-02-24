@@ -195,6 +195,56 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure relative image sources remain content-root based when slug is overridden.
+     */
+    public function testRenderRequestRewritesRelativeImageSourceWhenSlugIsOverridden(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/content/blog/index.dj',
+            "---\nslug: /kaka\n---\n## Hello\n\n![test](test2.jpg)\n",
+        );
+        file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
+        file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/kaka/');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('<img alt="test" src="/blog/test2.jpg">', $html);
+    }
+
+    /**
+     * Ensure static build output rewrites relative image sources with slug overrides.
+     */
+    public function testBuildRewritesRelativeImageSourceWhenSlugIsOverridden(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/content/blog/index.dj',
+            "---\nslug: /kaka\n---\n## Hello\n\n![test](test2.jpg)\n",
+        );
+        file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
+        file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder->build($config);
+
+        $output = file_get_contents($projectRoot . '/public/kaka/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('<img alt="test" src="/blog/test2.jpg">', $output);
+        $this->assertFileExists($projectRoot . '/public/blog/test2.jpg');
+    }
+
+    /**
      * Create a temporary directory for isolated test execution.
      */
     protected function createTempDirectory(): string

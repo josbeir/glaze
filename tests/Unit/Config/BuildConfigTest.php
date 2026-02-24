@@ -21,7 +21,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/content', $config->contentPath());
         $this->assertSame('/tmp/glaze-project/templates', $config->templatePath());
         $this->assertSame('/tmp/glaze-project/public', $config->outputPath());
-        $this->assertSame('/tmp/glaze-project/cache', $config->cachePath());
+        $this->assertSame('/tmp/glaze-project/tmp/cache', $config->cachePath());
         $this->assertFalse($config->includeDrafts);
     }
 

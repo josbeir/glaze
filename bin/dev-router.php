@@ -19,7 +19,19 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 
 $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
 $config = BuildConfig::fromProjectRoot($projectRoot, $includeDrafts);
-$request = ServerRequestFactory::fromGlobals();
+
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$requestPath = parse_url($requestUri, PHP_URL_PATH);
+$requestPath = is_string($requestPath) && $requestPath !== '' ? $requestPath : '/';
+$request = (new ServerRequestFactory())->createServerRequest($requestMethod, $requestPath, $_SERVER);
+
+$query = parse_url($requestUri, PHP_URL_QUERY);
+if (is_string($query) && $query !== '') {
+    parse_str($query, $queryParams);
+    $request = $request->withQueryParams($queryParams);
+}
+
 $queue = new MiddlewareQueue();
 $queue->add(new PublicAssetMiddleware($config));
 $queue->add(new ContentAssetMiddleware($config));

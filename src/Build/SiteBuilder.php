@@ -15,6 +15,12 @@ use RuntimeException;
  */
 final class SiteBuilder
 {
+    protected ContentDiscoveryService $discoveryService;
+
+    protected DjotRenderer $djotRenderer;
+
+    protected ContentAssetPublisher $assetPublisher;
+
     /**
      * Constructor.
      *
@@ -31,12 +37,6 @@ final class SiteBuilder
         $this->djotRenderer = $djotRenderer ?? new DjotRenderer();
         $this->assetPublisher = $assetPublisher ?? new ContentAssetPublisher();
     }
-
-    protected ContentDiscoveryService $discoveryService;
-
-    protected DjotRenderer $djotRenderer;
-
-    protected ContentAssetPublisher $assetPublisher;
 
     /**
      * Render a page for a request path in live mode.
@@ -176,6 +176,7 @@ final class SiteBuilder
         );
 
         $htmlContent = $this->djotRenderer->render($page->source);
+        $htmlContent = $this->rewriteRelativeImageSources($htmlContent, $page);
 
         return $pageRenderer->render([
             'title' => $page->title,
@@ -184,6 +185,116 @@ final class SiteBuilder
             'page' => $page,
             'meta' => $page->meta,
         ]);
+    }
+
+    /**
+     * Rewrite relative image sources to content-root absolute paths.
+     *
+     * @param string $html Rendered Djot HTML.
+     * @param \Glaze\Content\ContentPage $page Source page metadata.
+     */
+    protected function rewriteRelativeImageSources(string $html, ContentPage $page): string
+    {
+        $rewritten = preg_replace_callback(
+            '/<img\b([^>]*?)\bsrc=("|\')(.*?)\2([^>]*)>/i',
+            function (array $matches) use ($page): string {
+                $source = $matches[3];
+                if ($source === '') {
+                    return $matches[0];
+                }
+
+                $rewrittenSource = $this->toContentAbsoluteResourcePath($source, $page->relativePath);
+                if ($rewrittenSource === $source) {
+                    return $matches[0];
+                }
+
+                return str_replace($source, $rewrittenSource, $matches[0]);
+            },
+            $html,
+        );
+
+        return is_string($rewritten) ? $rewritten : $html;
+    }
+
+    /**
+     * Convert a relative resource path to an absolute path from content root.
+     *
+     * @param string $resourcePath Resource path from rendered HTML.
+     * @param string $relativePagePath Relative source page path.
+     */
+    protected function toContentAbsoluteResourcePath(string $resourcePath, string $relativePagePath): string
+    {
+        if ($this->isAbsoluteResourcePath($resourcePath)) {
+            return $resourcePath;
+        }
+
+        preg_match('/^([^?#]*)(.*)$/', $resourcePath, $parts);
+        $pathPart = $parts[1];
+        $suffix = $parts[2];
+
+        $baseDirectory = dirname(str_replace('\\', '/', $relativePagePath));
+        $baseDirectory = $baseDirectory === '.' ? '' : trim($baseDirectory, '/');
+
+        $combinedPath = ($baseDirectory !== '' ? $baseDirectory . '/' : '') . ltrim($pathPart, '/');
+        $normalizedPath = $this->normalizePathSegments($combinedPath);
+
+        return '/' . ltrim($normalizedPath, '/') . $suffix;
+    }
+
+    /**
+     * Detect whether a resource path is already absolute or external.
+     *
+     * @param string $resourcePath Resource path from rendered HTML.
+     */
+    protected function isAbsoluteResourcePath(string $resourcePath): bool
+    {
+        if ($resourcePath === '') {
+            return true;
+        }
+
+        if (str_starts_with($resourcePath, '/')) {
+            return true;
+        }
+
+        if (str_starts_with($resourcePath, '#')) {
+            return true;
+        }
+
+        if (str_starts_with($resourcePath, '//')) {
+            return true;
+        }
+
+        return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
+    }
+
+    /**
+     * Normalize dot segments in a path.
+     *
+     * @param string $path Relative path to normalize.
+     */
+    protected function normalizePathSegments(string $path): string
+    {
+        $segments = explode('/', str_replace('\\', '/', $path));
+        $normalized = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            if ($segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($normalized);
+                continue;
+            }
+
+            $normalized[] = $segment;
+        }
+
+        return implode('/', $normalized);
     }
 
     /**
