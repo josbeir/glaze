@@ -8,6 +8,8 @@ use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
 use Glaze\Render\DjotRenderer;
 use Glaze\Render\SugarPageRenderer;
+use Glaze\Template\SiteContext;
+use Glaze\Template\SiteIndex;
 use RuntimeException;
 
 /**
@@ -47,13 +49,18 @@ final class SiteBuilder
      */
     public function renderRequest(BuildConfig $config, string $requestPath): ?string
     {
-        $pages = $this->filterPages($this->discoveryService->discover($config->contentPath()), $config);
+        $pages = $this->filterPages(
+            $this->discoveryService->discover($config->contentPath(), $config->taxonomies),
+            $config,
+        );
         $page = $this->matchPageByPath($pages, $requestPath);
         if (!$page instanceof ContentPage) {
             return null;
         }
 
-        return $this->renderPage($config, $page, true);
+        $siteIndex = new SiteIndex($pages);
+
+        return $this->renderPage($config, $page, true, null, $siteIndex);
     }
 
     /**
@@ -69,12 +76,16 @@ final class SiteBuilder
             $this->removeDirectory($config->outputPath());
         }
 
-        $pages = $this->filterPages($this->discoveryService->discover($config->contentPath()), $config);
+        $pages = $this->filterPages(
+            $this->discoveryService->discover($config->contentPath(), $config->taxonomies),
+            $config,
+        );
         $pageRenderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->cachePath(),
             template: $config->pageTemplate,
         );
+        $siteIndex = new SiteIndex($pages);
 
         $writtenFiles = [];
         foreach ($pages as $page) {
@@ -83,6 +94,7 @@ final class SiteBuilder
                 page: $page,
                 debug: false,
                 pageRenderer: $pageRenderer,
+                siteIndex: $siteIndex,
             );
 
             $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
@@ -161,18 +173,25 @@ final class SiteBuilder
      * @param \Glaze\Content\ContentPage $page Page to render.
      * @param bool $debug Whether to enable template debug freshness checks.
      * @param \Glaze\Render\SugarPageRenderer|null $pageRenderer Optional pre-built renderer.
+     * @param \Glaze\Template\SiteIndex|null $siteIndex Optional pre-built site index.
      */
     protected function renderPage(
         BuildConfig $config,
         ContentPage $page,
         bool $debug,
         ?SugarPageRenderer $pageRenderer = null,
+        ?SiteIndex $siteIndex = null,
     ): string {
         $pageRenderer ??= new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->cachePath(),
             template: $config->pageTemplate,
             debug: $debug,
+        );
+        $siteIndex ??= new SiteIndex([$page]);
+        $templateContext = new SiteContext(
+            siteIndex: $siteIndex,
+            currentPage: $page,
         );
 
         $htmlContent = $this->djotRenderer->render($page->source);
@@ -184,7 +203,7 @@ final class SiteBuilder
             'content' => $htmlContent,
             'page' => $page,
             'meta' => $page->meta,
-        ]);
+        ], $templateContext);
     }
 
     /**

@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace Glaze\Config;
 
+use Nette\Neon\Exception;
+use Nette\Neon\Neon;
+use RuntimeException;
+
 /**
  * Immutable build configuration for static site generation.
  */
@@ -17,6 +21,7 @@ final class BuildConfig
      * @param string $outputDir Relative output directory.
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
+     * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param bool $includeDrafts Whether draft pages should be included.
      */
     public function __construct(
@@ -26,6 +31,7 @@ final class BuildConfig
         public readonly string $outputDir = 'public',
         public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
         public readonly string $pageTemplate = 'page',
+        public readonly array $taxonomies = ['tags'],
         public readonly bool $includeDrafts = false,
     ) {
     }
@@ -38,10 +44,84 @@ final class BuildConfig
      */
     public static function fromProjectRoot(string $projectRoot, bool $includeDrafts = false): self
     {
+        $normalizedRoot = self::normalizePath($projectRoot);
+        $projectConfiguration = self::readProjectConfiguration($normalizedRoot);
+
         return new self(
-            projectRoot: self::normalizePath($projectRoot),
+            projectRoot: $normalizedRoot,
+            taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Read optional project configuration from `glaze.neon`.
+     *
+     * @param string $projectRoot Absolute project root path.
+     * @return array<string, mixed>
+     */
+    protected static function readProjectConfiguration(string $projectRoot): array
+    {
+        $configurationPath = $projectRoot . DIRECTORY_SEPARATOR . 'glaze.neon';
+        if (!is_file($configurationPath)) {
+            return [];
+        }
+
+        $contents = file_get_contents($configurationPath);
+        if (!is_string($contents)) {
+            throw new RuntimeException(sprintf('Unable to read project configuration "%s".', $configurationPath));
+        }
+
+        try {
+            $decoded = Neon::decode($contents);
+        } catch (Exception $exception) {
+            throw new RuntimeException(
+                sprintf('Invalid project configuration in "%s": %s', $configurationPath, $exception->getMessage()),
+                0,
+                $exception,
+            );
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
+    }
+
+    /**
+     * Normalize configured taxonomy keys.
+     *
+     * @param mixed $taxonomies Raw configured taxonomies.
+     * @return array<string>
+     */
+    protected static function normalizeTaxonomies(mixed $taxonomies): array
+    {
+        if (!is_array($taxonomies)) {
+            return ['tags'];
+        }
+
+        $normalized = [];
+        foreach ($taxonomies as $taxonomy) {
+            if (!is_string($taxonomy)) {
+                continue;
+            }
+
+            $key = strtolower(trim($taxonomy));
+            if ($key === '') {
+                continue;
+            }
+
+            $normalized[] = $key;
+        }
+
+        $unique = array_values(array_unique($normalized));
+        if ($unique === []) {
+            return ['tags'];
+        }
+
+        return $unique;
     }
 
     /**

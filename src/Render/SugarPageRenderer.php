@@ -33,16 +33,19 @@ final class SugarPageRenderer
      * Render a full page using Sugar.
      *
      * @param array<string, mixed> $data Template data.
+     * @param object|null $templateContext Template context available as `$this`.
      */
-    public function render(array $data): string
+    public function render(array $data, ?object $templateContext = null): string
     {
-        return $this->createEngine()->render($this->template, $data);
+        return $this->createEngine($templateContext)->render($this->template, $data);
     }
 
     /**
      * Create a configured Sugar engine.
+     *
+     * @param object|null $templateContext Template context available as `$this`.
      */
-    protected function createEngine(): Engine
+    protected function createEngine(?object $templateContext = null): Engine
     {
         if (!is_dir($this->cachePath)) {
             mkdir($this->cachePath, 0755, true);
@@ -52,6 +55,7 @@ final class SugarPageRenderer
             ->withTemplateLoader(new FileTemplateLoader($this->templatePath))
             ->withCache(new FileCache($this->cachePath))
             ->withDebug($this->debug)
+            ->withTemplateContext($templateContext)
             ->withExtension(new ComponentExtension(['components']))
             ->withHtmlExceptionRenderer()
             ->build();

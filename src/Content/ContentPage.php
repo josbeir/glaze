@@ -20,6 +20,7 @@ final class ContentPage
      * @param string $source Djot source content.
      * @param bool $draft Whether this page is marked as draft.
      * @param array<string, mixed> $meta Parsed frontmatter metadata.
+     * @param array<string, array<string>> $taxonomies Parsed taxonomy terms by taxonomy key.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -31,6 +32,7 @@ final class ContentPage
         public readonly string $source,
         public readonly bool $draft,
         public readonly array $meta,
+        public readonly array $taxonomies = [],
     ) {
     }
 }

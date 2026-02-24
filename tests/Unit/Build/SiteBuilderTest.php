@@ -166,6 +166,50 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure template context exposes collections, taxonomy, and pagination helpers.
+     */
+    public function testRenderRequestExposesTemplateSiteContext(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "+++\ntags:\n  - home\n+++\n# Home\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/blog/post-a.dj',
+            "+++\ntags:\n  - php\n+++\n# Post A\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/blog/post-b.dj',
+            "+++\ntags:\n  - php\n+++\n# Post B\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<p class="regular"><?= $this->regularPages()->count() ?></p>'
+            . '<p class="section"><?= $this->section("blog")->count() ?></p>'
+            . '<p class="tags"><?= $this->taxonomyTerm("tags", "php")->count() ?></p>'
+            . '<?php $pager = $this->paginate($this->section("blog"), 1, 2, "/blog/"); ?>'
+            . '<p class="pager-url"><?= $pager->url() ?></p>'
+            . '<p class="pager-prev"><?= $pager->prevUrl() ?? "none" ?></p>'
+            . '<?= $content |> raw() ?>',
+        );
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/blog/post-a/');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('<p class="regular">3</p>', $html);
+        $this->assertStringContainsString('<p class="section">2</p>', $html);
+        $this->assertStringContainsString('<p class="tags">2</p>', $html);
+        $this->assertStringContainsString('<p class="pager-url">/blog/page/2/</p>', $html);
+        $this->assertStringContainsString('<p class="pager-prev">/blog/</p>', $html);
+    }
+
+    /**
      * Ensure relative image sources remain content-root based when slug is overridden.
      */
     public function testRenderRequestRewritesRelativeImageSourceWhenSlugIsOverridden(): void
@@ -176,14 +220,14 @@ final class SiteBuilderTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/content/blog/index.dj',
-            "---\nslug: /kaka\n---\n## Hello\n\n![test](test2.jpg)\n",
+            "---\nslug: /blog/asset-test-page\n---\n## Hello\n\n![test](test2.jpg)\n",
         );
         file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
 
         $builder = new SiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $html = $builder->renderRequest($config, '/kaka/');
+        $html = $builder->renderRequest($config, '/blog/asset-test-page/');
 
         $this->assertIsString($html);
         $this->assertStringContainsString('<img alt="test" src="/blog/test2.jpg">', $html);
@@ -200,7 +244,7 @@ final class SiteBuilderTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/content/blog/index.dj',
-            "---\nslug: /kaka\n---\n## Hello\n\n![test](test2.jpg)\n",
+            "---\nslug: /blog/asset-test-page\n---\n## Hello\n\n![test](test2.jpg)\n",
         );
         file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
@@ -209,7 +253,7 @@ final class SiteBuilderTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $builder->build($config);
 
-        $output = file_get_contents($projectRoot . '/public/kaka/index.html');
+        $output = file_get_contents($projectRoot . '/public/blog/asset-test-page/index.html');
         $this->assertIsString($output);
         $this->assertStringContainsString('<img alt="test" src="/blog/test2.jpg">', $output);
         $this->assertFileExists($projectRoot . '/public/blog/test2.jpg');

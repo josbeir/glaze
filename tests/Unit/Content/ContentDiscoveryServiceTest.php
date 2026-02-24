@@ -127,9 +127,35 @@ final class ContentDiscoveryServiceTest extends TestCase
         $page = $pages[0];
         $this->assertSame('index', $page->slug);
         $this->assertSame('/', $page->urlPath);
-        $this->assertSame(['one', 2, null], $page->meta['tags']);
+        $this->assertSame(['one'], $page->taxonomies['tags']);
         $this->assertSame(123, $page->meta['name']);
         $this->assertSame(['bar'], $page->meta['obj']);
+        $this->assertArrayNotHasKey('tags', $page->meta);
+    }
+
+    /**
+     * Validate configured root-level taxonomy extraction for multiple keys.
+     */
+    public function testDiscoverExtractsConfiguredTaxonomiesFromFrontmatterRoot(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\ntitle: Home\ntags:\n  - Tag1\n  - tag2\ncategories:\n  - Category1\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover($contentPath, ['tags', 'categories']);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertSame(['tag1', 'tag2'], $page->taxonomies['tags']);
+        $this->assertSame(['category1'], $page->taxonomies['categories']);
+        $this->assertArrayNotHasKey('tags', $page->meta);
+        $this->assertArrayNotHasKey('categories', $page->meta);
     }
 
     /**

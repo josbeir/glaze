@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Content;
 
+use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -30,13 +31,16 @@ final class ContentDiscoveryService
      * Discover all Djot pages in a content directory.
      *
      * @param string $contentPath Absolute content directory path.
+     * @param array<string> $taxonomies Enabled taxonomy keys.
      * @return array<\Glaze\Content\ContentPage>
      */
-    public function discover(string $contentPath): array
+    public function discover(string $contentPath, array $taxonomies = ['tags']): array
     {
         if (!is_dir($contentPath)) {
             return [];
         }
+
+        $normalizedTaxonomies = $this->normalizeTaxonomyKeys($taxonomies);
 
         $pages = [];
         $iterator = new RecursiveIteratorIterator(
@@ -61,6 +65,7 @@ final class ContentDiscoveryService
             $relativePath = $this->relativePath($contentPath, $sourcePath);
             $parsed = $this->frontMatterParser->parse($this->readFile($sourcePath));
             $meta = $this->normalizeMetadata($parsed->metadata);
+            [$meta, $taxonomyValues] = $this->extractTaxonomies($meta, $normalizedTaxonomies);
             $slug = $this->resolveSlug($relativePath, $meta);
             $title = $this->resolveTitle($slug, $meta);
             $pages[] = new ContentPage(
@@ -73,6 +78,7 @@ final class ContentDiscoveryService
                 source: $parsed->body,
                 draft: $this->resolveDraft($meta),
                 meta: $meta,
+                taxonomies: $taxonomyValues,
             );
         }
 
@@ -193,6 +199,79 @@ final class ContentDiscoveryService
     }
 
     /**
+     * Normalize configured taxonomy key names.
+     *
+     * @param array<string> $taxonomies Configured taxonomy keys.
+     * @return array<string>
+     */
+    protected function normalizeTaxonomyKeys(array $taxonomies): array
+    {
+        $normalized = [];
+
+        foreach ($taxonomies as $taxonomy) {
+            $key = strtolower(trim($taxonomy));
+            if ($key === '') {
+                continue;
+            }
+
+            $normalized[] = $key;
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * Extract configured taxonomies from metadata map.
+     *
+     * @param array<string, mixed> $meta Normalized metadata values.
+     * @param array<string> $taxonomyKeys Taxonomy keys to extract.
+     * @return array{array<string, mixed>, array<string, array<string>>}
+     */
+    protected function extractTaxonomies(array $meta, array $taxonomyKeys): array
+    {
+        $taxonomies = [];
+
+        foreach ($taxonomyKeys as $taxonomyKey) {
+            $raw = $meta[$taxonomyKey] ?? null;
+            $taxonomies[$taxonomyKey] = $this->normalizeTaxonomyTerms($raw);
+            unset($meta[$taxonomyKey]);
+        }
+
+        return [$meta, $taxonomies];
+    }
+
+    /**
+     * Normalize taxonomy terms to distinct lowercased strings.
+     *
+     * @param mixed $raw Taxonomy frontmatter value.
+     * @return array<string>
+     */
+    protected function normalizeTaxonomyTerms(mixed $raw): array
+    {
+        $terms = [];
+
+        if (is_string($raw) && trim($raw) !== '') {
+            $terms[] = strtolower(trim($raw));
+        }
+
+        if (is_array($raw)) {
+            foreach ($raw as $value) {
+                if (!is_string($value)) {
+                    continue;
+                }
+
+                if (trim($value) === '') {
+                    continue;
+                }
+
+                $terms[] = strtolower(trim($value));
+            }
+        }
+
+        return array_values(array_unique($terms));
+    }
+
+    /**
      * Normalize supported metadata value types.
      *
      * @param mixed $value Metadata value.
@@ -284,7 +363,9 @@ final class ContentDiscoveryService
         $segments = explode('/', $slug);
         $last = end($segments);
 
-        return ucfirst(str_replace('-', ' ', $last));
+        $humanized = Inflector::humanize(str_replace('-', '_', (string)$last));
+
+        return ucfirst(strtolower($humanized));
     }
 
     /**
