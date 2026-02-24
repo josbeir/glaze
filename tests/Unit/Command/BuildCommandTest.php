@@ -53,6 +53,22 @@ final class BuildCommandTest extends TestCase
     }
 
     /**
+     * Ensure root option normalization trims string values and rejects invalid input.
+     */
+    public function testNormalizeRootOptionHandlesVariants(): void
+    {
+        $command = new BuildCommand();
+
+        $trimmed = $this->callProtected($command, 'normalizeRootOption', ' /tmp/site ');
+        $blank = $this->callProtected($command, 'normalizeRootOption', '   ');
+        $invalid = $this->callProtected($command, 'normalizeRootOption', 123);
+
+        $this->assertSame('/tmp/site', $trimmed);
+        $this->assertNull($blank);
+        $this->assertNull($invalid);
+    }
+
+    /**
      * Invoke a protected method on an object using scope-bound closure.
      *
      * @param object $object Object to invoke method on.

@@ -9,6 +9,8 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Utility\Normalization;
+use Glaze\Utility\ProjectRootResolver;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -36,7 +38,7 @@ final class ServeCommand extends BaseCommand
         $parser
             ->addOption('root', [
                 'help' => 'Project root directory containing public/.',
-                'default' => getcwd() ?: '.',
+                'default' => null,
             ])
             ->addOption('host', [
                 'help' => 'Host interface to bind the server to.',
@@ -73,7 +75,7 @@ final class ServeCommand extends BaseCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
-        $projectRoot = $this->normalizePath((string)$args->getOption('root'));
+        $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
         if (!is_dir($projectRoot)) {
             $io->err(sprintf('<error>Project root not found: %s</error>', $projectRoot));
 
@@ -182,9 +184,12 @@ final class ServeCommand extends BaseCommand
             return sprintf('php -S %s -t %s', escapeshellarg($address), escapeshellarg($docRoot));
         }
 
-        $routerPath = $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
-        if (!is_file($routerPath)) {
-            throw new InvalidArgumentException(sprintf('Live router script not found: %s', $routerPath));
+        $routerPath = $this->resolveLiveRouterPath($projectRoot);
+        if (!is_string($routerPath)) {
+            throw new InvalidArgumentException(sprintf(
+                'Live router script not found: %s',
+                $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php',
+            ));
         }
 
         return sprintf(
@@ -247,15 +252,47 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
-     * Normalize path separators and remove trailing separators.
+     * Normalize optional root option values.
      *
-     * @param string $path Input path.
+     * @param mixed $rootOption Raw root option value.
      */
-    protected function normalizePath(string $path): string
+    protected function normalizeRootOption(mixed $rootOption): ?string
     {
-        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        if (!is_string($rootOption)) {
+            return null;
+        }
 
-        return rtrim($normalized, DIRECTORY_SEPARATOR);
+        return Normalization::optionalPath($rootOption);
+    }
+
+    /**
+     * Resolve live router path for the given project root.
+     *
+     * @param string $projectRoot Project root directory.
+     */
+    protected function resolveLiveRouterPath(string $projectRoot): ?string
+    {
+        $projectRouterPath = $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
+        if (is_file($projectRouterPath)) {
+            return $projectRouterPath;
+        }
+
+        if (!is_file($projectRoot . DIRECTORY_SEPARATOR . 'glaze.neon')) {
+            return null;
+        }
+
+        $cliRoot = Normalization::optionalPath(getenv('GLAZE_CLI_ROOT') ?: null);
+        if ($cliRoot !== null) {
+            $cliRouterPath = $cliRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
+            if (is_file($cliRouterPath)) {
+                return $cliRouterPath;
+            }
+        }
+
+        $packageRoot = dirname(__DIR__, 2);
+        $packageRouterPath = $packageRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
+
+        return is_file($packageRouterPath) ? $packageRouterPath : null;
     }
 
     /**

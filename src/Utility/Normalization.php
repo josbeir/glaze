@@ -109,4 +109,33 @@ final class Normalization
 
         return $normalized;
     }
+
+    /**
+     * Normalize path separators and strip trailing directory separators.
+     *
+     * @param string $path Raw path value.
+     */
+    public static function path(string $path): string
+    {
+        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+        return rtrim($normalized, DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Normalize optional path values.
+     *
+     * Returns null for non-string or empty-string input.
+     *
+     * @param mixed $path Raw path value.
+     */
+    public static function optionalPath(mixed $path): ?string
+    {
+        $normalized = self::optionalString($path);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return self::path($normalized);
+    }
 }

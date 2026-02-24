@@ -1,0 +1,33 @@
+pageTemplate: page
+site:
+	title: Glaze Documentation
+	description: Glaze PHP templating engine documentation
+	basePath: /glaze
+
+taxonomies:
+	- tags
+	- categories
+
+
+# --- Available options (uncomment and adjust as needed) ---
+# pageTemplate: page
+#
+# images:
+#   driver: gd
+#   presets:
+#     thumb:
+#       w: 320
+#       h: 180
+#       fit: crop
+#
+# site:
+#   title: My Site
+#   description: Default site description
+#   baseUrl: https://example.com
+#   basePath: /blog
+#   metaDefaults:
+#     robots: index,follow
+#
+# taxonomies:
+#   - tags
+#   - categories

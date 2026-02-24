@@ -54,7 +54,7 @@ final class BuildConfig
      */
     public static function fromProjectRoot(string $projectRoot, bool $includeDrafts = false): self
     {
-        $normalizedRoot = self::normalizePath($projectRoot);
+        $normalizedRoot = Normalization::path($projectRoot);
         $projectConfiguration = self::readProjectConfiguration($normalizedRoot);
         $imageConfiguration = $projectConfiguration['images'] ?? null;
         $imagePresets = [];
@@ -70,7 +70,7 @@ final class BuildConfig
             imagePresets: $imagePresets,
             imageOptions: $imageOptions,
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
-            site: self::normalizeSiteConfiguration($projectConfiguration['site'] ?? null),
+            site: SiteConfig::fromProjectConfig($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
     }
@@ -145,16 +145,6 @@ final class BuildConfig
     protected static function normalizePageTemplate(mixed $pageTemplate): string
     {
         return Normalization::optionalString($pageTemplate) ?? 'page';
-    }
-
-    /**
-     * Normalize site-wide configuration.
-     *
-     * @param mixed $siteConfiguration Raw site configuration value.
-     */
-    protected static function normalizeSiteConfiguration(mixed $siteConfiguration): SiteConfig
-    {
-        return SiteConfig::fromProjectConfig($siteConfiguration);
     }
 
     /**
@@ -269,20 +259,8 @@ final class BuildConfig
      */
     protected function resolvePath(string $relativePath): string
     {
-        return self::normalizePath(
+        return Normalization::path(
             $this->projectRoot . DIRECTORY_SEPARATOR . ltrim($relativePath, DIRECTORY_SEPARATOR),
         );
-    }
-
-    /**
-     * Normalize path separators and trailing slashes.
-     *
-     * @param string $path Path to normalize.
-     */
-    protected static function normalizePath(string $path): string
-    {
-        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
-
-        return rtrim($normalized, DIRECTORY_SEPARATOR);
     }
 }

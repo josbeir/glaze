@@ -10,6 +10,7 @@ use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
+use Glaze\Utility\Normalization;
 use RuntimeException;
 
 /**
@@ -156,10 +157,10 @@ final class InitCommand extends BaseCommand
             $taxonomiesDefault = $io->ask('Taxonomies (comma separated)', $taxonomiesDefault);
         }
 
-        $directoryPath = $this->normalizePath($directory);
+        $directoryPath = Normalization::path($directory);
         if (!$this->isAbsolutePath($directoryPath)) {
             $currentDirectory = getcwd() ?: '.';
-            $directoryPath = $this->normalizePath($currentDirectory . DIRECTORY_SEPARATOR . $directoryPath);
+            $directoryPath = Normalization::path($currentDirectory . DIRECTORY_SEPARATOR . $directoryPath);
         }
 
         return new ScaffoldOptions(
@@ -227,18 +228,6 @@ final class InitCommand extends BaseCommand
         $normalized = trim($value);
 
         return $normalized === '' ? null : $normalized;
-    }
-
-    /**
-     * Normalize path separators and trailing separators.
-     *
-     * @param string $path Path to normalize.
-     */
-    protected function normalizePath(string $path): string
-    {
-        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
-
-        return rtrim($normalized, DIRECTORY_SEPARATOR);
     }
 
     /**

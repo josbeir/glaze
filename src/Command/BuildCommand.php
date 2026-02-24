@@ -9,6 +9,7 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Utility\ProjectRootResolver;
 use RuntimeException;
 
 /**
@@ -37,7 +38,7 @@ final class BuildCommand extends BaseCommand
         $parser
             ->addOption('root', [
                 'help' => 'Project root directory containing content/ and templates/.',
-                'default' => getcwd() ?: '.',
+                'default' => null,
             ])
             ->addOption('clean', [
                 'help' => 'Clean the output directory before writing files.',
@@ -62,8 +63,9 @@ final class BuildCommand extends BaseCommand
     public function execute(Arguments $args, ConsoleIo $io): int
     {
         try {
+            $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
             $config = BuildConfig::fromProjectRoot(
-                (string)$args->getOption('root'),
+                $projectRoot,
                 (bool)$args->getOption('drafts'),
             );
             $writtenFiles = $this->siteBuilder()->build($config, (bool)$args->getOption('clean'));
@@ -112,5 +114,21 @@ final class BuildCommand extends BaseCommand
         $this->siteBuilder = new SiteBuilder();
 
         return $this->siteBuilder;
+    }
+
+    /**
+     * Normalize optional root option values.
+     *
+     * @param mixed $rootOption Raw root option value.
+     */
+    protected function normalizeRootOption(mixed $rootOption): ?string
+    {
+        if (!is_string($rootOption)) {
+            return null;
+        }
+
+        $normalized = trim($rootOption);
+
+        return $normalized === '' ? null : $normalized;
     }
 }

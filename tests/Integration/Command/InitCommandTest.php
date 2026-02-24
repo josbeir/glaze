@@ -44,6 +44,8 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/.gitignore');
+        $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
         $this->assertOutputContains('<success>created</success>');
         $this->assertStringContainsString('pageTemplate: landing', (string)file_get_contents($target . '/glaze.neon'));
@@ -66,6 +68,8 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/.gitignore');
+        $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
         $this->assertStringContainsString('pageTemplate: page', (string)file_get_contents($target . '/glaze.neon'));
         $this->assertStringContainsString('basePath: /interactive', (string)file_get_contents($target . '/glaze.neon'));

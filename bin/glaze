@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+putenv('GLAZE_CLI_ROOT=' . dirname(__DIR__));
+
 use Cake\Console\CommandRunner;
 use Glaze\Application;
 

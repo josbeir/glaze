@@ -23,8 +23,7 @@ final class ProjectScaffoldService
     {
         $this->guardTargetDirectory($options->targetDirectory, $options->force);
         $this->ensureDirectory($options->targetDirectory);
-        $this->copyStarterDirectory('content', $options->targetDirectory . DIRECTORY_SEPARATOR . 'content');
-        $this->copyStarterDirectory('templates', $options->targetDirectory . DIRECTORY_SEPARATOR . 'templates');
+        $this->copySkeleton($options->targetDirectory);
         $this->writeFile(
             $options->targetDirectory . DIRECTORY_SEPARATOR . 'glaze.neon',
             $this->buildProjectConfig($options),
@@ -94,29 +93,25 @@ final class ProjectScaffoldService
     }
 
     /**
-     * Copy one starter directory from the package into target project path.
+     * Copy skeleton project files from package into target path.
      *
-     * @param string $sourceName Source directory name in package root.
      * @param string $targetDirectory Target directory path.
      */
-    protected function copyStarterDirectory(string $sourceName, string $targetDirectory): void
+    protected function copySkeleton(string $targetDirectory): void
     {
-        $sourceDirectory = $this->starterSourcePath($sourceName);
-        $this->copyDirectory($sourceDirectory, $targetDirectory);
+        $this->copyDirectory($this->skeletonSourcePath(), $targetDirectory);
     }
 
     /**
-     * Resolve starter directory source path from package root.
-     *
-     * @param string $sourceName Source directory name.
+     * Resolve skeleton source path from package root.
      */
-    protected function starterSourcePath(string $sourceName): string
+    protected function skeletonSourcePath(): string
     {
         $root = dirname(__DIR__, 2);
-        $sourceDirectory = $root . DIRECTORY_SEPARATOR . $sourceName;
+        $sourceDirectory = $root . DIRECTORY_SEPARATOR . 'skeleton';
 
         if (!is_dir($sourceDirectory)) {
-            throw new RuntimeException(sprintf('Starter directory "%s" does not exist.', $sourceName));
+            throw new RuntimeException('Skeleton directory does not exist.');
         }
 
         return $sourceDirectory;
@@ -190,6 +185,39 @@ final class ProjectScaffoldService
             'taxonomies' => $options->taxonomies,
         ];
 
-        return Neon::encode($projectConfig, true);
+        return Neon::encode($projectConfig, true)
+            . PHP_EOL
+            . $this->commentedOptionsTemplate();
+    }
+
+    /**
+     * Build commented reference block with available configuration options.
+     */
+    protected function commentedOptionsTemplate(): string
+    {
+        return <<<NEON
+# --- Available options (uncomment and adjust as needed) ---
+# pageTemplate: page
+#
+# images:
+#   driver: gd
+#   presets:
+#     thumb:
+#       w: 320
+#       h: 180
+#       fit: crop
+#
+# site:
+#   title: My Site
+#   description: Default site description
+#   baseUrl: https://example.com
+#   basePath: /blog
+#   metaDefaults:
+#     robots: index,follow
+#
+# taxonomies:
+#   - tags
+#   - categories
+NEON;
     }
 }

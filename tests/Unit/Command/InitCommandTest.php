@@ -39,15 +39,12 @@ final class InitCommandTest extends TestCase
         $command = new InitCommand();
 
         $title = $this->callProtected($command, 'defaultTitle', 'my-site');
-        $relative = $this->callProtected($command, 'normalizePath', 'tmp/new-site/');
         $absoluteUnix = $this->callProtected($command, 'isAbsolutePath', '/tmp/new-site');
         $absoluteWindows = $this->callProtected($command, 'isAbsolutePath', 'C:\\tmp\\new-site');
         $notAbsolute = $this->callProtected($command, 'isAbsolutePath', 'tmp/new-site');
         $emptyPath = $this->callProtected($command, 'isAbsolutePath', '');
 
         $this->assertSame('My Site', $title);
-        $this->assertIsString($relative);
-        $this->assertStringEndsWith('tmp' . DIRECTORY_SEPARATOR . 'new-site', $relative);
         $this->assertTrue($absoluteUnix);
         $this->assertTrue($absoluteWindows);
         $this->assertFalse($notAbsolute);

@@ -94,6 +94,44 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
+     * Ensure live mode can resolve router from CLI root when project contains glaze.neon.
+     */
+    public function testBuildServerCommandUsesCliRouterFallbackWhenProjectHasConfig(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
+
+        $cliRoot = $this->createTempDirectory();
+        mkdir($cliRoot . '/bin', 0755, true);
+        file_put_contents($cliRoot . '/bin/dev-router.php', '<?php');
+
+        $originalCliRoot = getenv('GLAZE_CLI_ROOT');
+        putenv('GLAZE_CLI_ROOT=' . $cliRoot);
+
+        try {
+            $command = new ServeCommand();
+            $builtCommand = $this->callProtected(
+                $command,
+                'buildServerCommand',
+                '127.0.0.1',
+                8080,
+                $projectRoot,
+                $projectRoot,
+                false,
+                false,
+            );
+        } finally {
+            $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
+        }
+
+        $this->assertIsString($builtCommand);
+        $this->assertStringContainsString(
+            str_replace('\\', '/', $cliRoot . '/bin/dev-router.php'),
+            str_replace('\\', '/', $builtCommand),
+        );
+    }
+
+    /**
      * Ensure live environment variables are applied and restored correctly.
      */
     public function testApplyAndRestoreEnvironmentRoundTrip(): void
@@ -135,18 +173,20 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
-     * Ensure helper methods normalize paths and port values as expected.
+     * Ensure helper methods normalize root options and port values as expected.
      */
     public function testNormalizeHelpers(): void
     {
         $command = new ServeCommand();
 
-        $normalizedPath = $this->callProtected($command, 'normalizePath', '/tmp/test/');
+        $normalizedRoot = $this->callProtected($command, 'normalizeRootOption', ' /tmp/test/ ');
+        $blankRoot = $this->callProtected($command, 'normalizeRootOption', '   ');
         $validPort = $this->callProtected($command, 'normalizePort', '8080');
         $invalidPort = $this->callProtected($command, 'normalizePort', '70000');
 
-        $this->assertIsString($normalizedPath);
-        $this->assertSame(rtrim(str_replace('/', DIRECTORY_SEPARATOR, '/tmp/test/'), DIRECTORY_SEPARATOR), $normalizedPath);
+        $this->assertIsString($normalizedRoot);
+        $this->assertSame('/tmp/test', str_replace('\\', '/', $normalizedRoot));
+        $this->assertNull($blankRoot);
         $this->assertSame(8080, $validPort);
         $this->assertNull($invalidPort);
     }

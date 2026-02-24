@@ -41,15 +41,21 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/templates/page.sugar.php');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/.gitignore');
+        $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
 
         $this->assertSame(
-            file_get_contents(__DIR__ . '/../../../content/index.dj'),
+            file_get_contents(__DIR__ . '/../../../skeleton/content/index.dj'),
             file_get_contents($target . '/content/index.dj'),
         );
         $this->assertSame(
-            file_get_contents(__DIR__ . '/../../../templates/page.sugar.php'),
+            file_get_contents(__DIR__ . '/../../../skeleton/templates/page.sugar.php'),
             file_get_contents($target . '/templates/page.sugar.php'),
+        );
+        $this->assertSame(
+            file_get_contents(__DIR__ . '/../../../skeleton/.gitignore'),
+            file_get_contents($target . '/.gitignore'),
         );
 
         $config = file_get_contents($target . '/glaze.neon');
@@ -64,6 +70,10 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertSame('My Site', $decoded['site']['title'] ?? null);
         $this->assertSame('/blog', $decoded['site']['basePath'] ?? null);
         $this->assertSame(['tags', 'categories'], $decoded['taxonomies']);
+        $this->assertStringContainsString('# --- Available options (uncomment and adjust as needed) ---', $config);
+        $this->assertStringContainsString('# images:', $config);
+        $this->assertStringContainsString('#   driver: gd', $config);
+        $this->assertStringContainsString('#   metaDefaults:', $config);
     }
 
     /**
@@ -121,16 +131,15 @@ final class ProjectScaffoldServiceTest extends TestCase
     }
 
     /**
-     * Ensure missing package starter directory triggers a runtime error.
+     * Ensure skeleton source path resolves to existing package skeleton directory.
      */
-    public function testStarterSourcePathThrowsForUnknownDirectory(): void
+    public function testSkeletonSourcePathResolvesExistingDirectory(): void
     {
         $service = new ProjectScaffoldService();
+        $path = $this->callProtected($service, 'skeletonSourcePath');
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Starter directory "unknown-starter" does not exist.');
-
-        $this->callProtected($service, 'starterSourcePath', 'unknown-starter');
+        $this->assertIsString($path);
+        $this->assertDirectoryExists($path);
     }
 
     /**

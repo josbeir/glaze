@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Tests\Unit\Support;
+namespace Glaze\Tests\Unit\Utility;
 
 use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
@@ -59,5 +59,27 @@ final class NormalizationTest extends TestCase
         $normalized = Normalization::stringList([' tags ', '', 'news', 5, true, 'news']);
 
         $this->assertSame(['tags', 'news', 'news'], $normalized);
+    }
+
+    /**
+     * Ensure path normalization standardizes separators and trailing separator handling.
+     */
+    public function testPathNormalization(): void
+    {
+        $normalized = Normalization::path('/tmp/glaze/site/');
+
+        $this->assertSame('/tmp/glaze/site', str_replace('\\', '/', $normalized));
+    }
+
+    /**
+     * Ensure optional path normalization returns null for invalid values.
+     */
+    public function testOptionalPathNormalization(): void
+    {
+        $normalized = Normalization::optionalPath(' /tmp/glaze/site/ ');
+
+        $this->assertSame('/tmp/glaze/site', str_replace('\\', '/', (string)$normalized));
+        $this->assertNull(Normalization::optionalPath('   '));
+        $this->assertNull(Normalization::optionalPath(null));
     }
 }

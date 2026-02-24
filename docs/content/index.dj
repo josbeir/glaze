@@ -1,6 +1,5 @@
 ---
 title: Glaze Documentation
-slug: /docs/
 ---
 # Glaze documentation
 
@@ -19,15 +18,15 @@ Write in modern markup, render with modern PHP templates, and ship static output
 
 ## Start here
 
-- [Installation](installation.dj)
-- [Quick start](quick-start.dj)
-- [Usage](usage.dj)
-- [Glide images](glide-images.dj)
-- [Configuration](configuration.dj)
-- [Templating](templating.dj)
-- [Page collections](page-collections.dj)
-- [Commands](commands.dj)
-- [Why not Markdown?](why-not-markdown.dj)
+- [Installation](installation)
+- [Quick start](quick-start)
+- [Usage](usage)
+- [Glide images](glide-images)
+- [Configuration](configuration)
+- [Templating](templating)
+- [Page collections](page-collections)
+- [Commands](commands)
+- [Why not Markdown?](why-not-markdown)
 
 ## What you’ll learn
 
