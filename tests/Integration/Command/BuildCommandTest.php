@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Integration\Command;
 
 use Glaze\Tests\Helper\IntegrationCommandTestCase;
+use RuntimeException;
 
 /**
  * Integration tests for the build command.
@@ -141,6 +142,63 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertStringContainsString('<p class="site-title">Example Site</p>', $aboutOutput);
         $this->assertStringContainsString('<p class="meta-description">About page description</p>', $aboutOutput);
         $this->assertStringContainsString('<p class="meta-robots">noindex</p>', $aboutOutput);
+    }
+
+    /**
+     * Ensure build rewrites Glide image query URLs to static transformed assets.
+     */
+    public function testBuildCommandBuildsStaticGlideImageAssets(): void
+    {
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD image functions are required for Glide build tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        $this->createJpegImage($projectRoot . '/content/images/hero.jpg');
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "# Home\n\n![Hero](images/hero.jpg?h=50&w=100&fit=crop)\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $content |> raw() ?>',
+        );
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertMatchesRegularExpression('/src="\/_glide\/[a-f0-9]+\.jpg"/', $output);
+
+        preg_match('/src="(\/_glide\/[a-f0-9]+\.jpg)"/', $output, $matches);
+        $this->assertArrayHasKey(1, $matches);
+        $transformedRelativePath = $matches[1];
+        $this->assertFileExists($projectRoot . '/public' . $transformedRelativePath);
+    }
+
+    /**
+     * Build a small JPEG image file for Glide integration tests.
+     *
+     * @param string $path Destination file path.
+     */
+    protected function createJpegImage(string $path): void
+    {
+        $image = imagecreatetruecolor(4, 4);
+        if ($image === false) {
+            throw new RuntimeException('Unable to create JPEG test image.');
+        }
+
+        $color = imagecolorallocate($image, 10, 20, 30);
+        if ($color === false) {
+            throw new RuntimeException('Unable to allocate JPEG test image color.');
+        }
+
+        imagefilledrectangle($image, 0, 0, 3, 3, $color);
+        imagejpeg($image, $path, 90);
     }
 
     /**

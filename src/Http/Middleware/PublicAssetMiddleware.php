@@ -6,7 +6,7 @@ namespace Glaze\Http\Middleware;
 /**
  * Serves static files from the generated public output directory.
  */
-final class PublicAssetMiddleware extends AbstractAssetMiddleware
+final class PublicAssetMiddleware extends AbstractGlideAssetMiddleware
 {
     /**
      * @inheritDoc

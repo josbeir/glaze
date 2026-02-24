@@ -18,6 +18,17 @@ Keep it small and intentional. Start with defaults, then add only what you need.
 ```neon
 pageTemplate: page
 
+images:
+  driver: gd
+  presets:
+    thumb:
+      w: 320
+      h: 180
+      fit: crop
+    hero:
+      w: 1200
+      h: 630
+
 site:
   title: My awesome site
   description: Notes on web, PHP, and tiny experiments.
@@ -32,6 +43,23 @@ taxonomies:
 ## `pageTemplate` setting
 
 - `pageTemplate`: default Sugar page template name (without `.sugar.php`), for example `page` or `landing`
+
+## `images.presets` setting
+
+- `images.presets` is optional
+- when omitted, Glide still works with raw query args (for example `?h=500&w=800`)
+- each preset is a map of Glide params
+
+## `images.driver` setting
+
+- `images.driver` is optional
+- supported values are `gd` and `imagick`
+- when omitted, Glaze uses `gd`
+
+Example usage in URLs:
+
+- `/blog/photo.jpg?p=thumb`
+- `/blog/photo.jpg?p=hero&fm=webp`
 
 ## `site` settings
 

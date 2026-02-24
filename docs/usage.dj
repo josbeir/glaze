@@ -37,6 +37,28 @@ Frontmatter is written in [NEON](https://github.com/nette/neon), the same format
 - taxonomy fields like `tags`, `categories`, etc. (based on config)
 - `meta` map for arbitrary values
 
+## Images with Glide params
+
+Glide transforms are applied for image requests in live mode.
+
+From Djot content you can use raw query args directly:
+
+```djot
+![Hero](images/cover.jpg?h=500&w=1200&fit=crop)
+```
+
+If you define optional `images.presets` in `glaze.neon`, you can also use:
+
+```djot
+![Thumb](images/cover.jpg?p=thumb)
+```
+
+The same URL patterns can be used from templates when generating image links.
+
+When running `glaze build`, transformed image URLs are rewritten to static files under `/_glide/` in `public/`.
+
+For a full reference (presets, cache behavior, and build output details), see [Glide images](glide-images.dj).
+
 ## Build workflow
 
 ```bash
@@ -67,4 +89,4 @@ For static preview from `public/`:
 glaze serve --static --build
 ```
 
-Next: [Templating](templating.dj) and [Page collections](page-collections.dj).
+Next: [Glide images](glide-images.dj), [Templating](templating.dj), and [Page collections](page-collections.dj).

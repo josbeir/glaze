@@ -6,7 +6,7 @@ namespace Glaze\Http\Middleware;
 /**
  * Serves raw content-folder assets for live development.
  */
-final class ContentAssetMiddleware extends AbstractAssetMiddleware
+final class ContentAssetMiddleware extends AbstractGlideAssetMiddleware
 {
     /**
      * @inheritDoc

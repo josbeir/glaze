@@ -1,0 +1,89 @@
+````djot
+---
+title: Glide Images
+slug: /docs/glide-images/
+````djot
+---
+title: Glide Images
+slug: /docs/glide-images/
+---
+# Glide images
+
+Glaze supports image transformation with [League Glide](https://glide.thephpleague.com/).
+
+You can use Glide parameters directly in image URLs from Djot content or templates.
+
+## Basic usage from Djot
+
+```djot
+![Hero](images/cover.jpg?w=1200&h=500&fit=crop)
+```
+
+This works in live mode and in static build mode.
+
+## Optional presets in `glaze.neon`
+
+```neon
+images:
+  driver: gd
+  presets:
+    thumb:
+      w: 320
+      h: 180
+      fit: crop
+    hero:
+      w: 1200
+      h: 630
+```
+
+Then use a preset in content:
+
+```djot
+![Thumb](images/cover.jpg?p=thumb)
+```
+
+You can also use `preset` as query key:
+
+```djot
+![Thumb](images/cover.jpg?preset=thumb)
+```
+
+Raw parameters still work when presets are configured, and raw values override preset values when both are present.
+
+## Optional Glide driver
+
+Set the driver in `glaze.neon` when needed:
+
+```neon
+images:
+  driver: imagick
+```
+
+Supported values are `gd` and `imagick`. If omitted, Glaze defaults to `gd`.
+
+## Live mode behavior (`glaze serve`)
+
+- image requests with Glide params are transformed on demand
+- transformed files are cached under `tmp/cache/glide`
+- regular template cache stays under `tmp/cache/sugar`
+
+## Build mode behavior (`glaze build`)
+
+- image URLs with Glide params are rewritten to static files under `/_glide/`
+- transformed files are written into `public/_glide/`
+- original assets are still copied to `public/` as source/fallback assets
+
+Example:
+
+- source URL: `/blog/images/cover.jpg?w=1200&h=500`
+- built output URL: `/_glide/<hash>.jpg`
+
+## Notes
+
+- Glide only runs for local image URLs.
+- External URLs (for example `https://...`) are not transformed.
+- If no Glide params are present, URLs remain unchanged.
+
+Next: [Usage](usage.dj) and [Configuration](configuration.dj).
+
+````

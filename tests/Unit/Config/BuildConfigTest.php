@@ -24,6 +24,10 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/templates', $this->normalizePath($config->templatePath()));
         $this->assertSame('/tmp/glaze-project/public', $this->normalizePath($config->outputPath()));
         $this->assertSame('/tmp/glaze-project/tmp/cache', $this->normalizePath($config->cachePath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $this->normalizePath($config->templateCachePath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $this->normalizePath($config->glideCachePath()));
+        $this->assertSame([], $config->imagePresets);
+        $this->assertSame([], $config->imageOptions);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertFalse($config->includeDrafts);
     }
@@ -64,13 +68,15 @@ final class BuildConfigTest extends TestCase
         mkdir($projectRoot, 0755, true);
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "pageTemplate: landing\nsite:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  basePath: /docs\n  metaDefaults:\n    robots: \"index,follow\"\n",
+            "pageTemplate: landing\nimages:\n  driver: imagick\n  presets:\n    thumb:\n      w: 320\n      h: 180\n    invalid: true\nsite:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  basePath: /docs\n  metaDefaults:\n    robots: \"index,follow\"\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertInstanceOf(SiteConfig::class, $config->site);
         $this->assertSame('landing', $config->pageTemplate);
+        $this->assertSame(['thumb' => ['w' => '320', 'h' => '180']], $config->imagePresets);
+        $this->assertSame(['driver' => 'imagick'], $config->imageOptions);
         $this->assertSame('Example Site', $config->site->title);
         $this->assertSame('Default site description', $config->site->description);
         $this->assertSame('https://example.com', $config->site->baseUrl);
@@ -96,6 +102,42 @@ final class BuildConfigTest extends TestCase
         );
         $normalized = BuildConfig::fromProjectRoot($projectRoot);
         $this->assertSame(['tags', 'categories'], $normalized->taxonomies);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  - ''\n  - 42\n",
+        );
+        $emptyNormalized = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame(['tags'], $emptyNormalized->taxonomies);
+    }
+
+    /**
+     * Ensure image presets remain optional and invalid values are ignored safely.
+     */
+    public function testImagePresetNormalizationIsOptionalAndSafe(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "images: true\n");
+        $fallback = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame([], $fallback->imagePresets);
+        $this->assertSame([], $fallback->imageOptions);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "images:\n  driver: GD\n  presets:\n    '':\n      w: 100\n    hero:\n      w: 1200\n      h: 630\n      bad: [1,2,3]\n    invalid: true\n",
+        );
+        $normalized = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame(['hero' => ['w' => '1200', 'h' => '630']], $normalized->imagePresets);
+        $this->assertSame(['driver' => 'GD'], $normalized->imageOptions);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "images:\n  driver: ''\n",
+        );
+        $invalidDriver = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame([], $invalidDriver->imageOptions);
     }
 
     /**

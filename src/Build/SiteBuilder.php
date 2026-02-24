@@ -8,6 +8,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
+use Glaze\Image\GlideImageTransformer;
 use Glaze\Render\DjotRenderer;
 use Glaze\Render\SugarPageRenderer;
 use Glaze\Template\SiteContext;
@@ -27,6 +28,8 @@ final class SiteBuilder
 
     protected PageMetaResolver $pageMetaResolver;
 
+    protected GlideImageTransformer $glideImageTransformer;
+
     /**
      * Constructor.
      *
@@ -34,17 +37,20 @@ final class SiteBuilder
      * @param \Glaze\Render\DjotRenderer|null $djotRenderer Djot renderer service.
      * @param \Glaze\Build\ContentAssetPublisher|null $assetPublisher Asset publishing service.
      * @param \Glaze\Build\PageMetaResolver|null $pageMetaResolver Page meta resolver.
+     * @param \Glaze\Image\GlideImageTransformer|null $glideImageTransformer Glide image transformer.
      */
     public function __construct(
         ?ContentDiscoveryService $discoveryService = null,
         ?DjotRenderer $djotRenderer = null,
         ?ContentAssetPublisher $assetPublisher = null,
         ?PageMetaResolver $pageMetaResolver = null,
+        ?GlideImageTransformer $glideImageTransformer = null,
     ) {
         $this->discoveryService = $discoveryService ?? new ContentDiscoveryService();
         $this->djotRenderer = $djotRenderer ?? new DjotRenderer();
         $this->assetPublisher = $assetPublisher ?? new ContentAssetPublisher();
         $this->pageMetaResolver = $pageMetaResolver ?? new PageMetaResolver();
+        $this->glideImageTransformer = $glideImageTransformer ?? new GlideImageTransformer();
     }
 
     /**
@@ -89,7 +95,7 @@ final class SiteBuilder
         );
         $pageRenderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
-            cachePath: $config->cachePath(),
+            cachePath: $config->templateCachePath(),
             template: $config->pageTemplate,
         );
         $siteIndex = new SiteIndex($pages);
@@ -195,7 +201,7 @@ final class SiteBuilder
         if (!$activeRenderer instanceof SugarPageRenderer || $pageTemplate !== $config->pageTemplate) {
             $activeRenderer = new SugarPageRenderer(
                 templatePath: $config->templatePath(),
-                cachePath: $config->cachePath(),
+                cachePath: $config->templateCachePath(),
                 template: $pageTemplate,
                 debug: $debug,
             );
@@ -209,6 +215,9 @@ final class SiteBuilder
 
         $htmlContent = $this->djotRenderer->render($page->source);
         $htmlContent = $this->rewriteInternalResourceSources($htmlContent, $page, $config->site);
+        if (!$debug) {
+            $htmlContent = $this->rewriteBuildGlideImageSources($htmlContent, $config);
+        }
 
         $pageUrl = $this->applyBasePathToPath($page->urlPath, $config->site);
 
@@ -278,6 +287,135 @@ final class SiteBuilder
         );
 
         return is_string($rewritten) ? $rewritten : $html;
+    }
+
+    /**
+     * Rewrite build-time image URLs with query params to static transformed files.
+     *
+     * @param string $html Rendered Djot HTML.
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     */
+    protected function rewriteBuildGlideImageSources(string $html, BuildConfig $config): string
+    {
+        $rewritten = preg_replace_callback(
+            '/<img\b([^>]*?)\bsrc=("|\')(.*?)\2([^>]*)>/i',
+            function (array $matches) use ($config): string {
+                $source = $matches[3];
+                if ($source === '' || $this->isExternalResourcePath($source)) {
+                    return $matches[0];
+                }
+
+                $parts = parse_url($source);
+                if (!is_array($parts)) {
+                    return $matches[0];
+                }
+
+                $path = $parts['path'] ?? null;
+                if (!is_string($path) || $path === '') {
+                    return $matches[0];
+                }
+
+                $queryString = $parts['query'] ?? null;
+                if (!is_string($queryString) || trim($queryString) === '') {
+                    return $matches[0];
+                }
+
+                parse_str($queryString, $queryParams);
+                $normalizedQueryParams = [];
+                foreach ($queryParams as $key => $value) {
+                    if (!is_string($key)) {
+                        continue;
+                    }
+
+                    $normalizedQueryParams[$key] = $value;
+                }
+
+                $sourcePath = $this->stripBasePathFromPath($path, $config->site);
+                $transformedPath = $this->glideImageTransformer->createTransformedPath(
+                    rootPath: $config->contentPath(),
+                    requestPath: $sourcePath,
+                    queryParams: $normalizedQueryParams,
+                    presets: $config->imagePresets,
+                    cachePath: $config->glideCachePath(),
+                    options: $config->imageOptions,
+                );
+                if (!is_string($transformedPath)) {
+                    return $matches[0];
+                }
+
+                $rewrittenSource = $this->publishBuildGlideAsset(
+                    transformedPath: $transformedPath,
+                    sourcePath: $sourcePath,
+                    queryString: $queryString,
+                    config: $config,
+                );
+
+                return str_replace($source, $rewrittenSource, $matches[0]);
+            },
+            $html,
+        );
+
+        return is_string($rewritten) ? $rewritten : $html;
+    }
+
+    /**
+     * Publish transformed Glide output to static build directory.
+     *
+     * @param string $transformedPath Absolute transformed image path.
+     * @param string $sourcePath Internal source image path.
+     * @param string $queryString Original query string.
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     */
+    protected function publishBuildGlideAsset(
+        string $transformedPath,
+        string $sourcePath,
+        string $queryString,
+        BuildConfig $config,
+    ): string {
+        $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
+        $hashedName = hash('xxh3', $sourcePath . '?' . $queryString);
+        $fileName = $extension === '' ? $hashedName : $hashedName . '.' . $extension;
+        $relativePath = '_glide/' . $fileName;
+
+        $destination = $config->outputPath()
+            . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        $directory = dirname($destination);
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            throw new RuntimeException(sprintf('Unable to create Glide output directory "%s".', $directory));
+        }
+
+        if (!is_file($destination) && !copy($transformedPath, $destination)) {
+            throw new RuntimeException(sprintf('Unable to copy transformed image to "%s".', $destination));
+        }
+
+        return $this->applyBasePathToPath('/' . $relativePath, $config->site);
+    }
+
+    /**
+     * Strip configured base path prefix from internal request path.
+     *
+     * @param string $path Internal request path.
+     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration.
+     */
+    protected function stripBasePathFromPath(string $path, SiteConfig $siteConfig): string
+    {
+        $basePath = $siteConfig->basePath;
+        $normalizedPath = '/' . ltrim($path, '/');
+
+        if ($basePath === null || $basePath === '') {
+            return $normalizedPath;
+        }
+
+        if ($normalizedPath === $basePath) {
+            return '/';
+        }
+
+        if (str_starts_with($normalizedPath, $basePath . '/')) {
+            return substr($normalizedPath, strlen($basePath)) ?: '/';
+        }
+
+        return $normalizedPath;
     }
 
     /**

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Config;
 
+use Glaze\Utility\Normalization;
 use Nette\Neon\Exception;
 use Nette\Neon\Neon;
 use RuntimeException;
@@ -23,6 +24,8 @@ final class BuildConfig
      * @param string $outputDir Relative output directory.
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
+     * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
+     * @param array<string, string> $imageOptions Configured Glide server options.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
@@ -34,6 +37,8 @@ final class BuildConfig
         public readonly string $outputDir = 'public',
         public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
         public readonly string $pageTemplate = 'page',
+        public readonly array $imagePresets = [],
+        public readonly array $imageOptions = [],
         public readonly array $taxonomies = ['tags'],
         ?SiteConfig $site = null,
         public readonly bool $includeDrafts = false,
@@ -51,14 +56,85 @@ final class BuildConfig
     {
         $normalizedRoot = self::normalizePath($projectRoot);
         $projectConfiguration = self::readProjectConfiguration($normalizedRoot);
+        $imageConfiguration = $projectConfiguration['images'] ?? null;
+        $imagePresets = [];
+        $imageOptions = [];
+        if (is_array($imageConfiguration)) {
+            $imagePresets = self::normalizeImagePresets($imageConfiguration['presets'] ?? null);
+            $imageOptions = self::normalizeImageOptions($imageConfiguration);
+        }
 
         return new self(
             projectRoot: $normalizedRoot,
             pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
+            imagePresets: $imagePresets,
+            imageOptions: $imageOptions,
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             site: self::normalizeSiteConfiguration($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize configured image presets.
+     *
+     * @param mixed $imagePresets Raw configured image preset map.
+     * @return array<string, array<string, string>>
+     */
+    protected static function normalizeImagePresets(mixed $imagePresets): array
+    {
+        if (!is_array($imagePresets)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($imagePresets as $presetName => $presetValues) {
+            if (!is_string($presetName)) {
+                continue;
+            }
+
+            $normalizedPresetName = trim($presetName);
+            if ($normalizedPresetName === '') {
+                continue;
+            }
+
+            if (!is_array($presetValues)) {
+                continue;
+            }
+
+            $normalizedValues = Normalization::stringMap($presetValues);
+
+            if ($normalizedValues === []) {
+                continue;
+            }
+
+            $normalized[$normalizedPresetName] = $normalizedValues;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Normalize optional Glide image server options.
+     *
+     * @param array<mixed> $imageConfiguration Raw `images` configuration map.
+     * @return array<string, string>
+     */
+    protected static function normalizeImageOptions(array $imageConfiguration): array
+    {
+        $allowedOptionKeys = ['driver'];
+        $normalized = [];
+
+        foreach ($allowedOptionKeys as $optionKey) {
+            $value = Normalization::optionalScalarString($imageConfiguration[$optionKey] ?? null);
+            if ($value === null) {
+                continue;
+            }
+
+            $normalized[$optionKey] = $value;
+        }
+
+        return $normalized;
     }
 
     /**
@@ -68,13 +144,7 @@ final class BuildConfig
      */
     protected static function normalizePageTemplate(mixed $pageTemplate): string
     {
-        if (!is_string($pageTemplate)) {
-            return 'page';
-        }
-
-        $normalized = trim($pageTemplate);
-
-        return $normalized === '' ? 'page' : $normalized;
+        return Normalization::optionalString($pageTemplate) ?? 'page';
     }
 
     /**
@@ -131,23 +201,10 @@ final class BuildConfig
      */
     protected static function normalizeTaxonomies(mixed $taxonomies): array
     {
-        if (!is_array($taxonomies)) {
-            return ['tags'];
-        }
-
-        $normalized = [];
-        foreach ($taxonomies as $taxonomy) {
-            if (!is_string($taxonomy)) {
-                continue;
-            }
-
-            $key = strtolower(trim($taxonomy));
-            if ($key === '') {
-                continue;
-            }
-
-            $normalized[] = $key;
-        }
+        $normalized = array_map(
+            static fn(string $taxonomy): string => strtolower($taxonomy),
+            Normalization::stringList($taxonomies),
+        );
 
         $unique = array_values(array_unique($normalized));
         if ($unique === []) {
@@ -187,6 +244,22 @@ final class BuildConfig
     public function cachePath(): string
     {
         return $this->resolvePath($this->cacheDir);
+    }
+
+    /**
+     * Get absolute template cache directory.
+     */
+    public function templateCachePath(): string
+    {
+        return $this->cachePath() . DIRECTORY_SEPARATOR . 'sugar';
+    }
+
+    /**
+     * Get absolute Glide image cache directory.
+     */
+    public function glideCachePath(): string
+    {
+        return $this->cachePath() . DIRECTORY_SEPARATOR . 'glide';
     }
 
     /**

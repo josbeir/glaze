@@ -22,6 +22,7 @@ Write in modern markup, render with modern PHP templates, and ship static output
 - [Installation](installation.dj)
 - [Quick start](quick-start.dj)
 - [Usage](usage.dj)
+- [Glide images](glide-images.dj)
 - [Configuration](configuration.dj)
 - [Templating](templating.dj)
 - [Page collections](page-collections.dj)
@@ -33,6 +34,7 @@ Write in modern markup, render with modern PHP templates, and ship static output
 - How to install and scaffold a project
 - How content and templates map to routes
 - How to configure taxonomies and global site metadata
+- How to transform images with Glide params and optional presets
 - How to query pages and taxonomies in templates
 - How to run build and live development workflows
 

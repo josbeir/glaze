@@ -7,6 +7,7 @@ use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\SiteConfig;
+use Glaze\Image\GlideImageTransformer;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -371,6 +372,120 @@ final class SiteBuilderTest extends TestCase
         $this->assertSame('/docs/about/', $prefixed);
         $this->assertSame('/about/', $unchanged);
         $this->assertTrue($externalMailto);
+    }
+
+    /**
+     * Ensure basePath stripping helper returns expected internal source paths.
+     */
+    public function testStripBasePathFromPathHandlesVariants(): void
+    {
+        $builder = new SiteBuilder();
+
+        $stripped = $this->callProtected($builder, 'stripBasePathFromPath', '/docs/blog/photo.jpg', new SiteConfig(basePath: '/docs'));
+        $root = $this->callProtected($builder, 'stripBasePathFromPath', '/docs', new SiteConfig(basePath: '/docs'));
+        $unchanged = $this->callProtected($builder, 'stripBasePathFromPath', '/blog/photo.jpg', new SiteConfig(basePath: '/docs'));
+
+        $this->assertSame('/blog/photo.jpg', $stripped);
+        $this->assertSame('/', $root);
+        $this->assertSame('/blog/photo.jpg', $unchanged);
+    }
+
+    /**
+     * Ensure build Glide publisher copies transformed assets into static output.
+     */
+    public function testPublishBuildGlideAssetCopiesFileAndReturnsPublicUrl(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public', 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
+
+        $transformed = $projectRoot . '/tmp-transform.jpg';
+        file_put_contents($transformed, 'transformed-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder = new SiteBuilder();
+
+        $url = $this->callProtected(
+            $builder,
+            'publishBuildGlideAsset',
+            $transformed,
+            '/images/hero.jpg',
+            'w=100&h=50',
+            $config,
+        );
+
+        $hash = hash('xxh3', '/images/hero.jpg?w=100&h=50');
+        $expectedFile = $projectRoot . '/public/_glide/' . $hash . '.jpg';
+
+        $this->assertSame('/docs/_glide/' . $hash . '.jpg', $url);
+        $this->assertFileExists($expectedFile);
+        $this->assertSame('transformed-bytes', file_get_contents($expectedFile));
+    }
+
+    /**
+     * Ensure build Glide publisher keeps hashed filename when source extension is missing.
+     */
+    public function testPublishBuildGlideAssetUsesHashedNameWhenExtensionMissing(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $transformed = $projectRoot . '/tmp-transform.bin';
+        file_put_contents($transformed, 'transformed-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder = new SiteBuilder();
+
+        $url = $this->callProtected(
+            $builder,
+            'publishBuildGlideAsset',
+            $transformed,
+            '/images/hero',
+            'w=100&h=50',
+            $config,
+        );
+
+        $hash = hash('xxh3', '/images/hero?w=100&h=50');
+        $expectedFile = $projectRoot . '/public/_glide/' . $hash;
+
+        $this->assertSame('/_glide/' . $hash, $url);
+        $this->assertFileExists($expectedFile);
+        $this->assertSame('transformed-bytes', file_get_contents($expectedFile));
+    }
+
+    /**
+     * Ensure build-time Glide rewriting updates image src and publishes transformed assets.
+     */
+    public function testRewriteBuildGlideImageSourcesRewritesQueryImageUrls(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $image = imagecreatetruecolor(2, 2);
+        $this->assertNotFalse($image);
+        $fillColor = imagecolorallocate($image, 0, 0, 0);
+        $this->assertIsInt($fillColor);
+        imagefill($image, 0, 0, $fillColor);
+        imagepng($image, $projectRoot . '/content/images/hero.png');
+
+        $builder = new SiteBuilder(glideImageTransformer: new GlideImageTransformer());
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+
+        $html = '<img src="/images/hero.png?w=100&h=50"><img src="/images/plain.png"><img src="https://example.com/img.png?w=100">';
+
+        $rewritten = $this->callProtected($builder, 'rewriteBuildGlideImageSources', $html, $config);
+        $this->assertIsString($rewritten);
+
+        $hash = hash('xxh3', '/images/hero.png?w=100&h=50');
+        $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
+        $this->assertStringContainsString('/images/plain.png', $rewritten);
+        $this->assertStringContainsString('https://example.com/img.png?w=100', $rewritten);
+        $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.png');
     }
 
     /**

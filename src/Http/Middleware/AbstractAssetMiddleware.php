@@ -35,17 +35,41 @@ abstract class AbstractAssetMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $response = $this->assetResponder->createFileResponse(
-            rootPath: $this->assetRootPath(),
-            requestPath: $request->getUri()->getPath(),
-            allowDjot: false,
-        );
+        if (!$this->shouldHandleRequest($request)) {
+            return $handler->handle($request);
+        }
+
+        $response = $this->createAssetResponse($request);
 
         if ($response instanceof ResponseInterface) {
             return $response;
         }
 
         return $handler->handle($request);
+    }
+
+    /**
+     * Determine whether the request should be evaluated by this middleware.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Current request.
+     */
+    protected function shouldHandleRequest(ServerRequestInterface $request): bool
+    {
+        return true;
+    }
+
+    /**
+     * Create an asset response for the request when a matching file exists.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Current request.
+     */
+    protected function createAssetResponse(ServerRequestInterface $request): ?ResponseInterface
+    {
+        return $this->assetResponder->createFileResponse(
+            rootPath: $this->assetRootPath(),
+            requestPath: $request->getUri()->getPath(),
+            allowDjot: false,
+        );
     }
 
     /**
