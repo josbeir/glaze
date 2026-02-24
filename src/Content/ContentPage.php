@@ -21,6 +21,7 @@ final class ContentPage
      * @param bool $draft Whether this page is marked as draft.
      * @param array<string, mixed> $meta Parsed frontmatter metadata.
      * @param array<string, array<string>> $taxonomies Parsed taxonomy terms by taxonomy key.
+     * @param string|null $type Resolved content type name.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -33,6 +34,7 @@ final class ContentPage
         public readonly bool $draft,
         public readonly array $meta,
         public readonly array $taxonomies = [],
+        public readonly ?string $type = null,
     ) {
     }
 }

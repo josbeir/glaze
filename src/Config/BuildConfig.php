@@ -26,6 +26,7 @@ final class BuildConfig
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
+     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
@@ -39,6 +40,7 @@ final class BuildConfig
         public readonly string $pageTemplate = 'page',
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
+        public readonly array $contentTypes = [],
         public readonly array $taxonomies = ['tags'],
         ?SiteConfig $site = null,
         public readonly bool $includeDrafts = false,
@@ -69,10 +71,107 @@ final class BuildConfig
             pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
             imagePresets: $imagePresets,
             imageOptions: $imageOptions,
+            contentTypes: self::normalizeContentTypes($projectConfiguration['contentTypes'] ?? null),
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             site: SiteConfig::fromProjectConfig($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize configured content type rules.
+     *
+     * @param mixed $contentTypes Raw configured content type map.
+     * @return array<string, array{paths: array<string>, defaults: array<string, mixed>}>
+     */
+    protected static function normalizeContentTypes(mixed $contentTypes): array
+    {
+        if ($contentTypes === null) {
+            return [];
+        }
+
+        if (!is_array($contentTypes)) {
+            throw new RuntimeException('Invalid project configuration: "contentTypes" must be a key/value mapping.');
+        }
+
+        $normalized = [];
+        foreach ($contentTypes as $typeName => $typeConfiguration) {
+            if (!is_string($typeName)) {
+                throw new RuntimeException('Invalid project configuration: content type names must be strings.');
+            }
+
+            $normalizedTypeName = strtolower(trim($typeName));
+            if ($normalizedTypeName === '') {
+                throw new RuntimeException('Invalid project configuration: content type name cannot be empty.');
+            }
+
+            if (isset($normalized[$normalizedTypeName])) {
+                throw new RuntimeException(sprintf(
+                    'Invalid project configuration: duplicate content type "%s".',
+                    $normalizedTypeName,
+                ));
+            }
+
+            if (!is_array($typeConfiguration)) {
+                throw new RuntimeException(sprintf(
+                    'Invalid project configuration: content type "%s" must be a key/value mapping.',
+                    $normalizedTypeName,
+                ));
+            }
+
+            $paths = array_map(
+                static fn(string $path): string => trim(str_replace('\\', '/', $path), '/'),
+                Normalization::stringList($typeConfiguration['paths'] ?? null),
+            );
+            $defaults = self::normalizeContentTypeDefaults($normalizedTypeName, $typeConfiguration['defaults'] ?? null);
+
+            $normalized[$normalizedTypeName] = [
+                'paths' => array_values(array_unique(array_filter(
+                    $paths,
+                    static fn(string $path): bool => $path !== '',
+                ))),
+                'defaults' => $defaults,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Normalize content type metadata defaults.
+     *
+     * @param string $contentTypeName Content type name.
+     * @param mixed $defaults Raw defaults map.
+     * @return array<string, mixed>
+     */
+    protected static function normalizeContentTypeDefaults(string $contentTypeName, mixed $defaults): array
+    {
+        if ($defaults === null) {
+            return [];
+        }
+
+        if (!is_array($defaults)) {
+            throw new RuntimeException(sprintf(
+                'Invalid project configuration: content type "%s" defaults must be a key/value mapping.',
+                $contentTypeName,
+            ));
+        }
+
+        $normalized = [];
+        foreach ($defaults as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalizedKey = strtolower(trim($key));
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            $normalized[$normalizedKey] = $value;
+        }
+
+        return $normalized;
     }
 
     /**

@@ -7,6 +7,7 @@ use Cake\Chronos\Chronos;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use DateTimeInterface;
+use Glaze\Utility\Normalization;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -35,10 +36,14 @@ final class ContentDiscoveryService
      *
      * @param string $contentPath Absolute content directory path.
      * @param array<string> $taxonomies Enabled taxonomy keys.
+     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @return array<\Glaze\Content\ContentPage>
      */
-    public function discover(string $contentPath, array $taxonomies = ['tags']): array
-    {
+    public function discover(
+        string $contentPath,
+        array $taxonomies = ['tags'],
+        array $contentTypes = [],
+    ): array {
         if (!is_dir($contentPath)) {
             return [];
         }
@@ -68,6 +73,8 @@ final class ContentDiscoveryService
             $relativePath = $this->relativePath($contentPath, $sourcePath);
             $parsed = $this->frontMatterParser->parse($this->readFile($sourcePath));
             $meta = $this->normalizeMetadata($parsed->metadata);
+            $type = $this->resolveContentType($relativePath, $meta, $contentTypes);
+            $meta = $this->mergeContentTypeDefaults($meta, $type, $contentTypes);
             [$meta, $taxonomyValues] = $this->extractTaxonomies($meta, $normalizedTaxonomies);
             $slug = $this->resolveSlug($relativePath, $meta);
             $title = $this->resolveTitle($slug, $meta);
@@ -82,6 +89,7 @@ final class ContentDiscoveryService
                 draft: $this->resolveDraft($meta),
                 meta: $meta,
                 taxonomies: $taxonomyValues,
+                type: $type,
             );
         }
 
@@ -91,6 +99,72 @@ final class ContentDiscoveryService
         );
 
         return $pages;
+    }
+
+    /**
+     * Resolve content type by explicit metadata override or path prefix matching.
+     *
+     * @param string $relativePath Relative source file path.
+     * @param array<string, mixed> $meta Normalized page metadata.
+     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     */
+    protected function resolveContentType(string $relativePath, array $meta, array $contentTypes): ?string
+    {
+        if ($contentTypes === []) {
+            return null;
+        }
+
+        $explicitType = Normalization::optionalString($meta['type'] ?? null);
+        if ($explicitType !== null) {
+            $normalizedExplicitType = strtolower($explicitType);
+            if (!isset($contentTypes[$normalizedExplicitType])) {
+                throw new RuntimeException(sprintf(
+                    'Invalid frontmatter "type" value "%s" in "%s": unknown content type.',
+                    $explicitType,
+                    $relativePath,
+                ));
+            }
+
+            return $normalizedExplicitType;
+        }
+
+        $normalizedRelativePath = trim(str_replace('\\', '/', $relativePath), '/');
+
+        foreach ($contentTypes as $typeName => $typeConfiguration) {
+            foreach ($typeConfiguration['paths'] as $prefix) {
+                if ($prefix === '') {
+                    continue;
+                }
+
+                if ($normalizedRelativePath === $prefix || str_starts_with($normalizedRelativePath, $prefix . '/')) {
+                    return $typeName;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Merge resolved content type metadata defaults with page metadata.
+     *
+     * @param array<string, mixed> $meta Normalized page metadata.
+     * @param string|null $type Resolved content type.
+     * @param array<string, array{paths: array<string>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
+     * @return array<string, mixed>
+     */
+    protected function mergeContentTypeDefaults(array $meta, ?string $type, array $contentTypes): array
+    {
+        if ($type === null) {
+            return $meta;
+        }
+
+        $typeDefaults = $contentTypes[$type]['defaults'] ?? [];
+        $normalizedDefaults = $this->normalizeMetadata($typeDefaults);
+        $merged = array_replace($normalizedDefaults, $meta);
+        $merged['type'] = $type;
+
+        return $merged;
     }
 
     /**

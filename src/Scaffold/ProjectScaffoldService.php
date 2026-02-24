@@ -218,6 +218,13 @@ final class ProjectScaffoldService
 # taxonomies:
 #   - tags
 #   - categories
+#
+# contentTypes:
+#   blog:
+#     paths:
+#       - blog
+#     defaults:
+#       template: blog
 NEON;
     }
 }

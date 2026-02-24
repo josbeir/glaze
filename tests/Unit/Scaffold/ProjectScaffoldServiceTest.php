@@ -74,6 +74,8 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertStringContainsString('# images:', $config);
         $this->assertStringContainsString('#   driver: gd', $config);
         $this->assertStringContainsString('#   metaDefaults:', $config);
+        $this->assertStringContainsString('# contentTypes:', $config);
+        $this->assertStringContainsString('#       template: blog', $config);
     }
 
     /**

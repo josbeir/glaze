@@ -168,6 +168,33 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure content type defaults are merged and can drive template selection.
+     */
+    public function testRenderRequestAppliesContentTypeDefaults(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  blog:\n    paths:\n      - blog\n    defaults:\n      template: blog\n",
+        );
+        file_put_contents($projectRoot . '/content/blog/post.dj', "# Post\n");
+        file_put_contents($projectRoot . '/templates/page.sugar.php', '<p class="template">default</p>');
+        file_put_contents($projectRoot . '/templates/blog.sugar.php', '<p class="template">blog</p><p class="type"><?= $page->type ?></p>');
+
+        $builder = new SiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/blog/post/');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('<p class="template">blog</p>', $html);
+        $this->assertStringContainsString('<p class="type">blog</p>', $html);
+        $this->assertStringNotContainsString('<p class="template">default</p>', $html);
+    }
+
+    /**
      * Ensure template context exposes collections, taxonomy, and pagination helpers.
      */
     public function testRenderRequestExposesTemplateSiteContext(): void

@@ -63,7 +63,7 @@ final class SiteBuilder
     public function renderRequest(BuildConfig $config, string $requestPath): ?string
     {
         $pages = $this->filterPages(
-            $this->discoveryService->discover($config->contentPath(), $config->taxonomies),
+            $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
             $config,
         );
         $page = $this->matchPageByPath($pages, $requestPath);
@@ -90,7 +90,7 @@ final class SiteBuilder
         }
 
         $pages = $this->filterPages(
-            $this->discoveryService->discover($config->contentPath(), $config->taxonomies),
+            $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
             $config,
         );
         $pageRenderer = new SugarPageRenderer(

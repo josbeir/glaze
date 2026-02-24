@@ -231,6 +231,142 @@ final class ContentDiscoveryServiceTest extends TestCase
     }
 
     /**
+     * Validate content type is resolved from configured path and defaults are merged.
+     */
+    public function testDiscoverResolvesContentTypeFromPathAndMergesDefaults(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/blog/post.dj',
+            "+++\ntitle: Custom title\n+++\n# Post\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover(
+            $contentPath,
+            ['tags'],
+            [
+                'blog' => [
+                    'paths' => ['blog'],
+                    'defaults' => [
+                        'template' => 'blog-post',
+                        'description' => 'Blog description',
+                    ],
+                ],
+            ],
+        );
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertSame('blog', $page->type);
+        $this->assertSame('blog', $page->meta['type']);
+        $this->assertSame('blog-post', $page->meta['template']);
+        $this->assertSame('Blog description', $page->meta['description']);
+        $this->assertSame('Custom title', $page->meta['title']);
+    }
+
+    /**
+     * Validate explicit frontmatter type override wins over path-based rules.
+     */
+    public function testDiscoverUsesExplicitFrontmatterTypeOverride(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/blog/post.dj',
+            "+++\ntype: docs\n+++\n# Post\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover(
+            $contentPath,
+            ['tags'],
+            [
+                'blog' => [
+                    'paths' => ['blog'],
+                    'defaults' => ['template' => 'blog-post'],
+                ],
+                'docs' => [
+                    'paths' => ['docs'],
+                    'defaults' => ['template' => 'docs-page'],
+                ],
+            ],
+        );
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertSame('docs', $page->type);
+        $this->assertSame('docs-page', $page->meta['template']);
+    }
+
+    /**
+     * Validate unknown explicit frontmatter type values throw a clear error.
+     */
+    public function testDiscoverThrowsOnUnknownExplicitFrontmatterType(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\ntype: unknown\n+++\n# Home\n",
+        );
+
+        $service = new ContentDiscoveryService();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('unknown content type');
+        $service->discover(
+            $contentPath,
+            ['tags'],
+            [
+                'blog' => [
+                    'paths' => ['blog'],
+                    'defaults' => [],
+                ],
+            ],
+        );
+    }
+
+    /**
+     * Validate no content type is resolved when no rules match.
+     */
+    public function testDiscoverLeavesTypeNullWhenNoContentTypeMatches(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/notes', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/notes/post.dj',
+            "# Note\n",
+        );
+
+        $service = new ContentDiscoveryService();
+        $pages = $service->discover(
+            $contentPath,
+            ['tags'],
+            [
+                'blog' => [
+                    'paths' => ['blog'],
+                    'defaults' => ['template' => 'blog-post'],
+                ],
+            ],
+        );
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertNull($page->type);
+        $this->assertArrayNotHasKey('type', $page->meta);
+    }
+
+    /**
      * Ensure protected helper methods handle fallback and error branches.
      */
     public function testProtectedHelpersHandleFallbackPaths(): void

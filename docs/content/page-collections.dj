@@ -14,6 +14,7 @@ You usually access them through `$this` (site context) inside [Sugar](https://jo
 <p>Regular pages: <?= $this->regularPages()->count() ?></p>
 <p>Blog pages: <?= $this->section('blog')->count() ?></p>
 <p>PHP tagged pages: <?= $this->taxonomyTerm('tags', 'php')->count() ?></p>
+<p>Blog typed pages: <?= $this->type('blog')->count() ?></p>
 ```
 
 ## Common helpers
@@ -62,6 +63,17 @@ Supported operators include:
 </li>
 
 <li s:foreach="$this->where($this->pages(), 'weight', '>=', 10) as $page">
+    <?= $page->title ?>
+</li>
+```
+
+## Type helpers
+
+- `SiteContext::type('name')`
+- `PageCollection::whereType('name')`
+
+```php
+<li s:foreach="$this->type('docs')->byDate('desc') as $page">
     <?= $page->title ?>
 </li>
 ```

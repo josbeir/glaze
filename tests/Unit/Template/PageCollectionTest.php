@@ -25,19 +25,19 @@ final class PageCollectionTest extends TestCase
                 'tags' => ['php', 'cake'],
                 'draft' => false,
                 'weight' => 2,
-            ], 'Post A'),
+            ], 'Post A', 'blog'),
             $this->makePage('blog/b', '/blog/b/', [
                 'date' => '2026-03-01',
                 'tags' => ['php'],
                 'draft' => true,
                 'weight' => 1,
-            ], 'Post B'),
+            ], 'Post B', 'blog'),
             $this->makePage('docs/intro', '/docs/intro/', [
                 'date' => '2025-12-12',
                 'tags' => ['docs'],
                 'draft' => false,
                 'weight' => 10,
-            ], 'Intro'),
+            ], 'Intro', 'docs'),
         ]);
 
         $this->assertCount(2, $pages->where('meta.draft', false));
@@ -52,6 +52,9 @@ final class PageCollectionTest extends TestCase
 
         $dateGroups = $pages->groupByDate('Y-m', 'desc');
         $this->assertSame(['2026-03', '2026-02', '2025-12'], array_keys($dateGroups));
+        $this->assertCount(2, $pages->whereType('blog'));
+        $this->assertCount(1, $pages->whereType('docs'));
+        $this->assertCount(0, $pages->whereType('   '));
     }
 
     /**
@@ -76,7 +79,7 @@ final class PageCollectionTest extends TestCase
      */
     public function testCollectionAccessorsAndSliceVariants(): void
     {
-        $empty = new PageCollection([]);
+        $empty = PageCollection::from([]);
         $this->assertSame([], $empty->all());
         $this->assertTrue($empty->isEmpty());
         $this->assertNotInstanceOf(ContentPage::class, $empty->first());
@@ -188,6 +191,11 @@ final class PageCollectionTest extends TestCase
             'invalid',
         ]);
         $pageArray = $this->callProtected($collection, 'pageToArray', $this->makePage('z', '/z/', [], 'Z'));
+        $notEqual = $this->callProtected($collection, 'matchesWhere', 'a', 'ne', 'b');
+        $nullCompared = $this->callProtected($collection, 'compareValues', null, 1);
+        $dateCompared = $this->callProtected($collection, 'compareValues', '2026-01-01', '2026-01-02');
+        $missingTypeCollection = new PageCollection([$this->makePage('none', '/none/', [], 'None')]);
+        $missingTypeCount = $missingTypeCollection->whereType('blog')->count();
         if (is_resource($resource)) {
             fclose($resource);
         }
@@ -226,6 +234,10 @@ final class PageCollectionTest extends TestCase
         $this->assertCount(1, $normalizedPages);
         $this->assertIsArray($pageArray);
         $this->assertSame('z', $pageArray['slug']);
+        $this->assertTrue($notEqual);
+        $this->assertSame(1, $nullCompared);
+        $this->assertLessThan(0, $dateCompared);
+        $this->assertSame(0, $missingTypeCount);
     }
 
     /**
@@ -236,7 +248,7 @@ final class PageCollectionTest extends TestCase
      * @param array<string, mixed> $meta Page metadata.
      * @param string $title Page title.
      */
-    protected function makePage(string $slug, string $urlPath, array $meta, string $title): ContentPage
+    protected function makePage(string $slug, string $urlPath, array $meta, string $title, ?string $type = null): ContentPage
     {
         return new ContentPage(
             sourcePath: '/tmp/' . $slug . '.dj',
@@ -248,6 +260,7 @@ final class PageCollectionTest extends TestCase
             source: '# ' . $title,
             draft: (bool)($meta['draft'] ?? false),
             meta: $meta,
+            type: $type,
         );
     }
 

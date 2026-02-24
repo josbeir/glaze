@@ -19,9 +19,9 @@ final class SiteContextTest extends TestCase
     public function testContextExposesQueryAndPaginationHelpers(): void
     {
         $index = new SiteIndex([
-            $this->makePage('index', '/', 'index.dj', [], ['tags' => ['home']]),
-            $this->makePage('blog/a', '/blog/a/', 'blog/a.dj', ['date' => '2026-01-01'], ['tags' => ['php']]),
-            $this->makePage('blog/b', '/blog/b/', 'blog/b.dj', ['date' => '2026-01-02'], ['tags' => ['php']]),
+            $this->makePage('index', '/', 'index.dj', ['type' => 'page'], ['tags' => ['home']]),
+            $this->makePage('blog/a', '/blog/a/', 'blog/a.dj', ['date' => '2026-01-01', 'type' => 'blog'], ['tags' => ['php']]),
+            $this->makePage('blog/b', '/blog/b/', 'blog/b.dj', ['date' => '2026-01-02', 'type' => 'blog'], ['tags' => ['php']]),
         ]);
 
         $context = new SiteContext($index, $index->findBySlug('blog/a') ?? $this->fail('Missing current page'));
@@ -29,6 +29,7 @@ final class SiteContextTest extends TestCase
         $this->assertSame('blog/a', $context->page()->slug);
         $this->assertCount(3, $context->regularPages());
         $this->assertCount(2, $context->section('blog'));
+        $this->assertCount(2, $context->type('blog'));
         $this->assertCount(2, $context->taxonomy('tags')->term('php'));
         $this->assertCount(2, $context->taxonomyTerm('tags', 'php'));
         $this->assertSame('blog/b', $context->previousInSection()?->slug);
@@ -68,12 +69,16 @@ final class SiteContextTest extends TestCase
         $arrayFiltered = $context->where($context->regularPages()->all(), 'slug', 'docs/intro');
         $this->assertCount(1, $arrayFiltered);
 
+        $operatorFiltered = $context->where($context->regularPages(), 'slug', 'eq', 'docs/intro');
+        $this->assertCount(1, $operatorFiltered);
+
         $defaultPager = $context->paginate($context->section('docs'), 1, 1);
         $this->assertSame('/docs/intro/', $defaultPager->url());
         $this->assertSame($context, $context->site());
 
         $homeContext = new SiteContext($index, $index->findBySlug('index') ?? $this->fail('Missing home page'));
         $this->assertTrue($homeContext->isCurrent('/index'));
+        $this->assertTrue($homeContext->isCurrent('   '));
     }
 
     /**

@@ -75,6 +75,7 @@ In templates, retrieve it from page metadata:
 
 - `title` (string): page title
 - `slug` (string): override generated route slug
+- `type` (string): explicit content type override when `contentTypes` are configured
 - `date` (date/datetime): publish date exposed as Chronos in templates
 - `draft` (bool): exclude from static build unless `--drafts` is used
 - `template` (string): per-page template override

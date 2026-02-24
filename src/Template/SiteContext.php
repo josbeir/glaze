@@ -55,6 +55,16 @@ final class SiteContext
     }
 
     /**
+     * Return pages matching a resolved content type.
+     *
+     * @param string $type Content type name.
+     */
+    public function type(string $type): PageCollection
+    {
+        return $this->regularPages()->whereType($type);
+    }
+
+    /**
      * Return pages from a section.
      *
      * @param string $name Section slug.

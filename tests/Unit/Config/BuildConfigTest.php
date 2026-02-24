@@ -28,6 +28,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $this->normalizePath($config->glideCachePath()));
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
+        $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertFalse($config->includeDrafts);
     }
@@ -138,6 +139,176 @@ final class BuildConfigTest extends TestCase
         );
         $invalidDriver = BuildConfig::fromProjectRoot($projectRoot);
         $this->assertSame([], $invalidDriver->imageOptions);
+    }
+
+    /**
+     * Ensure content types are normalized from project configuration.
+     */
+    public function testContentTypesCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  Blog:\n    paths:\n      - blog\n    defaults:\n      template: article\n      draft: false\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'blog' => [
+                'paths' => ['blog'],
+                'defaults' => [
+                    'template' => 'article',
+                    'draft' => false,
+                ],
+            ],
+        ], $config->contentTypes);
+    }
+
+    /**
+     * Ensure invalid content type configuration values throw validation errors.
+     */
+    public function testInvalidContentTypesConfigurationThrowsRuntimeException(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "contentTypes: true\n");
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('contentTypes');
+        BuildConfig::fromProjectRoot($projectRoot);
+    }
+
+    /**
+     * Ensure invalid content type defaults map throws a validation error.
+     */
+    public function testInvalidContentTypeDefaultsConfigurationThrowsRuntimeException(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  blog:\n    defaults: true\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('defaults');
+        BuildConfig::fromProjectRoot($projectRoot);
+    }
+
+    /**
+     * Ensure duplicate content type names (case-insensitive) are rejected.
+     */
+    public function testDuplicateContentTypeNamesThrowRuntimeException(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  Blog:\n    paths:\n      - blog\n  blog:\n    paths:\n      - posts\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('duplicate content type');
+        BuildConfig::fromProjectRoot($projectRoot);
+    }
+
+    /**
+     * Ensure non-map content type definitions throw validation errors.
+     */
+    public function testInvalidContentTypeDefinitionThrowsRuntimeException(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  blog: true\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('must be a key/value mapping');
+        BuildConfig::fromProjectRoot($projectRoot);
+    }
+
+    /**
+     * Ensure content type names must be non-empty strings.
+     */
+    public function testContentTypeNameValidationThrowsRuntimeException(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  0:\n    paths:\n      - blog\n",
+        );
+
+        try {
+            BuildConfig::fromProjectRoot($projectRoot);
+            $this->fail('Expected non-string content type name to throw.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertStringContainsString('names must be strings', $runtimeException->getMessage());
+        }
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  '':\n    paths:\n      - blog\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('name cannot be empty');
+        BuildConfig::fromProjectRoot($projectRoot);
+    }
+
+    /**
+     * Ensure content type defaults drop invalid keys during normalization.
+     */
+    public function testContentTypeDefaultsNormalizationDropsInvalidKeys(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "contentTypes:\n  blog:\n    defaults:\n      0: ignored\n      '': ignored\n      Template: article\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'blog' => [
+                'paths' => [],
+                'defaults' => [
+                    'template' => 'article',
+                ],
+            ],
+        ], $config->contentTypes);
+    }
+
+    /**
+     * Ensure image preset normalization skips invalid names and empty normalized maps.
+     */
+    public function testImagePresetNormalizationSkipsInvalidPresetEntries(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "images:\n  presets:\n    0:\n      w: 100\n    hero:\n      w: 1200\n    noScalars:\n      nested: [1,2,3]\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'hero' => [
+                'w' => '1200',
+            ],
+        ], $config->imagePresets);
     }
 
     /**

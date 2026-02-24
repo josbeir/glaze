@@ -37,6 +37,20 @@ site:
 taxonomies:
   - tags
   - categories
+
+contentTypes:
+  blog:
+    paths:
+      - blog
+    defaults:
+      template: blog
+      description: Blog post
+
+  docs:
+    paths:
+      - docs
+    defaults:
+      template: docs
 ```
 
 ## `pageTemplate` setting
@@ -82,6 +96,28 @@ taxonomies:
 ```
 
 then `tags` and `categories` are extracted from page frontmatter and available through taxonomy helpers.
+
+## `contentTypes` settings
+
+Use `contentTypes` to classify pages and apply metadata defaults.
+
+- type names are keys (`blog`, `docs`, ...)
+- `paths` is a list of content path prefixes
+- `defaults` is a metadata map merged into matching pages
+- page frontmatter overrides type defaults
+- explicit frontmatter `type` overrides path matching
+
+Example frontmatter override:
+
+```djot
+---
+title: Deep dive
+type: docs
+---
+# Deep dive
+```
+
+Resolved type is exposed as `$page->type` in templates and can be queried via collection helpers.
 
 ## Frontmatter fence format
 

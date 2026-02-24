@@ -9,6 +9,7 @@ use Cake\Utility\Hash;
 use Countable;
 use DateTimeInterface;
 use Glaze\Content\ContentPage;
+use Glaze\Utility\Normalization;
 use IteratorAggregate;
 use Throwable;
 use Traversable;
@@ -232,6 +233,35 @@ final class PageCollection implements IteratorAggregate, Countable
             $actual = $this->resolveValue($page, $key);
 
             return $this->matchesWhere($actual, $operator, $expected);
+        });
+    }
+
+    /**
+     * Filter pages by resolved content type.
+     *
+     * @param string $type Content type name.
+     */
+    public function whereType(string $type): self
+    {
+        $normalizedType = Normalization::optionalString($type);
+        if ($normalizedType === null) {
+            return new self([]);
+        }
+
+        $expectedType = strtolower($normalizedType);
+
+        return $this->filter(function (ContentPage $page) use ($expectedType): bool {
+            $resolvedType = Normalization::optionalString($page->type);
+            if ($resolvedType !== null) {
+                return strtolower($resolvedType) === $expectedType;
+            }
+
+            $metaType = Normalization::optionalString($page->meta['type'] ?? null);
+            if ($metaType !== null) {
+                return strtolower($metaType) === $expectedType;
+            }
+
+            return false;
         });
     }
 
