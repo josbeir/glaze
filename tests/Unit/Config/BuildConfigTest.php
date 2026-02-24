@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Config;
 
 use Glaze\Config\BuildConfig;
+use Glaze\Config\SiteConfig;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -52,6 +53,27 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame(['tags', 'categories'], $config->taxonomies);
+    }
+
+    /**
+     * Ensure site block can be loaded from project configuration.
+     */
+    public function testSiteConfigCanBeLoadedFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "site:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  metaDefaults:\n    robots: \"index,follow\"\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertInstanceOf(SiteConfig::class, $config->site);
+        $this->assertSame('Example Site', $config->site->title);
+        $this->assertSame('Default site description', $config->site->description);
+        $this->assertSame('https://example.com', $config->site->baseUrl);
+        $this->assertSame(['robots' => 'index,follow'], $config->site->metaDefaults);
     }
 
     /**

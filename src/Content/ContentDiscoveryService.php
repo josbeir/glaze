@@ -192,6 +192,11 @@ final class ContentDiscoveryService
                 continue;
             }
 
+            if ($normalizedKey === 'meta' && is_array($value)) {
+                $normalized[$normalizedKey] = $this->normalizeMetaMap($value);
+                continue;
+            }
+
             $normalized[$normalizedKey] = $this->normalizeMetaValue($value);
         }
 
@@ -294,6 +299,36 @@ final class ContentDiscoveryService
         }
 
         return null;
+    }
+
+    /**
+     * Normalize map-like metadata values while preserving keys.
+     *
+     * @param array<mixed> $value Raw metadata map.
+     * @return array<string, scalar|null>
+     */
+    protected function normalizeMetaMap(array $value): array
+    {
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalizedKey = trim($key);
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            if (!is_scalar($item) && $item !== null) {
+                continue;
+            }
+
+            $normalized[$normalizedKey] = $item;
+        }
+
+        return $normalized;
     }
 
     /**

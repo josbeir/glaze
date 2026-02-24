@@ -12,6 +12,8 @@ use RuntimeException;
  */
 final class BuildConfig
 {
+    public readonly SiteConfig $site;
+
     /**
      * Constructor.
      *
@@ -22,6 +24,7 @@ final class BuildConfig
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string> $taxonomies Enabled taxonomy keys.
+     * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
      */
     public function __construct(
@@ -32,8 +35,10 @@ final class BuildConfig
         public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
         public readonly string $pageTemplate = 'page',
         public readonly array $taxonomies = ['tags'],
+        ?SiteConfig $site = null,
         public readonly bool $includeDrafts = false,
     ) {
+        $this->site = $site ?? new SiteConfig();
     }
 
     /**
@@ -50,8 +55,19 @@ final class BuildConfig
         return new self(
             projectRoot: $normalizedRoot,
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
+            site: self::normalizeSiteConfiguration($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize site-wide configuration.
+     *
+     * @param mixed $siteConfiguration Raw site configuration value.
+     */
+    protected static function normalizeSiteConfiguration(mixed $siteConfiguration): SiteConfig
+    {
+        return SiteConfig::fromProjectConfig($siteConfiguration);
     }
 
     /**

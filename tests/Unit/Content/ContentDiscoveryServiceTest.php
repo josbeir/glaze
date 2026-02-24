@@ -117,7 +117,7 @@ final class ContentDiscoveryServiceTest extends TestCase
 
         file_put_contents(
             $contentPath . '/index.dj',
-            "+++\nslug: ///\nname: 123\ntags:\n  - one\n  - 2\n  - null\n  - { bad: value }\nobj: { foo: bar }\n+++\n# Home\n",
+            "+++\nslug: ///\nname: 123\ntags:\n  - one\n  - 2\n  - null\n  - { bad: value }\nobj: { foo: bar }\nmeta:\n  robots: noindex\n+++\n# Home\n",
         );
 
         $service = new ContentDiscoveryService();
@@ -130,6 +130,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $this->assertSame(['one'], $page->taxonomies['tags']);
         $this->assertSame(123, $page->meta['name']);
         $this->assertSame(['bar'], $page->meta['obj']);
+        $this->assertSame(['robots' => 'noindex'], $page->meta['meta']);
         $this->assertArrayNotHasKey('tags', $page->meta);
     }
 

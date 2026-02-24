@@ -117,4 +117,29 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertIsString($output);
         $this->assertStringContainsString('<img alt="test" src="/blog/test2.jpg">', $output);
     }
+
+    /**
+     * Ensure site config defaults and page-level meta overrides are rendered.
+     */
+    public function testBuildCommandRendersSiteConfigDefaultsAndPageOverrides(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/site-config');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Build complete: 2 page(s).');
+
+        $indexOutput = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($indexOutput);
+        $this->assertStringContainsString('<p class="site-title">Example Site</p>', $indexOutput);
+        $this->assertStringContainsString('<p class="meta-description">Default site description</p>', $indexOutput);
+        $this->assertStringContainsString('<p class="meta-robots">index,follow</p>', $indexOutput);
+
+        $aboutOutput = file_get_contents($projectRoot . '/public/about/index.html');
+        $this->assertIsString($aboutOutput);
+        $this->assertStringContainsString('<p class="site-title">Example Site</p>', $aboutOutput);
+        $this->assertStringContainsString('<p class="meta-description">About page description</p>', $aboutOutput);
+        $this->assertStringContainsString('<p class="meta-robots">noindex</p>', $aboutOutput);
+    }
 }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Build;
 
+use ArrayObject;
 use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
@@ -23,21 +24,26 @@ final class SiteBuilder
 
     protected ContentAssetPublisher $assetPublisher;
 
+    protected PageMetaResolver $pageMetaResolver;
+
     /**
      * Constructor.
      *
      * @param \Glaze\Content\ContentDiscoveryService|null $discoveryService Content discovery service.
      * @param \Glaze\Render\DjotRenderer|null $djotRenderer Djot renderer service.
      * @param \Glaze\Build\ContentAssetPublisher|null $assetPublisher Asset publishing service.
+     * @param \Glaze\Build\PageMetaResolver|null $pageMetaResolver Page meta resolver.
      */
     public function __construct(
         ?ContentDiscoveryService $discoveryService = null,
         ?DjotRenderer $djotRenderer = null,
         ?ContentAssetPublisher $assetPublisher = null,
+        ?PageMetaResolver $pageMetaResolver = null,
     ) {
         $this->discoveryService = $discoveryService ?? new ContentDiscoveryService();
         $this->djotRenderer = $djotRenderer ?? new DjotRenderer();
         $this->assetPublisher = $assetPublisher ?? new ContentAssetPublisher();
+        $this->pageMetaResolver = $pageMetaResolver ?? new PageMetaResolver();
     }
 
     /**
@@ -202,7 +208,11 @@ final class SiteBuilder
             'url' => $page->urlPath,
             'content' => $htmlContent,
             'page' => $page,
-            'meta' => $page->meta,
+            'meta' => new ArrayObject(
+                $this->pageMetaResolver->resolve($page, $config->site),
+                ArrayObject::ARRAY_AS_PROPS,
+            ),
+            'site' => $config->site,
         ], $templateContext);
     }
 
