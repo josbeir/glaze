@@ -1,0 +1,24 @@
+---
+title: What is Glaze?
+weight: 12
+navigationTitle: What is Glaze?
+---
+# What is Glaze?
+
+Glaze is a PHP static site generator focused on a clean authoring pipeline:
+
+- **Djot** for predictable content markup
+- **Sugar** for lightweight template composition
+- **NEON** for clear configuration and frontmatter
+- **Simple CLI flow** for build, serve, and content creation
+
+It is designed for teams that want fast static output, readable templates, and minimal operational complexity.
+
+## Why use it?
+
+- Fast local iteration with `glaze serve`
+- Deterministic static output with `glaze build`
+- Friendly content model with metadata-driven routing
+- Optional modern asset workflow with Vite integration
+
+Continue with [Installation](installation.dj) to start a new project.

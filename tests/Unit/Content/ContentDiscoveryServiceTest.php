@@ -208,6 +208,50 @@ final class ContentDiscoveryServiceTest extends TestCase
     }
 
     /**
+     * Validate nested maps/lists inside frontmatter meta are preserved for templates.
+     */
+    public function testDiscoverPreservesNestedMetaMapsAndLists(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nmeta:\n  hero:\n    title: Hero Title\n    primaryAction:\n      label: Read docs\n      href: /installation\n    highlights:\n      -\n        title: Fast\n        description: Build quickly\n      -\n        title: Predictable\n        description: Render reliably\n+++\n# Home\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+
+        $this->assertIsArray($page->meta['meta'] ?? null);
+        /** @var array<string, mixed> $meta */
+        $meta = $page->meta['meta'];
+        $this->assertIsArray($meta['hero'] ?? null);
+        /** @var array<string, mixed> $hero */
+        $hero = $meta['hero'];
+
+        $this->assertSame('Hero Title', $hero['title'] ?? null);
+        $this->assertSame([
+            'label' => 'Read docs',
+            'href' => '/installation',
+        ], $hero['primaryAction'] ?? null);
+        $this->assertSame([
+            [
+                'title' => 'Fast',
+                'description' => 'Build quickly',
+            ],
+            [
+                'title' => 'Predictable',
+                'description' => 'Render reliably',
+            ],
+        ], $hero['highlights'] ?? null);
+    }
+
+    /**
      * Validate configured root-level taxonomy extraction for multiple keys.
      */
     public function testDiscoverExtractsConfiguredTaxonomiesFromFrontmatterRoot(): void

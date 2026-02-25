@@ -23,17 +23,39 @@
 		'assets/js/docs.js',
 	]" />
 </head>
-<body hx-boost="true">
+<body class="bg-base-100 min-h-screen" hx-boost="true">
+<div class="drawer lg:drawer-open">
+	<input id="docs-drawer" type="checkbox" class="drawer-toggle" />
 
-<s-template s:include="../partials/header" />
+	<div class="drawer-content min-h-screen flex flex-col">
+		<s-template s:include="../partials/header" />
 
-<div class="docs-layout container">
-	<aside class="docs-sidebar" aria-label="Documentation navigation" s:block="sidebar">
+		<main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8" s:block="content">
+			Default page content
+		</main>
+
+		<footer class="border-t border-base-300 mt-auto">
+			<div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-sm text-base-content/70 text-center">
+				<p>
+					Released under the
+					<a
+						class="link link-hover"
+						href="https://github.com/josbeir/glaze/blob/main/LICENSE.md"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						MIT License
+					</a>.
+				</p>
+				<p>Created by Jasper Smet.</p>
+			</div>
+		</footer>
+	</div>
+
+	<aside class="drawer-side" aria-label="Documentation navigation" s:block="sidebar">
+		<label for="docs-drawer" class="drawer-overlay"></label>
 		<s-template s:include="../partials/sidebar" />
 	</aside>
-	<main s:block="content">
-		Default page content
-	</main>
 </div>
 </body>
 </html>

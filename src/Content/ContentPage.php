@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Content;
 
+use Cake\Utility\Hash;
+
 /**
  * Value object representing a discoverable content page.
  */
@@ -36,5 +38,34 @@ final class ContentPage
         public readonly array $taxonomies = [],
         public readonly ?string $type = null,
     ) {
+    }
+
+    /**
+     * Read metadata using dotted path access.
+     *
+     * @param string $path Dotted metadata path.
+     * @param mixed $default Default value when path does not exist.
+     */
+    public function meta(string $path, mixed $default = null): mixed
+    {
+        if (trim($path) === '') {
+            return $this->meta;
+        }
+
+        return Hash::get($this->meta, $path, $default);
+    }
+
+    /**
+     * Check whether metadata exists at a dotted path.
+     *
+     * @param string $path Dotted metadata path.
+     */
+    public function hasMeta(string $path): bool
+    {
+        if (trim($path) === '') {
+            return $this->meta !== [];
+        }
+
+        return Hash::check($this->meta, $path);
     }
 }

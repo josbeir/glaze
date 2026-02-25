@@ -464,10 +464,13 @@ final class ContentDiscoveryService
                 continue;
             }
 
-            $normalizedItem = $this->normalizeMetaEntry(strtolower($normalizedKey), $item);
-            if (is_array($normalizedItem)) {
+            if (is_array($item)) {
+                $normalized[$normalizedKey] = $this->normalizeMetaArrayValue($item);
+
                 continue;
             }
+
+            $normalizedItem = $this->normalizeMetaEntry(strtolower($normalizedKey), $item);
 
             if (
                 !is_scalar($normalizedItem)
@@ -481,6 +484,63 @@ final class ContentDiscoveryService
         }
 
         return $normalized;
+    }
+
+    /**
+     * Normalize nested meta arrays while preserving map/list structures.
+     *
+     * @param array<mixed> $value Raw nested meta array.
+     * @return array<mixed>
+     */
+    protected function normalizeMetaArrayValue(array $value): array
+    {
+        if (array_is_list($value)) {
+            $normalizedList = [];
+
+            foreach ($value as $item) {
+                $normalizedItem = $this->normalizeNestedMetaValue($item);
+                if (
+                    !is_scalar($normalizedItem)
+                    && $normalizedItem !== null
+                    && !$normalizedItem instanceof DateTimeInterface
+                    && !is_array($normalizedItem)
+                ) {
+                    continue;
+                }
+
+                $normalizedList[] = $normalizedItem;
+            }
+
+            return $normalizedList;
+        }
+
+        return $this->normalizeMetaMap($value);
+    }
+
+    /**
+     * Normalize a nested meta value recursively.
+     *
+     * @param mixed $value Nested meta value.
+     */
+    protected function normalizeNestedMetaValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $this->normalizeMetaArrayValue($value);
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return Chronos::instance($value);
+        }
+
+        if (is_scalar($value) || $value === null) {
+            return $value;
+        }
+
+        if (is_object($value) && method_exists($value, '__toString')) {
+            return (string)$value;
+        }
+
+        return null;
     }
 
     /**

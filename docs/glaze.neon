@@ -1,7 +1,7 @@
 pageTemplate: page
 site:
-	title: Glaze - A PHP static site generator
-	description: Glaze PHP templating engine documentation
+	title: Glaze
+	description: PHP templating engine documentation
 	basePath: /glaze
 
 djot:
