@@ -105,8 +105,10 @@ final class SiteConfigTest extends TestCase
     {
         $root = SiteConfig::fromProjectConfig(['basePath' => '/']);
         $relative = SiteConfig::fromProjectConfig(['basePath' => 'docs']);
+        $blank = SiteConfig::fromProjectConfig(['basePath' => '   ']);
 
         $this->assertNull($root->basePath);
         $this->assertSame('/docs', $relative->basePath);
+        $this->assertNull($blank->basePath);
     }
 }

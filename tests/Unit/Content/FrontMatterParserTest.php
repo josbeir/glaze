@@ -66,4 +66,17 @@ final class FrontMatterParserTest extends TestCase
 
         (new FrontMatterParser())->parse($source);
     }
+
+    /**
+     * Ensure scalar frontmatter values are rejected as non-mapping metadata.
+     */
+    public function testParseThrowsWhenFrontMatterDecodesToScalar(): void
+    {
+        $source = "+++\ntrue\n+++\n# Body\n";
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('expected a key/value mapping');
+
+        (new FrontMatterParser())->parse($source);
+    }
 }

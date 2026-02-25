@@ -500,6 +500,170 @@ final class NewCommandTest extends TestCase
     }
 
     /**
+     * Ensure type path resolution returns null when no rules are configured.
+     */
+    public function testResolveTypePathRuleReturnsNullWhenNoRules(): void
+    {
+        $command = $this->createCommand();
+
+        $resolved = $this->callProtected(
+            $command,
+            'resolveTypePathRule',
+            $this->createConsoleIo(),
+            ['blog' => ['paths' => [], 'defaults' => []]],
+            'blog',
+            null,
+            true,
+        );
+
+        $this->assertNull($resolved);
+    }
+
+    /**
+     * Ensure type path resolution throws clear error for unknown explicit path option.
+     */
+    public function testResolveTypePathRuleThrowsWhenExplicitPathIsUnknown(): void
+    {
+        $command = $this->createCommand();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unknown path');
+
+        $this->callProtected(
+            $command,
+            'resolveTypePathRule',
+            $this->createConsoleIo(),
+            [
+                'blog' => [
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => 'blog/{slug}'],
+                        ['match' => 'posts', 'createPattern' => null],
+                    ],
+                    'defaults' => [],
+                ],
+            ],
+            'blog',
+            'unknown-path',
+            true,
+        );
+    }
+
+    /**
+     * Ensure interactive type path selection falls back to first rule when answer is not matched.
+     */
+    public function testResolveTypePathRuleFallsBackToFirstRuleForUnknownChoice(): void
+    {
+        $command = $this->createCommand();
+        $io = $this->createMock(ConsoleIo::class);
+        $io->expects($this->once())
+            ->method('askChoice')
+            ->willReturn('unknown-path');
+
+        $resolved = $this->callProtected(
+            $command,
+            'resolveTypePathRule',
+            $io,
+            [
+                'blog' => [
+                    'paths' => [
+                        ['match' => 'blog', 'createPattern' => 'blog/{slug}'],
+                        ['match' => 'posts', 'createPattern' => null],
+                    ],
+                    'defaults' => [],
+                ],
+            ],
+            'blog',
+            null,
+            false,
+        );
+
+        $this->assertIsArray($resolved);
+        /** @var array{match: string, createPattern: string|null} $resolved */
+        $this->assertSame('blog', $resolved['match']);
+    }
+
+    /**
+     * Ensure type input uses interactive prompt and requires explicit value in non-interactive mode.
+     */
+    public function testResolveTypeInputPromptAndRequiredBranch(): void
+    {
+        $command = $this->createCommand();
+        $contentTypes = [
+            'blog' => [
+                'paths' => [['match' => 'blog', 'createPattern' => null]],
+                'defaults' => [],
+            ],
+        ];
+
+        $io = $this->createMock(ConsoleIo::class);
+        $io->expects($this->once())
+            ->method('askChoice')
+            ->willReturn('blog');
+
+        $interactive = $this->callProtected(
+            $command,
+            'resolveTypeInput',
+            new Arguments([], ['type' => null], []),
+            $io,
+            $contentTypes,
+            false,
+        );
+        $this->assertSame('blog', $interactive);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('A content type is required');
+
+        $this->callProtected(
+            $command,
+            'resolveTypeInput',
+            new Arguments([], ['type' => null], []),
+            $this->createConsoleIo(),
+            $contentTypes,
+            true,
+        );
+    }
+
+    /**
+     * Ensure draft and weight helper branches cover non-interactive default and invalid input.
+     */
+    public function testResolveDraftInputDefaultAndInvalidWeightBranches(): void
+    {
+        $command = $this->createCommand();
+
+        $draft = $this->callProtected(
+            $command,
+            'resolveDraftInput',
+            new Arguments([], ['draft' => null], []),
+            $this->createConsoleIo(),
+            true,
+        );
+        $this->assertFalse($draft);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid weight value');
+        $this->callProtected($command, 'normalizeWeightInput', 'invalid-int');
+    }
+
+    /**
+     * Ensure promptType and normalizeTypeInput cover empty input branches.
+     */
+    public function testPromptTypeAndNormalizeTypeInputEmptyBranches(): void
+    {
+        $command = $this->createCommand();
+
+        $promptType = $this->callProtected($command, 'promptType', $this->createConsoleIo(), []);
+        $this->assertNull($promptType);
+
+        $normalizedType = $this->callProtected(
+            $command,
+            'normalizeTypeInput',
+            null,
+            ['blog' => ['paths' => [], 'defaults' => []]],
+        );
+        $this->assertNull($normalizedType);
+    }
+
+    /**
      * Create a temporary project root path.
      */
     protected function createTempProjectRoot(): string

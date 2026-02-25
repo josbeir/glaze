@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Command;
 
 use Cake\Console\Arguments;
+use Cake\Console\ConsoleIo;
 use Closure;
 use Glaze\Command\ServeCommand;
 use Glaze\Serve\PhpServerConfig;
@@ -331,6 +332,174 @@ final class ServeCommandTest extends TestCase
             $projectRoot,
             false,
         );
+    }
+
+    /**
+     * Ensure execute returns error when root directory does not exist.
+     */
+    public function testExecuteReturnsErrorWhenProjectRootIsMissing(): void
+    {
+        $command = $this->createCommand();
+        $args = new Arguments([], [
+            'root' => $this->createTempDirectory() . '/missing-root',
+            'host' => null,
+            'port' => null,
+            'static' => false,
+            'build' => false,
+            'drafts' => false,
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, new ConsoleIo());
+
+        $this->assertSame(1, $exitCode);
+    }
+
+    /**
+     * Ensure execute rejects using Vite in static mode.
+     */
+    public function testExecuteRejectsViteWhenStaticModeEnabled(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $command = $this->createCommand();
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'host' => null,
+            'port' => null,
+            'static' => true,
+            'build' => false,
+            'drafts' => false,
+            'vite' => true,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, new ConsoleIo());
+
+        $this->assertSame(1, $exitCode);
+    }
+
+    /**
+     * Ensure execute rejects --build without --static.
+     */
+    public function testExecuteRejectsBuildWithoutStaticMode(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+
+        $command = $this->createCommand();
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'host' => null,
+            'port' => null,
+            'static' => false,
+            'build' => true,
+            'drafts' => false,
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, new ConsoleIo());
+
+        $this->assertSame(1, $exitCode);
+    }
+
+    /**
+     * Ensure execute returns error when static doc root is missing.
+     */
+    public function testExecuteReturnsErrorWhenStaticDocRootIsMissing(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+
+        $command = $this->createCommand();
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'host' => null,
+            'port' => null,
+            'static' => true,
+            'build' => false,
+            'drafts' => false,
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, new ConsoleIo());
+
+        $this->assertSame(1, $exitCode);
+    }
+
+    /**
+     * Ensure execute returns error for invalid explicit port value.
+     */
+    public function testExecuteReturnsErrorWhenPortIsInvalid(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $command = $this->createCommand();
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'host' => null,
+            'port' => '70000',
+            'static' => true,
+            'build' => false,
+            'drafts' => false,
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, new ConsoleIo());
+
+        $this->assertSame(1, $exitCode);
+    }
+
+    /**
+     * Ensure execute surfaces Vite startup failures and restores environment.
+     */
+    public function testExecuteReturnsErrorWhenViteStartFails(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $command = $this->createCommand();
+
+        $originalProjectRoot = getenv('GLAZE_PROJECT_ROOT');
+        $originalIncludeDrafts = getenv('GLAZE_INCLUDE_DRAFTS');
+        $originalViteEnabled = getenv('GLAZE_VITE_ENABLED');
+        $originalViteUrl = getenv('GLAZE_VITE_URL');
+
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'host' => null,
+            'port' => null,
+            'static' => false,
+            'build' => false,
+            'drafts' => false,
+            'vite' => true,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => 'php -r "fwrite(STDERR, \"boom\"); exit(1);"',
+        ], []);
+
+        try {
+            $exitCode = $command->execute($args, new ConsoleIo());
+        } finally {
+            $this->assertSame($originalProjectRoot, getenv('GLAZE_PROJECT_ROOT'));
+            $this->assertSame($originalIncludeDrafts, getenv('GLAZE_INCLUDE_DRAFTS'));
+            $this->assertSame($originalViteEnabled, getenv('GLAZE_VITE_ENABLED'));
+            $this->assertSame($originalViteUrl, getenv('GLAZE_VITE_URL'));
+        }
+
+        $this->assertSame(1, $exitCode);
     }
 
     /**

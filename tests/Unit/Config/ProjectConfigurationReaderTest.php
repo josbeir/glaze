@@ -107,4 +107,18 @@ final class ProjectConfigurationReaderTest extends TestCase
         $this->assertArrayHasKey('site', $configuration);
         $this->assertArrayNotHasKey(1, $configuration);
     }
+
+    /**
+     * Ensure empty configuration files decode to null and return an empty map.
+     */
+    public function testReadReturnsEmptyArrayForNullDecodedConfiguration(): void
+    {
+        $reader = new ProjectConfigurationReader();
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents($projectRoot . '/glaze.neon', '');
+
+        $configuration = $reader->read($projectRoot);
+
+        $this->assertSame([], $configuration);
+    }
 }
