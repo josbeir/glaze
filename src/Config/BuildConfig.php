@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace Glaze\Config;
 
 use Glaze\Utility\Normalization;
-use Nette\Neon\Exception;
-use Nette\Neon\Neon;
 use RuntimeException;
 
 /**
@@ -13,6 +11,8 @@ use RuntimeException;
  */
 final class BuildConfig
 {
+    protected static ?ProjectConfigurationReader $projectConfigurationReader = null;
+
     public readonly SiteConfig $site;
 
     /**
@@ -358,32 +358,19 @@ final class BuildConfig
      */
     protected static function readProjectConfiguration(string $projectRoot): array
     {
-        $configurationPath = $projectRoot . DIRECTORY_SEPARATOR . 'glaze.neon';
-        if (!is_file($configurationPath)) {
-            return [];
+        return self::projectConfigurationReader()->read($projectRoot);
+    }
+
+    /**
+     * Resolve project configuration reader service instance.
+     */
+    protected static function projectConfigurationReader(): ProjectConfigurationReader
+    {
+        if (!self::$projectConfigurationReader instanceof ProjectConfigurationReader) {
+            self::$projectConfigurationReader = new ProjectConfigurationReader();
         }
 
-        $contents = file_get_contents($configurationPath);
-        if (!is_string($contents)) {
-            throw new RuntimeException(sprintf('Unable to read project configuration "%s".', $configurationPath));
-        }
-
-        try {
-            $decoded = Neon::decode($contents);
-        } catch (Exception $exception) {
-            throw new RuntimeException(
-                sprintf('Invalid project configuration in "%s": %s', $configurationPath, $exception->getMessage()),
-                0,
-                $exception,
-            );
-        }
-
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        /** @var array<string, mixed> $decoded */
-        return $decoded;
+        return self::$projectConfigurationReader;
     }
 
     /**

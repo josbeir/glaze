@@ -21,7 +21,6 @@ use Throwable;
 /**
  * Create a new Djot content page with interactive prompts.
  */
-/** @phpstan-ignore-next-line */
 final class NewCommand extends BaseCommand
 {
     protected ?PageScaffoldService $pageScaffoldService = null;

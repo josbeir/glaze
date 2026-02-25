@@ -16,7 +16,6 @@ use RuntimeException;
 /**
  * Initialize a new Glaze project directory.
  */
-/** @phpstan-ignore-next-line */
 final class InitCommand extends BaseCommand
 {
     protected ?ProjectScaffoldService $scaffoldService = null;

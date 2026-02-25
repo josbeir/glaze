@@ -201,6 +201,45 @@ codeHighlighting:
 - `theme` -- Phiki theme name (default `nord`); see [Phiki themes](https://github.com/phikiphp/phiki) for options
 - `withGutter` -- show line-number gutter beside code (default `false`)
 
+## `devServer.php`
+
+Optional defaults for `glaze serve` host and port.
+
+```neon
+devServer:
+  php:
+    host: 127.0.0.1
+    port: 8080
+```
+
+- `host` -- default host interface for the PHP built-in server
+- `port` -- default port for the PHP built-in server
+
+CLI options override these values (`--host`, `--port`).
+
+## `devServer.vite`
+
+Optional settings for `glaze serve --vite` in live mode.
+
+```neon
+devServer:
+  php:
+    host: 127.0.0.1
+    port: 8080
+  vite:
+    enabled: false
+    host: 127.0.0.1
+    port: 5173
+    command: "npm run dev -- --host {host} --port {port} --strictPort"
+```
+
+- `enabled` -- opt-in default for Vite integration (`false` by default)
+- `host` -- Vite host interface
+- `port` -- Vite port
+- `command` -- command template used to start Vite; `{host}` and `{port}` are replaced at runtime
+
+CLI options always override these values (`--vite`, `--vite-host`, `--vite-port`, `--vite-command`).
+
 ## Notes
 
 - A missing `glaze.neon` is valid; Glaze uses sensible defaults.

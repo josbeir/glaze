@@ -234,6 +234,16 @@ final class ProjectScaffoldService
 #   enabled: true
 #   theme: github-dark
 #   withGutter: false
+#
+# devServer:
+#   php:
+#     host: 127.0.0.1
+#     port: 8080
+#   vite:
+#     enabled: false
+#     host: 127.0.0.1
+#     port: 5173
+#     command: "npm run dev -- --host {host} --port {port} --strictPort"
 NEON;
     }
 }

@@ -3,8 +3,11 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Command;
 
+use Cake\Console\Arguments;
 use Closure;
 use Glaze\Command\ServeCommand;
+use Glaze\Serve\PhpServerConfig;
+use Glaze\Serve\ViteServeConfig;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
@@ -15,121 +18,6 @@ use PHPUnit\Framework\TestCase;
 final class ServeCommandTest extends TestCase
 {
     use FilesystemTestTrait;
-
-    /**
-     * Ensure live server command is shell-agnostic and does not rely on inline env assignments.
-     */
-    public function testBuildServerCommandForLiveModeUsesRouterWithoutInlineEnvironmentAssignments(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/bin', 0755, true);
-        file_put_contents($projectRoot . '/bin/dev-router.php', '<?php');
-
-        $command = new ServeCommand();
-
-        $builtCommand = $this->callProtected(
-            $command,
-            'buildServerCommand',
-            '127.0.0.1',
-            8080,
-            $projectRoot,
-            $projectRoot,
-            false,
-            true,
-        );
-
-        $this->assertIsString($builtCommand);
-
-        $this->assertStringStartsWith('php -S ', $builtCommand);
-        $this->assertStringContainsString('dev-router.php', $builtCommand);
-        $this->assertStringNotContainsString('GLAZE_PROJECT_ROOT=', $builtCommand);
-        $this->assertStringNotContainsString('GLAZE_INCLUDE_DRAFTS=', $builtCommand);
-    }
-
-    /**
-     * Ensure static mode command generation does not require router script.
-     */
-    public function testBuildServerCommandForStaticModeUsesDocumentRootOnly(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        $command = new ServeCommand();
-
-        $builtCommand = $this->callProtected(
-            $command,
-            'buildServerCommand',
-            '127.0.0.1',
-            8080,
-            $projectRoot,
-            $projectRoot,
-            true,
-            false,
-        );
-
-        $this->assertIsString($builtCommand);
-        $this->assertStringStartsWith('php -S ', $builtCommand);
-        $this->assertStringNotContainsString('dev-router.php', $builtCommand);
-    }
-
-    /**
-     * Ensure live mode fails when router file is missing.
-     */
-    public function testBuildServerCommandThrowsWhenLiveRouterIsMissing(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Live router script not found');
-
-        $projectRoot = $this->createTempDirectory();
-        $command = new ServeCommand();
-
-        $this->callProtected(
-            $command,
-            'buildServerCommand',
-            '127.0.0.1',
-            8080,
-            $projectRoot,
-            $projectRoot,
-            false,
-            false,
-        );
-    }
-
-    /**
-     * Ensure live mode can resolve router from CLI root when project contains glaze.neon.
-     */
-    public function testBuildServerCommandUsesCliRouterFallbackWhenProjectHasConfig(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
-
-        $cliRoot = $this->createTempDirectory();
-        mkdir($cliRoot . '/bin', 0755, true);
-        file_put_contents($cliRoot . '/bin/dev-router.php', '<?php');
-
-        $originalCliRoot = getenv('GLAZE_CLI_ROOT');
-        putenv('GLAZE_CLI_ROOT=' . $cliRoot);
-
-        try {
-            $command = new ServeCommand();
-            $builtCommand = $this->callProtected(
-                $command,
-                'buildServerCommand',
-                '127.0.0.1',
-                8080,
-                $projectRoot,
-                $projectRoot,
-                false,
-                false,
-            );
-        } finally {
-            $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
-        }
-
-        $this->assertIsString($builtCommand);
-        $this->assertStringContainsString(
-            str_replace('\\', '/', $cliRoot . '/bin/dev-router.php'),
-            str_replace('\\', '/', $builtCommand),
-        );
-    }
 
     /**
      * Ensure live environment variables are applied and restored correctly.
@@ -197,15 +85,250 @@ final class ServeCommandTest extends TestCase
     public function testBuildLiveEnvironmentContainsExpectedValues(): void
     {
         $command = new ServeCommand();
+        $viteEnabled = new ViteServeConfig(true, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
+        $viteDisabled = new ViteServeConfig(false, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
 
-        $enabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true);
-        $disabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', false);
+        $enabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true, $viteDisabled);
+        $disabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', false, $viteDisabled);
+        $enabledWithVite = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true, $viteEnabled);
 
         $this->assertIsArray($enabled);
         $this->assertIsArray($disabled);
+        $this->assertIsArray($enabledWithVite);
+        /** @var array<string, string> $enabled */
+        /** @var array<string, string> $disabled */
+        /** @var array<string, string> $enabledWithVite */
         $this->assertSame('/tmp/project', $enabled['GLAZE_PROJECT_ROOT']);
         $this->assertSame('1', $enabled['GLAZE_INCLUDE_DRAFTS']);
         $this->assertSame('0', $disabled['GLAZE_INCLUDE_DRAFTS']);
+        $this->assertSame('0', $disabled['GLAZE_VITE_ENABLED']);
+        $this->assertSame('', $disabled['GLAZE_VITE_URL']);
+        $this->assertSame('1', $enabledWithVite['GLAZE_VITE_ENABLED']);
+        $this->assertSame('http://127.0.0.1:5173', $enabledWithVite['GLAZE_VITE_URL']);
+    }
+
+    /**
+     * Ensure Vite configuration can be loaded from glaze.neon and overridden by CLI options.
+     */
+    public function testResolveViteConfigurationFromConfigAndCliOverrides(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "devServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5175\n    command: 'npm run dev -- --host {host} --port {port}'\n",
+        );
+
+        $command = new ServeCommand();
+
+        $argsFromConfig = new Arguments([], [
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $resolvedFromConfig = $this->callProtected(
+            $command,
+            'resolveViteConfiguration',
+            $argsFromConfig,
+            $projectRoot,
+        );
+
+        $this->assertInstanceOf(ViteServeConfig::class, $resolvedFromConfig);
+        $this->assertTrue($resolvedFromConfig->enabled);
+        $this->assertSame('0.0.0.0', $resolvedFromConfig->host);
+        $this->assertSame(5175, $resolvedFromConfig->port);
+
+        $argsFromCli = new Arguments([], [
+            'vite' => true,
+            'vite-host' => '127.0.0.1',
+            'vite-port' => '5176',
+            'vite-command' => 'pnpm dev --host {host} --port {port}',
+        ], []);
+
+        $resolvedFromCli = $this->callProtected(
+            $command,
+            'resolveViteConfiguration',
+            $argsFromCli,
+            $projectRoot,
+        );
+
+        $this->assertInstanceOf(ViteServeConfig::class, $resolvedFromCli);
+        $this->assertTrue($resolvedFromCli->enabled);
+        $this->assertSame('127.0.0.1', $resolvedFromCli->host);
+        $this->assertSame(5176, $resolvedFromCli->port);
+        $this->assertSame('pnpm dev --host {host} --port {port}', $resolvedFromCli->command);
+        $this->assertSame('pnpm dev --host 127.0.0.1 --port 5176', $resolvedFromCli->commandLine());
+    }
+
+    /**
+     * Ensure PHP server configuration can be loaded from glaze.neon and overridden by CLI options.
+     */
+    public function testResolvePhpServerConfigurationFromConfigAndCliOverrides(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "devServer:\n  php:\n    host: 0.0.0.0\n    port: 9080\n",
+        );
+
+        $command = new ServeCommand();
+
+        $argsFromConfig = new Arguments([], [
+            'host' => null,
+            'port' => null,
+        ], []);
+
+        $resolvedFromConfig = $this->callProtected(
+            $command,
+            'resolvePhpServerConfiguration',
+            $argsFromConfig,
+            $projectRoot,
+            $projectRoot,
+            false,
+        );
+
+        $this->assertInstanceOf(PhpServerConfig::class, $resolvedFromConfig);
+        $this->assertSame('0.0.0.0', $resolvedFromConfig->host);
+        $this->assertSame(9080, $resolvedFromConfig->port);
+
+        $argsFromCli = new Arguments([], [
+            'host' => '127.0.0.1',
+            'port' => '9090',
+        ], []);
+
+        $resolvedFromCli = $this->callProtected(
+            $command,
+            'resolvePhpServerConfiguration',
+            $argsFromCli,
+            $projectRoot,
+            $projectRoot,
+            false,
+        );
+
+        $this->assertInstanceOf(PhpServerConfig::class, $resolvedFromCli);
+        $this->assertSame('127.0.0.1', $resolvedFromCli->host);
+        $this->assertSame(9090, $resolvedFromCli->port);
+    }
+
+    /**
+     * Ensure project configuration reads reflect file changes for the same project root.
+     */
+    public function testReadProjectConfigurationRefreshesWhenFileChanges(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        $configurationFile = $projectRoot . '/glaze.neon';
+        file_put_contents($configurationFile, "devServer:\n  php:\n    port: 8081\n");
+
+        $command = new ServeCommand();
+
+        $first = $this->callProtected($command, 'readProjectConfiguration', $projectRoot);
+        $this->assertIsArray($first);
+        /** @var array<string, mixed> $first */
+        $this->assertArrayHasKey('devServer', $first);
+        $this->assertIsArray($first['devServer']);
+        /** @var array<string, mixed> $firstDevServer */
+        $firstDevServer = $first['devServer'];
+        $this->assertArrayHasKey('php', $firstDevServer);
+        $this->assertIsArray($firstDevServer['php']);
+        /** @var array<string, mixed> $firstPhp */
+        $firstPhp = $firstDevServer['php'];
+        $this->assertArrayHasKey('port', $firstPhp);
+        $this->assertSame(8081, $firstPhp['port']);
+
+        file_put_contents($configurationFile, "devServer:\n  php:\n    port: 18081\n");
+
+        $second = $this->callProtected($command, 'readProjectConfiguration', $projectRoot);
+        $this->assertIsArray($second);
+        /** @var array<string, mixed> $second */
+        $this->assertArrayHasKey('devServer', $second);
+        $this->assertIsArray($second['devServer']);
+        /** @var array<string, mixed> $secondDevServer */
+        $secondDevServer = $second['devServer'];
+        $this->assertArrayHasKey('php', $secondDevServer);
+        $this->assertIsArray($secondDevServer['php']);
+        /** @var array<string, mixed> $secondPhp */
+        $secondPhp = $secondDevServer['php'];
+        $this->assertArrayHasKey('port', $secondPhp);
+        $this->assertSame(18081, $secondPhp['port']);
+    }
+
+    /**
+     * Ensure non-array devServer root configuration is normalized to an empty map.
+     */
+    public function testReadDevServerConfigurationReturnsEmptyArrayWhenInvalid(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents($projectRoot . '/glaze.neon', "devServer: true\n");
+
+        $command = new ServeCommand();
+        $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
+
+        $this->assertSame([], $result);
+    }
+
+    /**
+     * Ensure devServer map keeps only string keys.
+     */
+    public function testReadDevServerConfigurationFiltersNonStringKeys(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents($projectRoot . '/glaze.neon', "devServer:\n  php:\n    port: 8082\n  1: ignored\n");
+
+        $command = new ServeCommand();
+        $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
+
+        $this->assertIsArray($result);
+        /** @var array<string, mixed> $result */
+        $this->assertArrayHasKey('php', $result);
+        $this->assertArrayNotHasKey(1, $result);
+    }
+
+    /**
+     * Ensure invalid explicit Vite port values are rejected.
+     */
+    public function testResolveViteConfigurationRejectsInvalidCliPort(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        $command = new ServeCommand();
+
+        $args = new Arguments([], [
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => '70000',
+            'vite-command' => null,
+        ], []);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid Vite port');
+
+        $this->callProtected($command, 'resolveViteConfiguration', $args, $projectRoot);
+    }
+
+    /**
+     * Ensure invalid explicit PHP server port values are rejected.
+     */
+    public function testResolvePhpServerConfigurationRejectsInvalidCliPort(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        $command = new ServeCommand();
+
+        $args = new Arguments([], [
+            'host' => null,
+            'port' => '70000',
+        ], []);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid port');
+
+        $this->callProtected(
+            $command,
+            'resolvePhpServerConfiguration',
+            $args,
+            $projectRoot,
+            $projectRoot,
+            false,
+        );
     }
 
     /**

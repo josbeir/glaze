@@ -77,6 +77,12 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertStringContainsString('#   metaDefaults:', $config);
         $this->assertStringContainsString('# contentTypes:', $config);
         $this->assertStringContainsString('#       template: blog', $config);
+        $this->assertStringContainsString('# devServer:', $config);
+        $this->assertStringContainsString('#   php:', $config);
+        $this->assertStringContainsString('#     host: 127.0.0.1', $config);
+        $this->assertStringContainsString('#     port: 8080', $config);
+        $this->assertStringContainsString('#   vite:', $config);
+        $this->assertStringContainsString('#     command: "npm run dev -- --host {host} --port {port} --strictPort"', $config);
     }
 
     /**

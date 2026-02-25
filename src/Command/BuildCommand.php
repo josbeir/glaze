@@ -15,7 +15,6 @@ use RuntimeException;
 /**
  * Build the static site from Djot content and Sugar templates.
  */
-/** @phpstan-ignore-next-line */
 final class BuildCommand extends BaseCommand
 {
     protected ?SiteBuilder $siteBuilder = null;

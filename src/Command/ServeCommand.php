@@ -9,6 +9,11 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\ProjectConfigurationReader;
+use Glaze\Serve\PhpServerConfig;
+use Glaze\Serve\PhpServerService;
+use Glaze\Serve\ViteProcessService;
+use Glaze\Serve\ViteServeConfig;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\ProjectRootResolver;
 use InvalidArgumentException;
@@ -17,9 +22,10 @@ use RuntimeException;
 /**
  * Serve generated static files using the PHP built-in web server.
  */
-/** @phpstan-ignore-next-line */
 final class ServeCommand extends BaseCommand
 {
+    protected ?ProjectConfigurationReader $projectConfigurationReader = null;
+
     /**
      * Get command description text.
      */
@@ -41,12 +47,12 @@ final class ServeCommand extends BaseCommand
                 'default' => null,
             ])
             ->addOption('host', [
-                'help' => 'Host interface to bind the server to.',
-                'default' => '127.0.0.1',
+                'help' => 'Host interface to bind the server to (defaults to devServer.php.host or 127.0.0.1).',
+                'default' => null,
             ])
             ->addOption('port', [
-                'help' => 'Port to bind the server to.',
-                'default' => 8080,
+                'help' => 'Port to bind the server to (defaults to devServer.php.port or 8080).',
+                'default' => null,
             ])
             ->addOption('static', [
                 'help' => 'Serve prebuilt public/ files instead of live rendering.',
@@ -62,6 +68,23 @@ final class ServeCommand extends BaseCommand
                 'help' => 'Include draft pages for build/live rendering (live mode defaults to enabled).',
                 'boolean' => true,
                 'default' => false,
+            ])
+            ->addOption('vite', [
+                'help' => 'Enable Vite dev server integration in live mode.',
+                'boolean' => true,
+                'default' => false,
+            ])
+            ->addOption('vite-host', [
+                'help' => 'Vite host interface (defaults to config or 127.0.0.1).',
+                'default' => null,
+            ])
+            ->addOption('vite-port', [
+                'help' => 'Vite port (defaults to config or 5173).',
+                'default' => null,
+            ])
+            ->addOption('vite-command', [
+                'help' => 'Vite start command. Supports {host} and {port} placeholders.',
+                'default' => null,
             ]);
 
         return $parser;
@@ -84,6 +107,14 @@ final class ServeCommand extends BaseCommand
 
         $isStaticMode = (bool)$args->getOption('static');
         $includeDrafts = !$isStaticMode || (bool)$args->getOption('drafts');
+        $viteConfiguration = $this->resolveViteConfiguration($args, $projectRoot);
+
+        if ($viteConfiguration->enabled && $isStaticMode) {
+            $io->err('<error>--vite can only be used in live mode (without --static).</error>');
+
+            return self::CODE_ERROR;
+        }
+
         $docRoot = $isStaticMode ? $projectRoot . DIRECTORY_SEPARATOR . 'public' : $projectRoot;
 
         if ((bool)$args->getOption('build')) {
@@ -111,34 +142,29 @@ final class ServeCommand extends BaseCommand
             return self::CODE_ERROR;
         }
 
-        $host = (string)$args->getOption('host');
-        $port = $this->normalizePort($args->getOption('port'));
-        if ($port === null) {
-            $io->err('<error>Invalid port. Use a number between 1 and 65535.</error>');
-
-            return self::CODE_ERROR;
-        }
-
         try {
-            $command = $this->buildServerCommand(
-                host: $host,
-                port: $port,
-                docRoot: $docRoot,
-                projectRoot: $projectRoot,
-                staticMode: $isStaticMode,
-                includeDrafts: $includeDrafts,
+            $phpServerConfiguration = $this->resolvePhpServerConfiguration(
+                $args,
+                $projectRoot,
+                $docRoot,
+                $isStaticMode,
             );
+            $this->phpServerService()->assertCanRun($phpServerConfiguration);
         } catch (InvalidArgumentException $invalidArgumentException) {
             $io->err(sprintf('<error>%s</error>', $invalidArgumentException->getMessage()));
 
             return self::CODE_ERROR;
         }
 
-        $address = $host . ':' . $port;
+        $address = $phpServerConfiguration->address();
         if ($isStaticMode) {
             $io->out(sprintf('Serving static output from %s at http://%s', $docRoot, $address));
         } else {
             $io->out(sprintf('Serving live templates/content from %s at http://%s', $projectRoot, $address));
+        }
+
+        if ($viteConfiguration->enabled) {
+            $io->out(sprintf('Vite integration enabled at %s', $viteConfiguration->url()));
         }
 
         $io->out('Press Ctrl+C to stop.');
@@ -146,13 +172,29 @@ final class ServeCommand extends BaseCommand
         $previousEnvironment = [];
         if (!$isStaticMode) {
             $previousEnvironment = $this->applyEnvironment(
-                $this->buildLiveEnvironment($projectRoot, $includeDrafts),
+                $this->buildLiveEnvironment($projectRoot, $includeDrafts, $viteConfiguration),
             );
         }
 
+        $viteProcess = null;
+        if (!$isStaticMode && $viteConfiguration->enabled) {
+            try {
+                $viteProcess = $this->viteProcessService()->start($viteConfiguration, $projectRoot);
+            } catch (RuntimeException $runtimeException) {
+                $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
+                $this->restoreEnvironment($previousEnvironment);
+
+                return self::CODE_ERROR;
+            }
+        }
+
+        $exitCode = self::CODE_SUCCESS;
+
         try {
-            passthru($command, $exitCode);
+            $exitCode = $this->phpServerService()->start($phpServerConfiguration, $projectRoot);
         } finally {
+            $this->viteProcessService()->stop($viteProcess);
+
             if (!$isStaticMode) {
                 $this->restoreEnvironment($previousEnvironment);
             }
@@ -162,57 +204,149 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
-     * Build the PHP built-in server command.
-     *
-     * @param string $host Host interface.
-     * @param int $port Port number.
-     * @param string $docRoot Document root for php -S.
-     * @param string $projectRoot Project root directory.
-     * @param bool $staticMode Whether static mode is enabled.
-     * @param bool $includeDrafts Whether draft pages should be included.
-     */
-    protected function buildServerCommand(
-        string $host,
-        int $port,
-        string $docRoot,
-        string $projectRoot,
-        bool $staticMode,
-        bool $includeDrafts,
-    ): string {
-        $address = $host . ':' . $port;
-        if ($staticMode) {
-            return sprintf('php -S %s -t %s', escapeshellarg($address), escapeshellarg($docRoot));
-        }
-
-        $routerPath = $this->resolveLiveRouterPath($projectRoot);
-        if (!is_string($routerPath)) {
-            throw new InvalidArgumentException(sprintf(
-                'Live router script not found: %s',
-                $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php',
-            ));
-        }
-
-        return sprintf(
-            'php -S %s -t %s %s',
-            escapeshellarg($address),
-            escapeshellarg($docRoot),
-            escapeshellarg($routerPath),
-        );
-    }
-
-    /**
      * Build environment variables for live router execution.
      *
      * @param string $projectRoot Project root directory.
      * @param bool $includeDrafts Whether draft pages should be included.
+     * @param \Glaze\Serve\ViteServeConfig $viteConfiguration Vite runtime configuration.
      * @return array<string, string>
      */
-    protected function buildLiveEnvironment(string $projectRoot, bool $includeDrafts): array
-    {
+    protected function buildLiveEnvironment(
+        string $projectRoot,
+        bool $includeDrafts,
+        ViteServeConfig $viteConfiguration,
+    ): array {
         return [
             'GLAZE_PROJECT_ROOT' => $projectRoot,
             'GLAZE_INCLUDE_DRAFTS' => $includeDrafts ? '1' : '0',
+            'GLAZE_VITE_ENABLED' => $viteConfiguration->enabled ? '1' : '0',
+            'GLAZE_VITE_URL' => $viteConfiguration->enabled ? $viteConfiguration->url() : '',
         ];
+    }
+
+    /**
+     * Resolve Vite runtime configuration from project config and CLI options.
+     *
+     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param string $projectRoot Project root directory.
+     */
+    protected function resolveViteConfiguration(Arguments $args, string $projectRoot): ViteServeConfig
+    {
+        $devServerConfig = $this->readDevServerConfiguration($projectRoot);
+
+        $viteConfig = $devServerConfig['vite'] ?? null;
+        if (!is_array($viteConfig)) {
+            $viteConfig = [];
+        }
+
+        $enabledFromConfig = is_bool($viteConfig['enabled'] ?? null) && $viteConfig['enabled'];
+        $enabled = (bool)$args->getOption('vite') || $enabledFromConfig;
+
+        $host = Normalization::optionalString($args->getOption('vite-host'))
+            ?? Normalization::optionalString($viteConfig['host'] ?? null)
+            ?? '127.0.0.1';
+
+        $vitePortOption = $args->getOption('vite-port');
+        $vitePortFromCli = $this->normalizePort($vitePortOption);
+        if ($vitePortOption !== null && $vitePortFromCli === null) {
+            throw new InvalidArgumentException('Invalid Vite port. Use a number between 1 and 65535.');
+        }
+
+        $port = $vitePortFromCli
+            ?? $this->normalizePort($viteConfig['port'] ?? null)
+            ?? 5173;
+
+        $command = Normalization::optionalString($args->getOption('vite-command'))
+            ?? Normalization::optionalString($viteConfig['command'] ?? null)
+            ?? 'npm run dev -- --host {host} --port {port} --strictPort';
+
+        return new ViteServeConfig(
+            enabled: $enabled,
+            host: $host,
+            port: $port,
+            command: $command,
+        );
+    }
+
+    /**
+     * Resolve PHP server runtime configuration from project config and CLI options.
+     *
+     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param string $projectRoot Project root directory.
+     * @param string $docRoot PHP server document root.
+     * @param bool $isStaticMode Whether static mode is enabled.
+     */
+    protected function resolvePhpServerConfiguration(
+        Arguments $args,
+        string $projectRoot,
+        string $docRoot,
+        bool $isStaticMode,
+    ): PhpServerConfig {
+        $devServerConfig = $this->readDevServerConfiguration($projectRoot);
+
+        $phpConfig = $devServerConfig['php'] ?? null;
+        if (!is_array($phpConfig)) {
+            $phpConfig = [];
+        }
+
+        $host = Normalization::optionalString($args->getOption('host'))
+            ?? Normalization::optionalString($phpConfig['host'] ?? null)
+            ?? '127.0.0.1';
+
+        $phpPortOption = $args->getOption('port');
+        $phpPortFromCli = $this->normalizePort($phpPortOption);
+        if ($phpPortOption !== null && $phpPortFromCli === null) {
+            throw new InvalidArgumentException('Invalid port. Use a number between 1 and 65535.');
+        }
+
+        $port = $phpPortFromCli
+            ?? $this->normalizePort($phpConfig['port'] ?? null)
+            ?? 8080;
+
+        return new PhpServerConfig(
+            host: $host,
+            port: $port,
+            docRoot: $docRoot,
+            projectRoot: $projectRoot,
+            staticMode: $isStaticMode,
+        );
+    }
+
+    /**
+     * Read decoded project configuration from glaze.neon.
+     *
+     * @param string $projectRoot Project root directory.
+     * @return array<string, mixed>
+     */
+    protected function readProjectConfiguration(string $projectRoot): array
+    {
+        return $this->projectConfigurationReader()->read($projectRoot);
+    }
+
+    /**
+     * Read the devServer section from project configuration.
+     *
+     * @param string $projectRoot Project root directory.
+     * @return array<string, mixed>
+     */
+    protected function readDevServerConfiguration(string $projectRoot): array
+    {
+        $projectConfiguration = $this->readProjectConfiguration($projectRoot);
+        $devServerConfiguration = $projectConfiguration['devServer'] ?? null;
+        if (!is_array($devServerConfiguration)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($devServerConfiguration as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 
     /**
@@ -252,6 +386,34 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
+     * Return Vite process service.
+     */
+    protected function viteProcessService(): ViteProcessService
+    {
+        return new ViteProcessService();
+    }
+
+    /**
+     * Return PHP server process service.
+     */
+    protected function phpServerService(): PhpServerService
+    {
+        return new PhpServerService();
+    }
+
+    /**
+     * Return project configuration reader service.
+     */
+    protected function projectConfigurationReader(): ProjectConfigurationReader
+    {
+        if (!$this->projectConfigurationReader instanceof ProjectConfigurationReader) {
+            $this->projectConfigurationReader = new ProjectConfigurationReader();
+        }
+
+        return $this->projectConfigurationReader;
+    }
+
+    /**
      * Normalize optional root option values.
      *
      * @param mixed $rootOption Raw root option value.
@@ -263,36 +425,6 @@ final class ServeCommand extends BaseCommand
         }
 
         return Normalization::optionalPath($rootOption);
-    }
-
-    /**
-     * Resolve live router path for the given project root.
-     *
-     * @param string $projectRoot Project root directory.
-     */
-    protected function resolveLiveRouterPath(string $projectRoot): ?string
-    {
-        $projectRouterPath = $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
-        if (is_file($projectRouterPath)) {
-            return $projectRouterPath;
-        }
-
-        if (!is_file($projectRoot . DIRECTORY_SEPARATOR . 'glaze.neon')) {
-            return null;
-        }
-
-        $cliRoot = Normalization::optionalPath(getenv('GLAZE_CLI_ROOT') ?: null);
-        if ($cliRoot !== null) {
-            $cliRouterPath = $cliRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
-            if (is_file($cliRouterPath)) {
-                return $cliRouterPath;
-            }
-        }
-
-        $packageRoot = dirname(__DIR__, 2);
-        $packageRouterPath = $packageRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
-
-        return is_file($packageRouterPath) ? $packageRouterPath : null;
     }
 
     /**

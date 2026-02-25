@@ -140,6 +140,10 @@ Options:
 - `--static` serve prebuilt `public/`
 - `--build` prebuild before static serve (`--static` required)
 - `--drafts` include drafts for static mode
+- `--vite` enable Vite integration in live mode
+- `--vite-host <host>` Vite host (default `127.0.0.1`)
+- `--vite-port <port>` Vite port (default `5173`)
+- `--vite-command <command>` custom Vite command (`{host}` and `{port}` placeholders supported)
 
 Examples:
 
@@ -149,6 +153,12 @@ glaze serve
 
 # static preview after build
 glaze serve --static --build
+
+# live mode + Vite
+glaze serve --vite
+
+# live mode + custom Vite command
+glaze serve --vite --vite-command "pnpm dev --host {host} --port {port}"
 ```
 
 ## Typical workflow

@@ -24,6 +24,10 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('--build');
         $this->assertOutputContains('--static');
         $this->assertOutputContains('--drafts');
+        $this->assertOutputContains('--vite');
+        $this->assertOutputContains('--vite-host');
+        $this->assertOutputContains('--vite-port');
+        $this->assertOutputContains('--vite-command');
     }
 
     /**
@@ -50,6 +54,19 @@ final class ServeCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(1);
         $this->assertErrorContains('--build can only be used together with --static');
+    }
+
+    /**
+     * Ensure Vite integration is rejected when static mode is enabled.
+     */
+    public function testServeCommandViteRequiresLiveMode(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+
+        $this->exec(sprintf('serve --root "%s" --static --vite', $projectRoot));
+
+        $this->assertExitCode(1);
+        $this->assertErrorContains('--vite can only be used in live mode');
     }
 
     /**
