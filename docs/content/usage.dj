@@ -105,10 +105,13 @@ Full details and template usage: [Glide images](glide-images.dj).
 Fenced code blocks are highlighted by [Phiki](https://github.com/phikiphp/phiki) by default. Configure it in `glaze.neon`:
 
 ```neon
-codeHighlighting:
-  enabled: true
-  theme: github-dark
-  withGutter: true
+djot:
+  codeHighlighting:
+    enabled: true
+    theme: github-dark
+    withGutter: true
+  headerAnchors:
+    enabled: false
 ```
 
 ## Build workflow

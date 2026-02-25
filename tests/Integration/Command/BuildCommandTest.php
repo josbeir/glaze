@@ -237,7 +237,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "codeHighlighting:\n  enabled: false\n",
+            "djot:\n  codeHighlighting:\n    enabled: false\n",
         );
         file_put_contents(
             $projectRoot . '/content/index.dj',

@@ -77,6 +77,9 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertStringContainsString('#   metaDefaults:', $config);
         $this->assertStringContainsString('# contentTypes:', $config);
         $this->assertStringContainsString('#       template: blog', $config);
+        $this->assertStringContainsString('# djot:', $config);
+        $this->assertStringContainsString('#   codeHighlighting:', $config);
+        $this->assertStringContainsString('#   headerAnchors:', $config);
         $this->assertStringContainsString('# devServer:', $config);
         $this->assertStringContainsString('#   php:', $config);
         $this->assertStringContainsString('#     host: 127.0.0.1', $config);

@@ -328,10 +328,18 @@ JS;
 #
 # staticDir: static
 #
-# codeHighlighting:
-#   enabled: true
-#   theme: github-dark
-#   withGutter: false
+# djot:
+#   codeHighlighting:
+#     enabled: true
+#     theme: github-dark
+#     withGutter: false
+#   headerAnchors:
+#     enabled: false
+#     symbol: "#"
+#     position: after
+#     cssClass: header-anchor
+#     ariaLabel: Anchor link
+#     levels: [1, 2, 3, 4, 5, 6]
 #
 # build:
 #   clean: false

@@ -29,10 +29,20 @@ final class BuildConfigTest extends TestCase
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([
-            'enabled' => true,
-            'theme' => 'nord',
-            'withGutter' => false,
-        ], $config->codeHighlighting);
+            'codeHighlighting' => [
+                'enabled' => true,
+                'theme' => 'nord',
+                'withGutter' => false,
+            ],
+            'headerAnchors' => [
+                'enabled' => false,
+                'symbol' => '#',
+                'position' => 'after',
+                'cssClass' => 'header-anchor',
+                'ariaLabel' => 'Anchor link',
+                'levels' => [1, 2, 3, 4, 5, 6],
+            ],
+        ], $config->djot);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertSame([
@@ -190,7 +200,7 @@ final class BuildConfigTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "codeHighlighting:\n  enabled: false\n  theme: DARK-PLUS\n  withGutter: true\n",
+            "djot:\n  codeHighlighting:\n    enabled: false\n    theme: DARK-PLUS\n    withGutter: true\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -199,7 +209,7 @@ final class BuildConfigTest extends TestCase
             'enabled' => false,
             'theme' => 'dark-plus',
             'withGutter' => true,
-        ], $config->codeHighlighting);
+        ], $config->djot['codeHighlighting']);
     }
 
     /**
@@ -212,7 +222,7 @@ final class BuildConfigTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "codeHighlighting:\n  enabled: 'yes'\n  theme: ''\n  withGutter: 1\n",
+            "djot:\n  codeHighlighting:\n    enabled: 'yes'\n    theme: ''\n    withGutter: 1\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -221,7 +231,54 @@ final class BuildConfigTest extends TestCase
             'enabled' => true,
             'theme' => 'nord',
             'withGutter' => false,
-        ], $config->codeHighlighting);
+        ], $config->djot['codeHighlighting']);
+    }
+
+    /**
+     * Ensure heading anchor settings are normalized from Djot configuration.
+     */
+    public function testHeaderAnchorsCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  headerAnchors:\n    enabled: true\n    symbol: '¶'\n    position: before\n    cssClass: docs-anchor\n    ariaLabel: Copy section link\n    levels: [2, '3', 9]\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'symbol' => '¶',
+            'position' => 'before',
+            'cssClass' => 'docs-anchor',
+            'ariaLabel' => 'Copy section link',
+            'levels' => [2, 3],
+        ], $config->djot['headerAnchors']);
+    }
+
+    /**
+     * Ensure legacy root codeHighlighting remains supported for compatibility.
+     */
+    public function testLegacyRootCodeHighlightingRemainsSupported(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "codeHighlighting:\n  enabled: false\n  theme: github-dark\n  withGutter: true\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'theme' => 'github-dark',
+            'withGutter' => true,
+        ], $config->djot['codeHighlighting']);
     }
 
     /**

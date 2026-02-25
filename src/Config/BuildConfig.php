@@ -25,7 +25,7 @@ final class BuildConfig
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
-     * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting Code highlighting configuration.
+     * @param array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}} $djot Djot rendering configuration.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param array<string, mixed> $templateVite Sugar Vite extension configuration.
@@ -42,10 +42,20 @@ final class BuildConfig
         public readonly string $pageTemplate = 'page',
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
-        public readonly array $codeHighlighting = [
-            'enabled' => true,
-            'theme' => 'nord',
-            'withGutter' => false,
+        public readonly array $djot = [
+            'codeHighlighting' => [
+                'enabled' => true,
+                'theme' => 'nord',
+                'withGutter' => false,
+            ],
+            'headerAnchors' => [
+                'enabled' => false,
+                'symbol' => '#',
+                'position' => 'after',
+                'cssClass' => 'header-anchor',
+                'ariaLabel' => 'Anchor link',
+                'levels' => [1, 2, 3, 4, 5, 6],
+            ],
         ],
         public readonly array $contentTypes = [],
         public readonly array $taxonomies = ['tags'],
@@ -84,6 +94,10 @@ final class BuildConfig
         $imageConfiguration = $projectConfiguration['images'] ?? null;
         $imagePresets = [];
         $imageOptions = [];
+        $djotConfiguration = self::normalizeDjotConfiguration(
+            projectConfiguration: $projectConfiguration,
+            legacyCodeHighlightingConfiguration: $projectConfiguration['codeHighlighting'] ?? null,
+        );
         if (is_array($imageConfiguration)) {
             $imagePresets = self::normalizeImagePresets($imageConfiguration['presets'] ?? null);
             $imageOptions = self::normalizeImageOptions($imageConfiguration);
@@ -94,7 +108,7 @@ final class BuildConfig
             pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
             imagePresets: $imagePresets,
             imageOptions: $imageOptions,
-            codeHighlighting: self::normalizeCodeHighlighting($projectConfiguration['codeHighlighting'] ?? null),
+            djot: $djotConfiguration,
             contentTypes: self::normalizeContentTypes($projectConfiguration['contentTypes'] ?? null),
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
             templateVite: self::normalizeTemplateViteConfiguration($projectConfiguration, $normalizedRoot),
@@ -184,6 +198,32 @@ final class BuildConfig
     }
 
     /**
+     * Normalize Djot settings from grouped and legacy configuration values.
+     *
+     * @param array<string, mixed> $projectConfiguration Raw project configuration map.
+     * @param mixed $legacyCodeHighlightingConfiguration Legacy root-level code highlighting map.
+     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}}
+     */
+    protected static function normalizeDjotConfiguration(
+        array $projectConfiguration,
+        mixed $legacyCodeHighlightingConfiguration,
+    ): array {
+        $djotConfiguration = $projectConfiguration['djot'] ?? null;
+        $rawCodeHighlighting = $legacyCodeHighlightingConfiguration;
+        $rawHeaderAnchors = null;
+
+        if (is_array($djotConfiguration)) {
+            $rawCodeHighlighting = $djotConfiguration['codeHighlighting'] ?? $rawCodeHighlighting;
+            $rawHeaderAnchors = $djotConfiguration['headerAnchors'] ?? null;
+        }
+
+        return [
+            'codeHighlighting' => self::normalizeCodeHighlighting($rawCodeHighlighting),
+            'headerAnchors' => self::normalizeHeaderAnchors($rawHeaderAnchors),
+        ];
+    }
+
+    /**
      * Normalize Djot code highlighting settings.
      *
      * @param mixed $codeHighlighting Raw configured highlighting map.
@@ -213,6 +253,67 @@ final class BuildConfig
             'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
             'theme' => strtolower($theme),
             'withGutter' => is_bool($withGutter) ? $withGutter : $defaults['withGutter'],
+        ];
+    }
+
+    /**
+     * Normalize heading anchor settings for Djot headings.
+     *
+     * @param mixed $headerAnchors Raw heading anchor configuration map.
+     * @return array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}
+     */
+    protected static function normalizeHeaderAnchors(mixed $headerAnchors): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'symbol' => '#',
+            'position' => 'after',
+            'cssClass' => 'header-anchor',
+            'ariaLabel' => 'Anchor link',
+            'levels' => [1, 2, 3, 4, 5, 6],
+        ];
+
+        if (!is_array($headerAnchors)) {
+            return $defaults;
+        }
+
+        $enabled = $headerAnchors['enabled'] ?? $defaults['enabled'];
+        $symbol = Normalization::optionalString($headerAnchors['symbol'] ?? null) ?? $defaults['symbol'];
+        $positionValue = strtolower(
+            Normalization::optionalString($headerAnchors['position'] ?? null) ?? $defaults['position'],
+        );
+        $cssClass = Normalization::optionalString($headerAnchors['cssClass'] ?? null) ?? $defaults['cssClass'];
+        $ariaLabel = Normalization::optionalString($headerAnchors['ariaLabel'] ?? null) ?? $defaults['ariaLabel'];
+
+        $levels = array_values(array_unique(array_filter(
+            array_map(
+                static function (mixed $level): int {
+                    if (is_int($level)) {
+                        return $level;
+                    }
+
+                    if (is_string($level) && ctype_digit($level)) {
+                        return (int)$level;
+                    }
+
+                    return 0;
+                },
+                is_array($headerAnchors['levels'] ?? null) ? $headerAnchors['levels'] : $defaults['levels'],
+            ),
+            static fn(int $level): bool => $level >= 1 && $level <= 6,
+        )));
+
+        if ($levels === []) {
+            $levels = $defaults['levels'];
+        }
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'symbol' => $symbol,
+            'position' => in_array($positionValue, ['before', 'after'], true) ? $positionValue : $defaults['position'],
+            'cssClass' => $cssClass,
+            'ariaLabel' => $ariaLabel,
+            'levels' => $levels,
         ];
     }
 

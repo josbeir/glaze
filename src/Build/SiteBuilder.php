@@ -220,7 +220,7 @@ final class SiteBuilder
             currentPage: $page,
         );
 
-        $htmlContent = $this->djotRenderer->render($page->source, $config->codeHighlighting);
+        $htmlContent = $this->djotRenderer->render($page->source, $config->djot);
         $htmlContent = $this->rewriteInternalResourceSources($htmlContent, $page, $config->site);
         if (!$debug) {
             $htmlContent = $this->rewriteBuildGlideImageSources($htmlContent, $config);

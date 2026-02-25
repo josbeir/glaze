@@ -32,7 +32,7 @@ final class DjotRendererTest extends TestCase
         $renderer = new DjotRenderer();
         $html = $renderer->render(
             "```php\necho 1;\n```\n",
-            ['enabled' => false, 'theme' => 'nord', 'withGutter' => false],
+            $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
         );
 
         $this->assertStringNotContainsString('class="phiki', $html);
@@ -47,7 +47,7 @@ final class DjotRendererTest extends TestCase
         $renderer = new DjotRenderer();
         $html = $renderer->render(
             "```unknownlang\nhello\n```\n",
-            ['enabled' => true, 'theme' => 'nord', 'withGutter' => true],
+            $this->withCodeHighlighting(['enabled' => true, 'theme' => 'nord', 'withGutter' => true]),
         );
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -103,5 +103,93 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render('[Guide](guide.dj?mode=full#top)');
 
         $this->assertStringContainsString('href="guide?mode=full#top"', $html);
+    }
+
+    /**
+     * Ensure heading anchors are disabled by default.
+     */
+    public function testRenderDoesNotInjectHeadingAnchorsByDefault(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render("# Intro\n");
+
+        $this->assertStringNotContainsString('class="header-anchor"', $html);
+    }
+
+    /**
+     * Ensure heading anchors can be injected through Djot options.
+     */
+    public function testRenderCanInjectHeadingAnchorsWhenEnabled(): void
+    {
+        $renderer = new DjotRenderer();
+        $html = $renderer->render(
+            "## Setup\n",
+            $this->withHeaderAnchors([
+                'enabled' => true,
+                'symbol' => '¶',
+                'position' => 'after',
+                'cssClass' => 'docs-anchor',
+                'ariaLabel' => 'Copy section link',
+                'levels' => [2],
+            ]),
+        );
+
+        $this->assertStringContainsString('id="Setup"', $html);
+        $this->assertStringContainsString('href="#Setup"', $html);
+        $this->assertStringContainsString('class="docs-anchor"', $html);
+        $this->assertStringContainsString('aria-label="Copy section link"', $html);
+        $this->assertStringContainsString('>¶</a>', $html);
+    }
+
+    /**
+     * Merge code highlighting overrides into default Djot options.
+     *
+     * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting
+     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}}
+     */
+    protected function withCodeHighlighting(array $codeHighlighting): array
+    {
+        $defaults = $this->defaultDjotOptions();
+        $defaults['codeHighlighting'] = $codeHighlighting;
+
+        return $defaults;
+    }
+
+    /**
+     * Merge heading anchor overrides into default Djot options.
+     *
+     * @param array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>} $headerAnchors
+     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}}
+     */
+    protected function withHeaderAnchors(array $headerAnchors): array
+    {
+        $defaults = $this->defaultDjotOptions();
+        $defaults['headerAnchors'] = $headerAnchors;
+
+        return $defaults;
+    }
+
+    /**
+     * Get default Djot renderer options used in tests.
+     *
+     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}}
+     */
+    protected function defaultDjotOptions(): array
+    {
+        return [
+            'codeHighlighting' => [
+                'enabled' => true,
+                'theme' => 'nord',
+                'withGutter' => false,
+            ],
+            'headerAnchors' => [
+                'enabled' => false,
+                'symbol' => '#',
+                'position' => 'after',
+                'cssClass' => 'header-anchor',
+                'ariaLabel' => 'Anchor link',
+                'levels' => [1, 2, 3, 4, 5, 6],
+            ],
+        ];
     }
 }

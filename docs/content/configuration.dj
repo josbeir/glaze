@@ -52,10 +52,18 @@ contentTypes:
     defaults:
       template: docs
 
-codeHighlighting:
-  enabled: true
-  theme: nord
-  withGutter: false
+djot:
+  codeHighlighting:
+    enabled: true
+    theme: nord
+    withGutter: false
+  headerAnchors:
+    enabled: false
+    symbol: "#"
+    position: after
+    cssClass: header-anchor
+    ariaLabel: Anchor link
+    levels: [1, 2, 3, 4, 5, 6]
 
 build:
   clean: false
@@ -212,20 +220,47 @@ title: My post
 
 The resolved type is available in templates as `$page->type`.
 
-## `codeHighlighting`
+## `djot`
 
-Controls syntax highlighting for fenced code blocks in Djot pages. Powered by [Phiki](https://github.com/phikiphp/phiki).
+Djot rendering configuration namespace. Grouping options under `djot` keeps the file organized and leaves room for future Djot-specific features.
+
+### `djot.codeHighlighting`
+
+Controls syntax highlighting for fenced code blocks. Powered by [Phiki](https://github.com/phikiphp/phiki).
 
 ```neon
-codeHighlighting:
-  enabled: true
-  theme: github-dark
-  withGutter: true
+djot:
+  codeHighlighting:
+    enabled: true
+    theme: github-dark
+    withGutter: true
 ```
 
 - `enabled` -- enable or disable highlighting (default `true`)
 - `theme` -- Phiki theme name (default `nord`); see [Phiki themes](https://github.com/phikiphp/phiki) for options
 - `withGutter` -- show line-number gutter beside code (default `false`)
+
+### `djot.headerAnchors`
+
+Injects anchor links into headings during Djot rendering.
+
+```neon
+djot:
+  headerAnchors:
+    enabled: true
+    symbol: "#"
+    position: after
+    cssClass: header-anchor
+    ariaLabel: Anchor link
+    levels: [2, 3, 4]
+```
+
+- `enabled` -- enable or disable heading anchor injection (default `false`)
+- `symbol` -- anchor text shown inside the heading link (default `#`)
+- `position` -- link placement, either `before` or `after` heading text (default `after`)
+- `cssClass` -- CSS class added to each anchor link (default `header-anchor`)
+- `ariaLabel` -- accessibility label for anchor links (default `Anchor link`)
+- `levels` -- heading levels that get anchors (defaults to `[1, 2, 3, 4, 5, 6]`)
 
 ## `devServer.php`
 
