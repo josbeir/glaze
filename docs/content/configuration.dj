@@ -18,6 +18,9 @@ site:
   description: Notes on web, PHP, and experiments.
   baseUrl: https://example.com
   basePath: /blog
+  metaDefaults:
+    robots: index,follow
+    og:type: website
 
 images:
   driver: gd
@@ -53,6 +56,16 @@ codeHighlighting:
   enabled: true
   theme: nord
   withGutter: false
+
+devServer:
+  php:
+    host: 127.0.0.1
+    port: 8080
+  vite:
+    enabled: false
+    host: 127.0.0.1
+    port: 5173
+    command: "npm run dev -- --host {host} --port {port} --strictPort"
 ```
 
 ## `pageTemplate`

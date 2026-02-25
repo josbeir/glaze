@@ -161,6 +161,49 @@ glaze serve --vite
 glaze serve --vite --vite-command "pnpm dev --host {host} --port {port}"
 ```
 
+### Using Vite
+
+Vite integration is available in live mode and starts your Vite dev process alongside `glaze serve`.
+
+Prerequisites:
+
+- A valid Vite setup in your project root (for example `vite.config.js`/`vite.config.ts`).
+- A package manager script that starts Vite (for example `npm run dev`).
+- Template/layout code that references your Vite dev assets while developing.
+
+Glaze does not generate or manage your Vite project config for you; it only launches the command you configure.
+
+Basic usage:
+
+```bash
+glaze serve --vite
+```
+
+Common customizations:
+
+```bash
+glaze serve --vite --vite-host 0.0.0.0 --vite-port 5173
+glaze serve --vite --vite-command "npm run dev -- --host {host} --port {port} --strictPort"
+```
+
+You can also set defaults in `glaze.neon`:
+
+```neon
+devServer:
+  vite:
+    enabled: false
+    host: 127.0.0.1
+    port: 5173
+    command: "npm run dev -- --host {host} --port {port} --strictPort"
+```
+
+Notes:
+
+- Vite integration is for live mode only (`--vite` cannot be used with `--static`).
+- CLI options override `glaze.neon` values.
+- `{host}` and `{port}` placeholders in `vite.command` are replaced at runtime.
+- If your configured command cannot start (missing script/config/dependencies), `glaze serve` exits with an error.
+
 ## Typical workflow
 
 1. `init` (once)
