@@ -31,6 +31,21 @@ Both fence styles are equivalent. Frontmatter is entirely optional -- pages with
 
 ## Field reference
 
+Reserved keys are interpreted by Glaze runtime features:
+
+- `title`
+- `slug`
+- `date`
+- `weight`
+- `draft`
+- `type`
+- `template`
+- `description`
+- `meta` (page metadata override map used for generated `<meta>` defaults)
+- taxonomy keys configured in `glaze.neon` (`tags`, `categories`, ...)
+
+All other keys are treated as custom frontmatter data and are preserved as-is, including nested maps and lists.
+
 ### `title`
 
 Human-readable page title. When omitted, Glaze infers a title from the slug (e.g. `my-post` becomes `My Post`).
@@ -147,25 +162,28 @@ categories:
 ---
 ```
 
-### `meta`
+### Custom fields
 
-A free-form map of custom key/value pairs. Accessible in templates as `$page->meta['key']`. Useful for SEO fields, per-page settings, or any custom data.
+Use any non-reserved key for custom page data. Nested maps/lists are preserved and can be read with dotted access in templates.
 
 ```djot
 ---
-meta:
-  description: A short summary for search engines.
-  og_image: /images/cover.jpg
-  featured: true
+hero:
+  title: Build fast static sites
+  primaryAction:
+    label: Read docs
+    href: /installation
 ---
 ```
 
 In templates:
 
 ```php
-<?php $desc = $page->meta['description'] ?? $site->description; ?>
-<meta name="description" content="<?= $desc ?>" />
+<?= $page->meta('hero.title') ?>
+<?= $page->meta('hero.primaryAction.href') ?>
 ```
+
+`meta` can still be used as a key if you want, but it is no longer required as a wrapper for nested data.
 
 ## How Glaze processes frontmatter
 

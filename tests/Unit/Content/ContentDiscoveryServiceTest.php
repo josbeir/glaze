@@ -202,9 +202,92 @@ final class ContentDiscoveryServiceTest extends TestCase
         $this->assertSame('/', $page->urlPath);
         $this->assertSame(['one'], $page->taxonomies['tags']);
         $this->assertSame(123, $page->meta['name']);
-        $this->assertSame(['bar'], $page->meta['obj']);
+        $this->assertSame(['foo' => 'bar'], $page->meta['obj']);
         $this->assertSame(['robots' => 'noindex'], $page->meta['meta']);
         $this->assertArrayNotHasKey('tags', $page->meta);
+    }
+
+    /**
+     * Validate nested maps/lists at the frontmatter root are preserved.
+     */
+    public function testDiscoverPreservesNestedRootMapsAndLists(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nhero:\n  title: Hero Title\n  primaryAction:\n    label: Read docs\n    href: /installation\n  highlights:\n    -\n      title: Fast\n      description: Build quickly\n    -\n      title: Predictable\n      description: Render reliably\n+++\n# Home\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+
+        $this->assertIsArray($page->meta['hero'] ?? null);
+        /** @var array<string, mixed> $hero */
+        $hero = $page->meta['hero'];
+
+        $this->assertSame('Hero Title', $hero['title'] ?? null);
+        $this->assertSame([
+            'label' => 'Read docs',
+            'href' => '/installation',
+        ], $hero['primaryAction'] ?? null);
+        $this->assertSame([
+            [
+                'title' => 'Fast',
+                'description' => 'Build quickly',
+            ],
+            [
+                'title' => 'Predictable',
+                'description' => 'Render reliably',
+            ],
+        ], $hero['highlights'] ?? null);
+    }
+
+    /**
+     * Validate reserved weight values are normalized to integers.
+     */
+    public function testDiscoverNormalizesWeightToInteger(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nweight: \"10\"\n+++\n# Home\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertSame(10, $pages[0]->meta['weight']);
+    }
+
+    /**
+     * Validate invalid reserved weight values produce a clear error.
+     */
+    public function testDiscoverThrowsOnInvalidWeightMetadata(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/index.dj',
+            "+++\nweight: high\n+++\n# Home\n",
+        );
+
+        $service = $this->createService();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid frontmatter "weight" value');
+        $service->discover($contentPath);
     }
 
     /**

@@ -21,7 +21,7 @@ final class PageMetaResolver
      */
     public function resolve(ContentPage $page, SiteConfig $siteConfig): array
     {
-        $effective = $siteConfig->metaDefaults;
+        $effective = Normalization::stringMap($siteConfig->meta);
 
         if (!isset($effective['description']) && $siteConfig->description !== null) {
             $effective['description'] = $siteConfig->description;

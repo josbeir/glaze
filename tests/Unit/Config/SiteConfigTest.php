@@ -22,7 +22,7 @@ final class SiteConfigTest extends TestCase
         $this->assertNull($config->description);
         $this->assertNull($config->baseUrl);
         $this->assertNull($config->basePath);
-        $this->assertSame([], $config->metaDefaults);
+        $this->assertSame([], $config->meta);
     }
 
     /**
@@ -35,7 +35,7 @@ final class SiteConfigTest extends TestCase
             'description' => '  Site description  ',
             'baseUrl' => ' https://example.com ',
             'basePath' => ' /docs/ ',
-            'metaDefaults' => [
+            'meta' => [
                 'robots' => ' index,follow ',
                 '' => 'ignored',
                 'viewport' => 'width=device-width, initial-scale=1',
@@ -50,7 +50,7 @@ final class SiteConfigTest extends TestCase
         $this->assertSame([
             'robots' => 'index,follow',
             'viewport' => 'width=device-width, initial-scale=1',
-        ], $config->metaDefaults);
+        ], $config->meta);
     }
 
     /**
@@ -63,7 +63,7 @@ final class SiteConfigTest extends TestCase
             description: 'Description',
             baseUrl: 'https://example.com',
             basePath: '/docs',
-            metaDefaults: ['robots' => 'index,follow'],
+            meta: ['robots' => 'index,follow', 'brandColor' => '#7c8cff'],
         );
 
         $this->assertSame([
@@ -71,7 +71,7 @@ final class SiteConfigTest extends TestCase
             'description' => 'Description',
             'baseUrl' => 'https://example.com',
             'basePath' => '/docs',
-            'metaDefaults' => ['robots' => 'index,follow'],
+            'meta' => ['robots' => 'index,follow', 'brandColor' => '#7c8cff'],
         ], $config->toArray());
     }
 
@@ -85,7 +85,7 @@ final class SiteConfigTest extends TestCase
             'description' => null,
             'baseUrl' => false,
             'basePath' => true,
-            'metaDefaults' => [
+            'meta' => [
                 1 => 'ignored-numeric-key',
                 'robots' => 'noindex',
             ],
@@ -95,7 +95,7 @@ final class SiteConfigTest extends TestCase
         $this->assertNull($config->description);
         $this->assertNull($config->baseUrl);
         $this->assertNull($config->basePath);
-        $this->assertSame(['robots' => 'noindex'], $config->metaDefaults);
+        $this->assertSame(['robots' => 'noindex'], $config->meta);
     }
 
     /**
@@ -110,5 +110,61 @@ final class SiteConfigTest extends TestCase
         $this->assertNull($root->basePath);
         $this->assertSame('/docs', $relative->basePath);
         $this->assertNull($blank->basePath);
+    }
+
+    /**
+     * Ensure custom site keys preserve nested maps/lists and support dotted access.
+     */
+    public function testFromProjectConfigPreservesCustomSiteMetadataAndDottedAccess(): void
+    {
+        $config = SiteConfig::fromProjectConfig([
+            'title' => 'Glaze Site',
+            'hero' => [
+                'title' => 'Build fast static sites',
+                'actions' => [
+                    ['label' => 'Docs', 'href' => '/installation'],
+                ],
+            ],
+            'flags' => [true, false, 10],
+        ]);
+
+        $this->assertSame([
+            'hero' => [
+                'title' => 'Build fast static sites',
+                'actions' => [
+                    ['label' => 'Docs', 'href' => '/installation'],
+                ],
+            ],
+            'flags' => [true, false, 10],
+        ], $config->meta);
+
+        $this->assertSame('Build fast static sites', $config->siteMeta('hero.title'));
+        $this->assertSame('/installation', $config->siteMeta('hero.actions.0.href'));
+        $this->assertTrue($config->hasMeta('meta.hero.actions.0.label'));
+        $this->assertTrue($config->hasSiteMeta('hero.actions.0.label'));
+        $this->assertSame($config->meta, $config->siteMeta(''));
+        $this->assertSame('fallback', $config->siteMeta('hero.subtitle', 'fallback'));
+    }
+
+    /**
+     * Ensure reserved site keys are not duplicated in custom metadata.
+     */
+    public function testFromProjectConfigMergesMetaMapWithRootSiteMetadata(): void
+    {
+        $config = SiteConfig::fromProjectConfig([
+            'title' => 'Glaze Site',
+            'description' => 'Desc',
+            'baseUrl' => 'https://example.com',
+            'basePath' => '/docs',
+            'hero' => ['title' => 'Build fast'],
+            'meta' => ['robots' => 'index,follow'],
+        ]);
+
+        $this->assertSame([
+            'hero' => ['title' => 'Build fast'],
+            'robots' => 'index,follow',
+        ], $config->meta);
+        $this->assertSame('Build fast', $config->meta('hero.title'));
+        $this->assertSame('index,follow', $config->meta('robots'));
     }
 }

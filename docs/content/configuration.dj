@@ -18,7 +18,7 @@ site:
   description: Notes on web, PHP, and experiments.
   baseUrl: https://example.com
   basePath: /blog
-  metaDefaults:
+  meta:
     robots: index,follow
     og:type: website
 

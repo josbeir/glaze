@@ -310,7 +310,7 @@ JS;
 #   description: Default site description
 #   baseUrl: https://example.com
 #   basePath: /blog
-#   metaDefaults:
+#   meta:
 #     robots: index,follow
 #
 # taxonomies:

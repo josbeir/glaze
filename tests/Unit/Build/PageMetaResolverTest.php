@@ -22,7 +22,7 @@ final class PageMetaResolverTest extends TestCase
         $page = $this->makePage([]);
         $site = new SiteConfig(
             description: 'Default description',
-            metaDefaults: ['robots' => 'index,follow'],
+            meta: ['robots' => 'index,follow'],
         );
 
         $meta = $resolver->resolve($page, $site);
@@ -48,7 +48,7 @@ final class PageMetaResolverTest extends TestCase
         ]);
         $site = new SiteConfig(
             description: 'Default description',
-            metaDefaults: [
+            meta: [
                 'robots' => 'index,follow',
                 'author' => 'Glaze',
             ],
@@ -74,7 +74,7 @@ final class PageMetaResolverTest extends TestCase
             'description' => '  ',
             'meta' => true,
         ]);
-        $site = new SiteConfig(metaDefaults: ['robots' => 'index,follow']);
+        $site = new SiteConfig(meta: ['robots' => 'index,follow']);
 
         $meta = $resolver->resolve($page, $site);
 

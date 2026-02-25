@@ -3,13 +3,15 @@ declare(strict_types=1);
 
 namespace Glaze\Content;
 
-use Cake\Utility\Hash;
+use Glaze\Support\HasDottedMetadataAccessTrait;
 
 /**
  * Value object representing a discoverable content page.
  */
 final class ContentPage
 {
+    use HasDottedMetadataAccessTrait;
+
     /**
      * Constructor.
      *
@@ -41,31 +43,12 @@ final class ContentPage
     }
 
     /**
-     * Read metadata using dotted path access.
+     * Return metadata map consumed by dotted access helpers.
      *
-     * @param string $path Dotted metadata path.
-     * @param mixed $default Default value when path does not exist.
+     * @return array<string, mixed>
      */
-    public function meta(string $path, mixed $default = null): mixed
+    protected function metadataMap(): array
     {
-        if (trim($path) === '') {
-            return $this->meta;
-        }
-
-        return Hash::get($this->meta, $path, $default);
-    }
-
-    /**
-     * Check whether metadata exists at a dotted path.
-     *
-     * @param string $path Dotted metadata path.
-     */
-    public function hasMeta(string $path): bool
-    {
-        if (trim($path) === '') {
-            return $this->meta !== [];
-        }
-
-        return Hash::check($this->meta, $path);
+        return $this->meta;
     }
 }

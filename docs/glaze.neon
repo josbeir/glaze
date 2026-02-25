@@ -3,6 +3,7 @@ site:
 	title: Glaze
 	description: PHP templating engine documentation
 	basePath: /glaze
+	repository: 'https://github.com/josbeir/glaze'
 
 djot:
 	codeHighlighting:
@@ -37,7 +38,7 @@ devServer:
 #   description: Default site description
 #   baseUrl: https://example.com
 #   basePath: /blog
-#   metaDefaults:
+#   meta:
 #     robots: index,follow
 #
 # taxonomies:

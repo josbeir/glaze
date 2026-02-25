@@ -17,23 +17,21 @@ final class ContentPageTest extends TestCase
     public function testMetaSupportsDottedPathAccess(): void
     {
         $page = $this->createPage([
-            'meta' => [
-                'hero' => [
-                    'title' => 'Hero title',
-                    'primaryAction' => [
-                        'href' => '/installation',
-                    ],
-                    'highlights' => [
-                        ['title' => 'Fast'],
-                    ],
+            'hero' => [
+                'title' => 'Hero title',
+                'primaryAction' => [
+                    'href' => '/installation',
+                ],
+                'highlights' => [
+                    ['title' => 'Fast'],
                 ],
             ],
         ]);
 
-        $this->assertSame('Hero title', $page->meta('meta.hero.title'));
-        $this->assertSame('/installation', $page->meta('meta.hero.primaryAction.href'));
-        $this->assertSame([['title' => 'Fast']], $page->meta('meta.hero.highlights'));
-        $this->assertSame('fallback', $page->meta('meta.hero.subtitle', 'fallback'));
+        $this->assertSame('Hero title', $page->meta('hero.title'));
+        $this->assertSame('/installation', $page->meta('hero.primaryAction.href'));
+        $this->assertSame([['title' => 'Fast']], $page->meta('hero.highlights'));
+        $this->assertSame('fallback', $page->meta('hero.subtitle', 'fallback'));
         $this->assertSame($page->meta, $page->meta(''));
     }
 
@@ -43,15 +41,13 @@ final class ContentPageTest extends TestCase
     public function testHasMetaSupportsDottedPathChecks(): void
     {
         $page = $this->createPage([
-            'meta' => [
-                'hero' => [
-                    'title' => 'Hero title',
-                ],
+            'hero' => [
+                'title' => 'Hero title',
             ],
         ]);
 
-        $this->assertTrue($page->hasMeta('meta.hero.title'));
-        $this->assertFalse($page->hasMeta('meta.hero.subtitle'));
+        $this->assertTrue($page->hasMeta('hero.title'));
+        $this->assertFalse($page->hasMeta('hero.subtitle'));
         $this->assertTrue($page->hasMeta(''));
 
         $emptyPage = $this->createPage([]);

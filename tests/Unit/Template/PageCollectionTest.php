@@ -44,6 +44,7 @@ final class PageCollectionTest extends TestCase
         $this->assertCount(2, $pages->where('meta.tags', 'intersect', ['php']));
         $this->assertSame('Post B', $pages->byDate('desc')->first()?->title);
         $this->assertSame('Intro', $pages->byTitle('asc')->first()?->title);
+        $this->assertSame('Post B', $pages->by('meta.weight', 'asc')->first()?->title);
 
         $groups = $pages->groupBy('meta.draft');
         $this->assertArrayHasKey('false', $groups);
@@ -191,6 +192,9 @@ final class PageCollectionTest extends TestCase
             'invalid',
         ]);
         $pageArray = $this->callProtected($collection, 'pageToArray', $this->makePage('z', '/z/', [], 'Z'));
+        $weightPage = $this->makePage('w', '/w/', ['weight' => 7], 'Weight');
+        $resolvedWeight = $this->callProtected($collection, 'resolveValue', $weightPage, 'weight');
+        $resolvedMetaWeight = $this->callProtected($collection, 'resolveValue', $weightPage, 'meta.weight');
         $notEqual = $this->callProtected($collection, 'matchesWhere', 'a', 'ne', 'b');
         $nullCompared = $this->callProtected($collection, 'compareValues', null, 1);
         $dateCompared = $this->callProtected($collection, 'compareValues', '2026-01-01', '2026-01-02');
@@ -234,6 +238,8 @@ final class PageCollectionTest extends TestCase
         $this->assertCount(1, $normalizedPages);
         $this->assertIsArray($pageArray);
         $this->assertSame('z', $pageArray['slug']);
+        $this->assertNull($resolvedWeight);
+        $this->assertSame(7, $resolvedMetaWeight);
         $this->assertTrue($notEqual);
         $this->assertSame(1, $nullCompared);
         $this->assertLessThan(0, $dateCompared);

@@ -86,6 +86,10 @@ $page->draft            // bool
 $page->type             // ?string -- resolved content type name
 $page->meta             // array<string, mixed> -- all frontmatter metadata (keys lowercased)
 $page->taxonomies       // array<string, array<string>>
+
+$page->meta('hero.title')                  // dotted access to nested frontmatter
+$page->meta('hero.primaryAction.href', '/') // dotted access with default fallback
+$page->hasMeta('hero.highlights')          // existence check
 ```
 
 ### `$site` properties
@@ -95,6 +99,10 @@ $site->title            // ?string
 $site->description      // ?string
 $site->baseUrl          // ?string
 $site->basePath         // ?string -- e.g. /blog for subfolder deploys
+
+$site->meta('hero.title')                 // dotted access to custom site.* config keys
+$site->siteMeta('hero.title')             // alias for readability
+$site->hasSiteMeta('hero.primaryAction')  // existence check
 ```
 
 ## Site context (`$this`)

@@ -1,29 +1,45 @@
+<?php
+/**
+ * @var Glaze\Content\ContentPage $page
+ * @var Glaze\Config\SiteConfig $site
+ * @var Glaze\Template\SiteContext $this
+ */
+?>
 <header class="sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
 	<?php $isHomeTemplate = (($page->meta['template'] ?? null) === 'home'); ?>
 	<div class="navbar w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16">
 		<div class="navbar-start gap-2">
-			<label for="docs-drawer" class="btn btn-ghost btn-square lg:hidden" aria-label="Open navigation" s:if="!$isHomeTemplate">
+			<label for="docs-drawer" class="btn btn-ghost btn-square lg:hidden" aria-label="Open navigation">
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
 				</svg>
 			</label>
 
-			<a class="btn btn-ghost pl-1 normal-case text-base sm:text-lg" s:if="$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>">
-				<img
-					class="h-8 w-auto"
-					src="<?= ($site->basePath ?? '') . '/images/glaze-logo.svg' ?>"
-					alt="<?= $site->title ?>"
-				/>
-				<span class="font-semibold truncate max-w-[16rem]"><?= $site->title ?></span>
+			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg lg:hidden" s:if="!$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>" aria-label="Go to homepage">
+				<s-template s:include="site-brand" />
 			</a>
 
-			<span class="font-semibold text-sm sm:text-base text-base-content/80" s:if="!$isHomeTemplate">Documentation</span>
+			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg" s:if="$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>">
+				<s-template s:include="site-brand" />
+			</a>
+
+			<span class="font-semibold text-sm sm:text-base text-base-content/80 hidden md:inline" s:if="!$isHomeTemplate">Documentation</span>
 		</div>
 
 		<div class="navbar-end">
+			<label class="btn btn-ghost btn-sm btn-circle swap swap-rotate" aria-label="Toggle color theme" title="Toggle color theme">
+				<input type="checkbox" data-theme-toggle />
+				<svg class="swap-on h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path d="M12 4.5v1.5M12 18v1.5M6.75 6.75l1.06 1.06M16.19 16.19l1.06 1.06M4.5 12H6M18 12h1.5M6.75 17.25l1.06-1.06M16.19 7.81l1.06-1.06M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/>
+				</svg>
+				<svg class="swap-off h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path d="M21 12.79A9 9 0 1 1 11.21 3c-.15.5-.23 1.02-.23 1.55a7.5 7.5 0 0 0 8.47 7.42c.52 0 1.03-.08 1.55-.18Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/>
+				</svg>
+			</label>
+
 			<a
 				class="btn btn-ghost btn-sm"
-				href="https://github.com/josbeir/glaze"
+				href="<?= $site->meta('repository', '#') ?>"
 				target="_blank"
 				rel="noopener noreferrer"
 				aria-label="Glaze on GitHub"

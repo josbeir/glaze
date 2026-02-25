@@ -138,4 +138,57 @@ final class Normalization
 
         return self::path($normalized);
     }
+
+    /**
+     * Normalize a nested list/map array while preserving structure.
+     *
+     * @param array<mixed> $value Raw nested value.
+     * @param callable(mixed):mixed $normalizeListItem Normalizer for list items.
+     * @param callable(string, mixed):mixed $normalizeMapItem Normalizer for map values.
+     * @param callable(mixed):bool|null $isAcceptedValue Optional normalized value filter.
+     * @return array<mixed>
+     */
+    public static function normalizeNestedArray(
+        array $value,
+        callable $normalizeListItem,
+        callable $normalizeMapItem,
+        ?callable $isAcceptedValue = null,
+    ): array {
+        $isAcceptedValue ??= static fn(mixed $item): bool => is_scalar($item) || $item === null || is_array($item);
+
+        if (array_is_list($value)) {
+            $normalizedList = [];
+            foreach ($value as $item) {
+                $normalizedItem = $normalizeListItem($item);
+                if (!$isAcceptedValue($normalizedItem)) {
+                    continue;
+                }
+
+                $normalizedList[] = $normalizedItem;
+            }
+
+            return $normalizedList;
+        }
+
+        $normalizedMap = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalizedKey = trim($key);
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            $normalizedItem = $normalizeMapItem($normalizedKey, $item);
+            if (!$isAcceptedValue($normalizedItem)) {
+                continue;
+            }
+
+            $normalizedMap[$normalizedKey] = $normalizedItem;
+        }
+
+        return $normalizedMap;
+    }
 }

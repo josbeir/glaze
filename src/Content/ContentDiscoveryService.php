@@ -20,6 +20,23 @@ use Throwable;
 final class ContentDiscoveryService
 {
     /**
+     * Reserved frontmatter keys interpreted by Glaze runtime behavior.
+     *
+     * @var array<string>
+     */
+    protected const RESERVED_FRONTMATTER_KEYS = [
+        'title',
+        'slug',
+        'date',
+        'weight',
+        'draft',
+        'type',
+        'template',
+        'description',
+        'meta',
+    ];
+
+    /**
      * Constructor.
      *
      * @param \Glaze\Content\FrontMatterParser $frontMatterParser Frontmatter parser service.
@@ -304,11 +321,6 @@ final class ContentDiscoveryService
                 continue;
             }
 
-            if ($normalizedKey === 'meta' && is_array($value)) {
-                $normalized[$normalizedKey] = $this->normalizeMetaMap($value);
-                continue;
-            }
-
             $normalized[$normalizedKey] = $this->normalizeMetaEntry($normalizedKey, $value);
         }
 
@@ -324,11 +336,51 @@ final class ContentDiscoveryService
     protected function normalizeMetaEntry(string $key, mixed $value): mixed
     {
         $normalized = $this->normalizeMetaValue($value);
-        if ($key !== 'date') {
+
+        if (!$this->isReservedFrontmatterKey($key)) {
             return $normalized;
         }
 
-        return $this->normalizeDateMetaValue($normalized, $key);
+        return match ($key) {
+            'date' => $this->normalizeDateMetaValue($normalized, $key),
+            'weight' => $this->normalizeWeightMetaValue($normalized, $key),
+            default => $normalized,
+        };
+    }
+
+    /**
+     * Check whether a key is reserved by Glaze frontmatter semantics.
+     *
+     * @param string $key Normalized metadata key.
+     */
+    protected function isReservedFrontmatterKey(string $key): bool
+    {
+        return in_array($key, self::RESERVED_FRONTMATTER_KEYS, true);
+    }
+
+    /**
+     * Normalize frontmatter weight values to integers.
+     *
+     * @param mixed $value Metadata weight value.
+     */
+    protected function normalizeWeightMetaValue(mixed $value, string $key): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_float($value)) {
+            return (int)$value;
+        }
+
+        if (is_string($value) && trim($value) !== '' && is_numeric($value)) {
+            return (int)$value;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Invalid frontmatter "%s" value: expected an integer.',
+            $key,
+        ));
     }
 
     /**
@@ -420,120 +472,18 @@ final class ContentDiscoveryService
         }
 
         if (is_array($value)) {
-            $normalizedItems = [];
-            foreach ($value as $item) {
-                $normalizedItem = $this->normalizeMetaValue($item);
-                if (
-                    !is_scalar($normalizedItem)
-                    && $normalizedItem !== null
-                    && !$normalizedItem instanceof DateTimeInterface
-                ) {
-                    continue;
-                }
-
-                $normalizedItems[] = $normalizedItem;
-            }
-
-            return $normalizedItems;
-        }
-
-        if (is_object($value) && method_exists($value, '__toString')) {
-            return (string)$value;
-        }
-
-        return null;
-    }
-
-    /**
-     * Normalize map-like metadata values while preserving keys.
-     *
-     * @param array<mixed> $value Raw metadata map.
-     * @return array<string, mixed>
-     */
-    protected function normalizeMetaMap(array $value): array
-    {
-        $normalized = [];
-
-        foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $normalizedKey = trim($key);
-            if ($normalizedKey === '') {
-                continue;
-            }
-
-            if (is_array($item)) {
-                $normalized[$normalizedKey] = $this->normalizeMetaArrayValue($item);
-
-                continue;
-            }
-
-            $normalizedItem = $this->normalizeMetaEntry(strtolower($normalizedKey), $item);
-
-            if (
-                !is_scalar($normalizedItem)
-                && $normalizedItem !== null
-                && !$normalizedItem instanceof DateTimeInterface
-            ) {
-                continue;
-            }
-
-            $normalized[$normalizedKey] = $normalizedItem;
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Normalize nested meta arrays while preserving map/list structures.
-     *
-     * @param array<mixed> $value Raw nested meta array.
-     * @return array<mixed>
-     */
-    protected function normalizeMetaArrayValue(array $value): array
-    {
-        if (array_is_list($value)) {
-            $normalizedList = [];
-
-            foreach ($value as $item) {
-                $normalizedItem = $this->normalizeNestedMetaValue($item);
-                if (
-                    !is_scalar($normalizedItem)
-                    && $normalizedItem !== null
-                    && !$normalizedItem instanceof DateTimeInterface
-                    && !is_array($normalizedItem)
-                ) {
-                    continue;
-                }
-
-                $normalizedList[] = $normalizedItem;
-            }
-
-            return $normalizedList;
-        }
-
-        return $this->normalizeMetaMap($value);
-    }
-
-    /**
-     * Normalize a nested meta value recursively.
-     *
-     * @param mixed $value Nested meta value.
-     */
-    protected function normalizeNestedMetaValue(mixed $value): mixed
-    {
-        if (is_array($value)) {
-            return $this->normalizeMetaArrayValue($value);
-        }
-
-        if ($value instanceof DateTimeInterface) {
-            return Chronos::instance($value);
-        }
-
-        if (is_scalar($value) || $value === null) {
-            return $value;
+            return Normalization::normalizeNestedArray(
+                value: $value,
+                normalizeListItem: fn(mixed $item): mixed => $this->normalizeMetaValue($item),
+                normalizeMapItem: fn(string $key, mixed $item): mixed => $this->normalizeMetaEntry(
+                    strtolower($key),
+                    $item,
+                ),
+                isAcceptedValue: static fn(mixed $item): bool => is_scalar($item)
+                    || $item === null
+                    || $item instanceof DateTimeInterface
+                    || is_array($item),
+            );
         }
 
         if (is_object($value) && method_exists($value, '__toString')) {

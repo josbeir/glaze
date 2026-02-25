@@ -1,6 +1,74 @@
 import 'htmx.org';
 import Typed from 'typed.js';
 
+const THEME_STORAGE_KEY = 'glaze-docs-theme';
+const DARK_THEME = 'glaze-docs-dark';
+const LIGHT_THEME = 'glaze-docs-light';
+
+/**
+ * Resolve the preferred docs theme from storage or OS preference.
+ */
+function resolvePreferredTheme() {
+	const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+	if (storedTheme === DARK_THEME || storedTheme === LIGHT_THEME) {
+		return storedTheme;
+	}
+
+	return window.matchMedia('(prefers-color-scheme: light)').matches ? LIGHT_THEME : DARK_THEME;
+}
+
+/**
+ * Apply the selected docs theme to the root element.
+ *
+ * @param {string} theme Theme identifier.
+ */
+function applyTheme(theme) {
+	if (theme !== DARK_THEME && theme !== LIGHT_THEME) {
+		return;
+	}
+
+	document.documentElement.setAttribute('data-theme', theme);
+	window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+}
+
+/**
+ * Initialize all theme toggle controls in the provided root.
+ *
+ * @param {ParentNode} root Root node to search in.
+ */
+function initializeThemeToggle(root) {
+	const toggles = root.querySelectorAll('[data-theme-toggle]');
+	if (toggles.length === 0) {
+		return;
+	}
+
+	const currentTheme = document.documentElement.getAttribute('data-theme') ?? resolvePreferredTheme();
+
+	toggles.forEach((toggle) => {
+		if (!(toggle instanceof HTMLInputElement)) {
+			return;
+		}
+
+		toggle.checked = currentTheme === LIGHT_THEME;
+		if (toggle.dataset.initialized === '1') {
+			return;
+		}
+
+		toggle.addEventListener('change', () => {
+			const selectedTheme = toggle.checked ? LIGHT_THEME : DARK_THEME;
+			applyTheme(selectedTheme);
+
+			document.querySelectorAll('[data-theme-toggle]').forEach((otherToggle) => {
+				if (otherToggle instanceof HTMLInputElement) {
+					otherToggle.checked = selectedTheme === LIGHT_THEME;
+				}
+			});
+		});
+
+		toggle.dataset.initialized = '1';
+	});
+}
+
 /**
  * Initialize homepage scaffold demo typewriter interaction.
  *
@@ -68,15 +136,19 @@ function initializeScaffoldDemo(root) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+	applyTheme(resolvePreferredTheme());
+	initializeThemeToggle(document);
 	initializeScaffoldDemo(document);
 });
 
 document.body.addEventListener('htmx:afterSwap', (event) => {
 	const target = event.target;
 	if (!(target instanceof HTMLElement)) {
+		initializeThemeToggle(document);
 		initializeScaffoldDemo(document);
 		return;
 	}
 
+	initializeThemeToggle(target);
 	initializeScaffoldDemo(target);
 });

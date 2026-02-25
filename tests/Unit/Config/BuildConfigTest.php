@@ -118,7 +118,7 @@ final class BuildConfigTest extends TestCase
         mkdir($projectRoot, 0755, true);
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "pageTemplate: landing\nimages:\n  driver: imagick\n  presets:\n    thumb:\n      w: 320\n      h: 180\n    invalid: true\nsite:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  basePath: /docs\n  metaDefaults:\n    robots: \"index,follow\"\n",
+            "pageTemplate: landing\nimages:\n  driver: imagick\n  presets:\n    thumb:\n      w: 320\n      h: 180\n    invalid: true\nsite:\n  title: Example Site\n  description: Default site description\n  baseUrl: https://example.com\n  basePath: /docs\n  meta:\n    robots: \"index,follow\"\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -131,7 +131,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('Default site description', $config->site->description);
         $this->assertSame('https://example.com', $config->site->baseUrl);
         $this->assertSame('/docs', $config->site->basePath);
-        $this->assertSame(['robots' => 'index,follow'], $config->site->metaDefaults);
+        $this->assertSame(['robots' => 'index,follow'], $config->site->meta);
     }
 
     /**
