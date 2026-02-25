@@ -81,10 +81,14 @@ final class SiteBuilder
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param bool $cleanOutput Whether to clear output directory before build.
+     * @param callable(int, int, string):void|null $progressCallback Optional per-page progress callback.
      * @return array<string> Generated file paths.
      */
-    public function build(BuildConfig $config, bool $cleanOutput = false): array
-    {
+    public function build(
+        BuildConfig $config,
+        bool $cleanOutput = false,
+        ?callable $progressCallback = null,
+    ): array {
         if ($cleanOutput) {
             $this->removeDirectory($config->outputPath());
         }
@@ -101,6 +105,12 @@ final class SiteBuilder
         $siteIndex = new SiteIndex($pages);
 
         $writtenFiles = [];
+        $totalPages = count($pages);
+        $completedPages = 0;
+        if (is_callable($progressCallback)) {
+            $progressCallback($completedPages, $totalPages, '');
+        }
+
         foreach ($pages as $page) {
             $html = $this->renderPage(
                 config: $config,
@@ -113,6 +123,11 @@ final class SiteBuilder
             $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
             $this->writeFile($destination, $html);
             $writtenFiles[] = $destination;
+            $completedPages++;
+
+            if (is_callable($progressCallback)) {
+                $progressCallback($completedPages, $totalPages, $destination);
+            }
         }
 
         $this->assetPublisher->publish(

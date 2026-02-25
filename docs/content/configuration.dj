@@ -57,6 +57,13 @@ codeHighlighting:
   theme: nord
   withGutter: false
 
+build:
+  clean: false
+  drafts: false
+  vite:
+    enabled: false
+    command: "npm run build"
+
 devServer:
   php:
     host: 127.0.0.1
@@ -252,6 +259,40 @@ devServer:
 - `command` -- command template used to start Vite; `{host}` and `{port}` are replaced at runtime
 
 CLI options always override these values (`--vite`, `--vite-host`, `--vite-port`, `--vite-command`).
+
+## `build`
+
+Optional defaults for `glaze build` options.
+
+```neon
+build:
+  clean: false
+  drafts: false
+  vite:
+    enabled: false
+    command: "npm run build"
+```
+
+- `clean` -- clean output directory before build (equivalent to `--clean`)
+- `drafts` -- include drafts during build (equivalent to `--drafts`)
+- `vite.enabled` -- opt-in default for Vite build integration (`false` by default)
+- `vite.command` -- command used to run Vite build in the project root
+
+CLI options override these values (`--clean`, `--drafts`, `--vite`, `--vite-command`).
+
+### `build.vite`
+
+Nested Vite build settings under `build`.
+
+```neon
+build:
+  vite:
+    enabled: false
+    command: "npm run build"
+```
+
+- `enabled` -- opt-in default for Vite build integration (`false` by default)
+- `command` -- command used to run Vite build in the project root
 
 ## Notes
 

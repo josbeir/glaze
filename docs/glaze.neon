@@ -53,6 +53,13 @@ codeHighlighting:
 #     defaults:
 #       template: blog
 #
+# build:
+#   clean: false
+#   drafts: false
+#   vite:
+#     enabled: false
+#     command: "npm run build"
+#
 # devServer:
 #   php:
 #     host: 127.0.0.1

@@ -21,7 +21,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 1 page(s).');
+        $this->assertOutputContains('Build complete: 1 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/index.html');
     }
 
@@ -35,13 +35,13 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 1 page(s).');
+        $this->assertOutputContains('Build complete: 1 page(s) in ');
         $this->assertFileDoesNotExist($projectRoot . '/public/draft/index.html');
 
         $this->exec(sprintf('build --root "%s" --drafts', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 2 page(s).');
+        $this->assertOutputContains('Build complete: 2 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/draft/index.html');
     }
 
@@ -55,7 +55,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 3 page(s).');
+        $this->assertOutputContains('Build complete: 3 page(s) in ');
 
         $output = file_get_contents($projectRoot . '/public/blog/post-a/index.html');
         $this->assertIsString($output);
@@ -77,7 +77,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 2 page(s).');
+        $this->assertOutputContains('Build complete: 2 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/blog/post-a/index.html');
 
         $output = file_get_contents($projectRoot . '/public/blog/post-a/index.html');
@@ -110,7 +110,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 1 page(s).');
+        $this->assertOutputContains('Build complete: 1 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/blog/asset-test-page/index.html');
         $this->assertFileExists($projectRoot . '/public/blog/test2.jpg');
 
@@ -129,7 +129,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Build complete: 2 page(s).');
+        $this->assertOutputContains('Build complete: 2 page(s) in ');
 
         $indexOutput = file_get_contents($projectRoot . '/public/index.html');
         $this->assertIsString($indexOutput);
@@ -307,5 +307,84 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertIsString($output);
         $this->assertStringContainsString('<p class="template">landing</p>', $output);
         $this->assertStringNotContainsString('<p class="template">default</p>', $output);
+    }
+
+    /**
+     * Ensure build command can run an additional Vite build process.
+     */
+    public function testBuildCommandCanRunViteBuildProcess(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $viteScriptPath = $projectRoot . '/vite-build.sh';
+
+        file_put_contents(
+            $viteScriptPath,
+            "#!/usr/bin/env sh\nmkdir -p public\necho vite-built > public/vite-build.txt\n",
+        );
+        chmod($viteScriptPath, 0755);
+
+        $this->exec(sprintf(
+            'build --root "%s" --vite --vite-command "./vite-build.sh"',
+            $projectRoot,
+        ));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Vite build complete.');
+        $this->assertFileExists($projectRoot . '/public/vite-build.txt');
+        $this->assertSame('vite-built' . PHP_EOL, file_get_contents($projectRoot . '/public/vite-build.txt'));
+    }
+
+    /**
+     * Ensure Vite build failures are surfaced as command errors.
+     */
+    public function testBuildCommandReportsViteBuildFailure(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $viteScriptPath = $projectRoot . '/vite-build-fail.sh';
+
+        file_put_contents(
+            $viteScriptPath,
+            "#!/usr/bin/env sh\necho vite failed >&2\nexit 1\n",
+        );
+        chmod($viteScriptPath, 0755);
+
+        $this->exec(sprintf(
+            'build --root "%s" --vite --vite-command "./vite-build-fail.sh"',
+            $projectRoot,
+        ));
+
+        $this->assertExitCode(1);
+        $this->assertErrorContains('Failed to run Vite build command');
+    }
+
+    /**
+     * Ensure build.clean configuration enables output cleanup by default.
+     */
+    public function testBuildCommandSupportsCleanDefaultFromConfiguration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+        file_put_contents($projectRoot . '/public/stale.txt', 'stale');
+        file_put_contents($projectRoot . '/glaze.neon', "build:\n  clean: true\n");
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertFileDoesNotExist($projectRoot . '/public/stale.txt');
+    }
+
+    /**
+     * Ensure build.drafts configuration enables draft rendering by default.
+     */
+    public function testBuildCommandSupportsDraftsDefaultFromConfiguration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/with-draft');
+        file_put_contents($projectRoot . '/glaze.neon', "build:\n  drafts: true\n");
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Build complete: 2 page(s) in ');
+        $this->assertFileExists($projectRoot . '/public/draft/index.html');
     }
 }

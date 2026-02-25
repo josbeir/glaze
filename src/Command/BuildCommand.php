@@ -9,6 +9,10 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\ProjectConfigurationReader;
+use Glaze\Serve\ViteBuildConfig;
+use Glaze\Serve\ViteBuildService;
+use Glaze\Utility\Normalization;
 use Glaze\Utility\ProjectRootResolver;
 use RuntimeException;
 
@@ -18,6 +22,10 @@ use RuntimeException;
 final class BuildCommand extends BaseCommand
 {
     protected ?SiteBuilder $siteBuilder = null;
+
+    protected ?ProjectConfigurationReader $projectConfigurationReader = null;
+
+    protected ?ViteBuildService $viteBuildService = null;
 
     /**
      * Get command description text.
@@ -42,12 +50,21 @@ final class BuildCommand extends BaseCommand
             ->addOption('clean', [
                 'help' => 'Clean the output directory before writing files.',
                 'boolean' => true,
-                'default' => false,
+                'default' => null,
             ])
             ->addOption('drafts', [
                 'help' => 'Include draft pages during build.',
                 'boolean' => true,
+                'default' => null,
+            ])
+            ->addOption('vite', [
+                'help' => 'Run Vite build process after static build.',
+                'boolean' => true,
                 'default' => false,
+            ])
+            ->addOption('vite-command', [
+                'help' => 'Vite build command (defaults to build.vite.command or "npm run build").',
+                'default' => null,
             ]);
 
         return $parser;
@@ -61,13 +78,34 @@ final class BuildCommand extends BaseCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
+        $startedAt = microtime(true);
+
         try {
             $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
+            $buildConfiguration = $this->readBuildConfiguration($projectRoot);
+            $includeDrafts = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'drafts');
+            $cleanOutput = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'clean');
+            $viteBuildConfiguration = $this->resolveViteBuildConfiguration($args, $buildConfiguration);
+
+            $io->out('Building pages...', 0);
             $config = BuildConfig::fromProjectRoot(
                 $projectRoot,
-                (bool)$args->getOption('drafts'),
+                $includeDrafts,
             );
-            $writtenFiles = $this->siteBuilder()->build($config, (bool)$args->getOption('clean'));
+            $writtenFiles = $this->siteBuilder()->build(
+                $config,
+                $cleanOutput,
+                function (int $completedPages, int $totalPages) use ($io): void {
+                    $message = sprintf('Building pages... %d/%d', $completedPages, $totalPages);
+                    $io->overwrite($message, 0);
+                },
+            );
+            $io->out();
+
+            if ($viteBuildConfiguration->enabled) {
+                $this->viteBuildService()->run($viteBuildConfiguration, $projectRoot);
+                $io->out('Vite build complete.');
+            }
         } catch (RuntimeException $runtimeException) {
             $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
 
@@ -79,9 +117,128 @@ final class BuildCommand extends BaseCommand
             $io->out(sprintf('<success>generated</success> %s', $relativePath));
         }
 
-        $io->out(sprintf('Build complete: %d page(s).', count($writtenFiles)));
+        $elapsedTime = max(0.0, microtime(true) - $startedAt);
+        $peakMemory = memory_get_peak_usage(true);
+        $io->out(sprintf(
+            'Build complete: %d page(s) in %s (peak memory: %s).',
+            count($writtenFiles),
+            $this->formatDuration($elapsedTime),
+            $this->formatBytes($peakMemory),
+        ));
 
         return self::CODE_SUCCESS;
+    }
+
+    /**
+     * Resolve Vite build configuration from project config and CLI options.
+     *
+     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param array<string, mixed> $buildConfiguration Build configuration map.
+     */
+    protected function resolveViteBuildConfiguration(Arguments $args, array $buildConfiguration): ViteBuildConfig
+    {
+        $viteConfiguration = $buildConfiguration['vite'] ?? null;
+        if (!is_array($viteConfiguration)) {
+            $viteConfiguration = [];
+        }
+
+        $enabledFromConfiguration = is_bool($viteConfiguration['enabled'] ?? null) && $viteConfiguration['enabled'];
+        $enabled = (bool)$args->getOption('vite') || $enabledFromConfiguration;
+
+        $command = Normalization::optionalString($args->getOption('vite-command'))
+            ?? Normalization::optionalString($viteConfiguration['command'] ?? null)
+            ?? 'npm run build';
+
+        return new ViteBuildConfig(
+            enabled: $enabled,
+            command: $command,
+        );
+    }
+
+    /**
+     * Resolve boolean build option from CLI value with configuration fallback.
+     *
+     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param array<string, mixed> $buildConfiguration Build configuration map.
+     * @param string $optionName Build option key.
+     */
+    protected function resolveBuildBooleanOption(
+        Arguments $args,
+        array $buildConfiguration,
+        string $optionName,
+    ): bool {
+        $optionValue = $args->getOption($optionName);
+        if (is_bool($optionValue) && $optionValue) {
+            return true;
+        }
+
+        $configuredValue = $buildConfiguration[$optionName] ?? null;
+        if (is_bool($configuredValue)) {
+            return $configuredValue;
+        }
+
+        return false;
+    }
+
+    /**
+     * Read decoded project configuration from glaze.neon.
+     *
+     * @param string $projectRoot Project root directory.
+     * @return array<string, mixed>
+     */
+    protected function readProjectConfiguration(string $projectRoot): array
+    {
+        return $this->projectConfigurationReader()->read($projectRoot);
+    }
+
+    /**
+     * Read the build section from project configuration.
+     *
+     * @param string $projectRoot Project root directory.
+     * @return array<string, mixed>
+     */
+    protected function readBuildConfiguration(string $projectRoot): array
+    {
+        $projectConfiguration = $this->readProjectConfiguration($projectRoot);
+        $buildConfiguration = $projectConfiguration['build'] ?? null;
+        if (!is_array($buildConfiguration)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($buildConfiguration as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Return project configuration reader service.
+     */
+    protected function projectConfigurationReader(): ProjectConfigurationReader
+    {
+        if (!$this->projectConfigurationReader instanceof ProjectConfigurationReader) {
+            $this->projectConfigurationReader = new ProjectConfigurationReader();
+        }
+
+        return $this->projectConfigurationReader;
+    }
+
+    /**
+     * Return Vite build service.
+     */
+    protected function viteBuildService(): ViteBuildService
+    {
+        if (!$this->viteBuildService instanceof ViteBuildService) {
+            $this->viteBuildService = new ViteBuildService();
+        }
+
+        return $this->viteBuildService;
     }
 
     /**
@@ -129,5 +286,39 @@ final class BuildCommand extends BaseCommand
         $normalized = trim($rootOption);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Format elapsed seconds for console output.
+     *
+     * @param float $seconds Elapsed duration in seconds.
+     */
+    protected function formatDuration(float $seconds): string
+    {
+        return sprintf('%.2fs', $seconds);
+    }
+
+    /**
+     * Format a byte value into a human-readable memory size.
+     *
+     * @param int $bytes Byte count.
+     */
+    protected function formatBytes(int $bytes): string
+    {
+        if ($bytes < 1024) {
+            return sprintf('%d B', $bytes);
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB'];
+        $value = $bytes / 1024;
+        foreach ($units as $unit) {
+            if ($value < 1024 || $unit === 'TB') {
+                return sprintf('%.2f %s', $value, $unit);
+            }
+
+            $value /= 1024;
+        }
+
+        return sprintf('%d B', $bytes);
     }
 }

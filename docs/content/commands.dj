@@ -71,6 +71,17 @@ Options:
 - `--root <path>` project root
 - `--clean` clean output directory before build
 - `--drafts` include draft pages
+- `--vite` run Vite build process after static build
+- `--vite-command <command>` custom Vite build command (defaults to `build.vite.command` or `npm run build`)
+
+Defaults for these options can be set in `glaze.neon` under `build` (`clean`, `drafts`, `vite.enabled`, `vite.command`).
+
+Vite build example:
+
+```bash
+glaze build --vite
+glaze build --vite --vite-command "pnpm build"
+```
 
 ## `new`
 
