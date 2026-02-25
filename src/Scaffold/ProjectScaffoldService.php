@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Scaffold;
 
+use JsonException;
 use Nette\Neon\Neon;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -28,6 +29,18 @@ final class ProjectScaffoldService
             $options->targetDirectory . DIRECTORY_SEPARATOR . 'glaze.neon',
             $this->buildProjectConfig($options),
         );
+
+        if ($options->enableVite) {
+            $this->writeFile(
+                $options->targetDirectory . DIRECTORY_SEPARATOR . 'vite.config.js',
+                $this->buildViteConfig(),
+            );
+
+            $this->writeFile(
+                $options->targetDirectory . DIRECTORY_SEPARATOR . 'package.json',
+                $this->buildPackageJson($options),
+            );
+        }
     }
 
     /**
@@ -185,9 +198,94 @@ final class ProjectScaffoldService
             'taxonomies' => $options->taxonomies,
         ];
 
+        if ($options->enableVite) {
+            $projectConfig = array_merge($projectConfig, $this->viteProjectConfig());
+        }
+
         return Neon::encode($projectConfig, true)
             . PHP_EOL
             . $this->commentedOptionsTemplate();
+    }
+
+    /**
+     * Build Vite configuration section for glaze.neon.
+     *
+     * @return array{build: array{vite: array{enabled: bool, command: string, defaultEntry: string}}, devServer: array{vite: array{enabled: bool, host: string, port: int, command: string, defaultEntry: string}}}
+     */
+    protected function viteProjectConfig(): array
+    {
+        return [
+            'build' => [
+                'vite' => [
+                    'enabled' => true,
+                    'command' => 'npm run build',
+                    'defaultEntry' => 'assets/css/site.css',
+                ],
+            ],
+            'devServer' => [
+                'vite' => [
+                    'enabled' => true,
+                    'host' => '127.0.0.1',
+                    'port' => 5173,
+                    'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
+                    'defaultEntry' => 'assets/css/site.css',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Build default Vite configuration file content.
+     */
+    protected function buildViteConfig(): string
+    {
+        return <<<JS
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  build: {
+    outDir: 'public/assets',
+        manifest: true,
+    	emptyOutDir: false,
+        rollupOptions: {
+            input: 'assets/css/site.css',
+        },
+  },
+});
+JS;
+    }
+
+    /**
+     * Build package.json content for Vite-enabled projects.
+     *
+     * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     */
+    protected function buildPackageJson(ScaffoldOptions $options): string
+    {
+        $description = trim($options->description);
+        if ($description === '') {
+            $description = $options->siteTitle;
+        }
+
+        $package = [
+            'name' => $options->siteName,
+            'description' => $description,
+            'private' => true,
+            'scripts' => [
+                'dev' => 'vite',
+                'build' => 'vite build',
+            ],
+            'devDependencies' => [
+                'vite' => 'latest',
+            ],
+        ];
+
+        try {
+            return json_encode($package, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                . PHP_EOL;
+        } catch (JsonException $jsonException) {
+            throw new RuntimeException('Unable to generate package.json.', 0, $jsonException);
+        }
     }
 
     /**
@@ -235,6 +333,16 @@ final class ProjectScaffoldService
 #   theme: github-dark
 #   withGutter: false
 #
+# build:
+#   clean: false
+#   drafts: false
+#   vite:
+#     enabled: false
+#     command: "npm run build"
+#     assetBaseUrl: /assets/
+#     manifestPath: public/assets/.vite/manifest.json
+#     defaultEntry: assets/css/site.css
+#
 # devServer:
 #   php:
 #     host: 127.0.0.1
@@ -243,6 +351,9 @@ final class ProjectScaffoldService
 #     enabled: false
 #     host: 127.0.0.1
 #     port: 5173
+#     url: http://127.0.0.1:5173
+#     injectClient: true
+#     defaultEntry: assets/css/site.css
 #     command: "npm run dev -- --host {host} --port {port} --strictPort"
 NEON;
     }

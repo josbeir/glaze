@@ -7,6 +7,7 @@ use Sugar\Core\Cache\FileCache;
 use Sugar\Core\Engine;
 use Sugar\Core\Loader\FileTemplateLoader;
 use Sugar\Extension\Component\ComponentExtension;
+use Sugar\Extension\Vite\ViteExtension;
 
 /**
  * Renders page-level HTML through Sugar templates.
@@ -20,12 +21,14 @@ final class SugarPageRenderer
      * @param string $cachePath Absolute template cache path.
      * @param string $template Sugar template name used for pages.
      * @param bool $debug Whether to enable debug freshness checks.
+     * @param array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null $viteConfiguration Optional Sugar Vite extension configuration.
      */
     public function __construct(
         protected string $templatePath,
         protected string $cachePath,
         protected string $template,
         protected bool $debug = false,
+        protected ?array $viteConfiguration = null,
     ) {
     }
 
@@ -51,12 +54,26 @@ final class SugarPageRenderer
             mkdir($this->cachePath, 0755, true);
         }
 
-        return Engine::builder()
+        $builder = Engine::builder()
             ->withTemplateLoader(new FileTemplateLoader($this->templatePath))
             ->withCache(new FileCache($this->cachePath))
             ->withDebug($this->debug)
             ->withTemplateContext($templateContext)
-            ->withExtension(new ComponentExtension(['components']))
+            ->withExtension(new ComponentExtension(['components']));
+
+        $viteConfiguration = $this->viteConfiguration;
+        if (is_array($viteConfiguration)) {
+            $builder->withExtension(new ViteExtension(
+                assetBaseUrl: $viteConfiguration['assetBaseUrl'],
+                mode: $viteConfiguration['mode'],
+                manifestPath: $viteConfiguration['manifestPath'],
+                devServerUrl: $viteConfiguration['devServerUrl'],
+                injectClient: $viteConfiguration['injectClient'],
+                defaultEntry: $viteConfiguration['defaultEntry'],
+            ));
+        }
+
+        return $builder
             ->withHtmlExceptionRenderer()
             ->build();
     }

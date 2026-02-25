@@ -35,7 +35,41 @@ final class BuildConfigTest extends TestCase
         ], $config->codeHighlighting);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
+        $this->assertSame([
+            'buildEnabled' => false,
+            'devEnabled' => false,
+            'assetBaseUrl' => '/assets/',
+            'manifestPath' => '/tmp/glaze-project/public/assets/.vite/manifest.json',
+            'devServerUrl' => 'http://127.0.0.1:5173',
+            'injectClient' => true,
+            'defaultEntry' => null,
+        ], $this->normalizeTemplateVitePaths($config->templateVite));
         $this->assertFalse($config->includeDrafts);
+    }
+
+    /**
+     * Ensure Sugar Vite extension settings can be normalized from build and devServer sections.
+     */
+    public function testTemplateViteSettingsCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "build:\n  vite:\n    enabled: true\n    assetBaseUrl: /build\n    manifestPath: public/custom-manifest.json\n    defaultEntry: resources/js/app.ts\ndevServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5179\n    injectClient: false\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'buildEnabled' => true,
+            'devEnabled' => true,
+            'assetBaseUrl' => '/build/',
+            'manifestPath' => $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
+            'devServerUrl' => 'http://0.0.0.0:5179',
+            'injectClient' => false,
+            'defaultEntry' => 'resources/js/app.ts',
+        ], $this->normalizeTemplateVitePaths($config->templateVite));
     }
 
     /**
@@ -402,5 +436,20 @@ final class BuildConfigTest extends TestCase
     protected function normalizePath(string $path): string
     {
         return str_replace('\\', '/', $path);
+    }
+
+    /**
+     * Normalize template Vite manifest path for assertions.
+     *
+     * @param array<string, mixed> $configuration Template Vite configuration.
+     * @return array<string, mixed>
+     */
+    protected function normalizeTemplateVitePaths(array $configuration): array
+    {
+        if (is_string($configuration['manifestPath'] ?? null)) {
+            $configuration['manifestPath'] = $this->normalizePath($configuration['manifestPath']);
+        }
+
+        return $configuration;
     }
 }

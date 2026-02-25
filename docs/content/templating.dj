@@ -136,6 +136,39 @@ Sugar provides attribute-based directives for control flow, looping, and conditi
 
 For the complete directive reference -- including `s:unless`, `s:forelse`, `s:switch`, `s:isset`, loop metadata (`$loop->first`, `$loop->last`), components, and the pipe syntax -- see the [Sugar documentation](https://josbeir.github.io/sugar/).
 
+## Vite template integration (`s:vite`)
+
+When Vite is enabled in Glaze config, Sugar's Vite extension is automatically registered and you can render dev/prod asset tags directly from templates.
+
+Basic usage:
+
+```php
+<s-template s:vite="'assets/css/site.css'" />
+```
+
+Multiple entries:
+
+```php
+<s-template s:vite="['assets/css/site.css', 'assets/js/site.js']" />
+```
+
+Default entry (from `build.vite.defaultEntry` or `devServer.vite.defaultEntry`):
+
+```php
+<s-template s:vite="true" />
+```
+
+Behavior by mode:
+
+- `glaze serve --vite` (live mode): emits dev server tags (`@vite/client` + module entry tags)
+- `glaze build` with `build.vite.enabled: true`: resolves and emits production tags from Vite manifest
+
+To scaffold all related files/config quickly:
+
+```bash
+glaze init my-site --vite
+```
+
 ## Debug helpers
 
 Available in all templates:

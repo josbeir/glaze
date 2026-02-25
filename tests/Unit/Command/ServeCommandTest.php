@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Command;
 
 use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Closure;
 use Glaze\Command\ServeCommand;
 use Glaze\Serve\PhpServerConfig;
 use Glaze\Serve\ViteServeConfig;
+use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use InvalidArgumentException;
@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ServeCommandTest extends TestCase
 {
+    use ConsoleIoTestTrait;
     use ContainerTestTrait;
     use FilesystemTestTrait;
 
@@ -353,7 +354,7 @@ final class ServeCommandTest extends TestCase
             'vite-command' => null,
         ], []);
 
-        $exitCode = $command->execute($args, new ConsoleIo());
+        $exitCode = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(1, $exitCode);
     }
@@ -380,7 +381,7 @@ final class ServeCommandTest extends TestCase
             'vite-command' => null,
         ], []);
 
-        $exitCode = $command->execute($args, new ConsoleIo());
+        $exitCode = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(1, $exitCode);
     }
@@ -406,7 +407,7 @@ final class ServeCommandTest extends TestCase
             'vite-command' => null,
         ], []);
 
-        $exitCode = $command->execute($args, new ConsoleIo());
+        $exitCode = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(1, $exitCode);
     }
@@ -432,7 +433,7 @@ final class ServeCommandTest extends TestCase
             'vite-command' => null,
         ], []);
 
-        $exitCode = $command->execute($args, new ConsoleIo());
+        $exitCode = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(1, $exitCode);
     }
@@ -459,7 +460,7 @@ final class ServeCommandTest extends TestCase
             'vite-command' => null,
         ], []);
 
-        $exitCode = $command->execute($args, new ConsoleIo());
+        $exitCode = $command->execute($args, $this->createConsoleIo());
 
         $this->assertSame(1, $exitCode);
     }
@@ -491,7 +492,7 @@ final class ServeCommandTest extends TestCase
         ], []);
 
         try {
-            $exitCode = $command->execute($args, new ConsoleIo());
+            $exitCode = $command->execute($args, $this->createConsoleIo());
         } finally {
             $this->assertSame($originalProjectRoot, getenv('GLAZE_PROJECT_ROOT'));
             $this->assertSame($originalIncludeDrafts, getenv('GLAZE_INCLUDE_DRAFTS'));

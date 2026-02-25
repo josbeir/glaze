@@ -86,6 +86,7 @@ final class SiteBuilder
             templatePath: $config->templatePath(),
             cachePath: $config->templateCachePath(),
             template: $config->pageTemplate,
+            viteConfiguration: $this->resolveTemplateViteConfiguration($config, false),
         );
         $siteIndex = new SiteIndex($pages);
 
@@ -209,6 +210,7 @@ final class SiteBuilder
                 cachePath: $config->templateCachePath(),
                 template: $pageTemplate,
                 debug: $debug,
+                viteConfiguration: $this->resolveTemplateViteConfiguration($config, $debug),
             );
         }
 
@@ -255,6 +257,61 @@ final class SiteBuilder
         $normalized = trim($template);
 
         return $normalized === '' ? $config->pageTemplate : $normalized;
+    }
+
+    /**
+     * Resolve Sugar Vite extension configuration for current render mode.
+     *
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     * @param bool $debug Whether debug rendering mode is enabled.
+     * @return array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null
+     */
+    protected function resolveTemplateViteConfiguration(BuildConfig $config, bool $debug): ?array
+    {
+        /**
+         * @var array{buildEnabled: bool, devEnabled: bool, assetBaseUrl: string, manifestPath: string, devServerUrl: string, injectClient: bool, defaultEntry: string|null} $viteConfiguration
+         */
+        $viteConfiguration = $config->templateVite;
+        $isEnabled = $debug
+            ? (bool)$viteConfiguration['devEnabled']
+            : (bool)$viteConfiguration['buildEnabled'];
+
+        if ($debug) {
+            $enabledOverride = getenv('GLAZE_VITE_ENABLED');
+            if ($enabledOverride === '1') {
+                $isEnabled = true;
+            } elseif ($enabledOverride === '0') {
+                $isEnabled = false;
+            }
+        }
+
+        if (!$isEnabled) {
+            return null;
+        }
+
+        $devServerUrl = (string)$viteConfiguration['devServerUrl'];
+        if ($debug) {
+            $runtimeViteUrl = getenv('GLAZE_VITE_URL');
+            if (is_string($runtimeViteUrl) && $runtimeViteUrl !== '') {
+                $devServerUrl = $runtimeViteUrl;
+            }
+        }
+
+        $assetBaseUrl = (string)$viteConfiguration['assetBaseUrl'];
+        if (!$this->isExternalResourcePath($assetBaseUrl)) {
+            $assetBaseUrl = $this->applyBasePathToPath($assetBaseUrl, $config->site);
+        }
+
+        return [
+            'mode' => $debug ? 'dev' : 'prod',
+            'assetBaseUrl' => $assetBaseUrl,
+            'manifestPath' => (string)$viteConfiguration['manifestPath'],
+            'devServerUrl' => $devServerUrl,
+            'injectClient' => (bool)$viteConfiguration['injectClient'],
+            'defaultEntry' => is_string($viteConfiguration['defaultEntry'])
+                ? $viteConfiguration['defaultEntry']
+                : null,
+        ];
     }
 
     /**

@@ -38,6 +38,7 @@ Useful options:
 - `--base-url`
 - `--base-path` (for subfolder deployments, for example `/blog`)
 - `--taxonomies`
+- `--vite` (scaffold Vite files and enable Vite defaults in `glaze.neon`)
 - `--force`
 - `--yes` (non-interactive)
 
@@ -49,6 +50,7 @@ glaze init my-site \
   --page-template "landing" \
   --description "Small notes and experiments" \
   --base-path "/blog" \
+  --vite \
   --taxonomies tags,categories \
   --yes
 ```
@@ -182,7 +184,11 @@ Prerequisites:
 - A package manager script that starts Vite (for example `npm run dev`).
 - Template/layout code that references your Vite dev assets while developing.
 
-Glaze does not generate or manage your Vite project config for you; it only launches the command you configure.
+For a quick start, scaffold Vite files and defaults with:
+
+```bash
+glaze init my-site --vite
+```
 
 Basic usage:
 

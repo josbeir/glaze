@@ -14,6 +14,12 @@ With Glaze installed globally:
 glaze init my-site
 ```
 
+To scaffold Vite setup (`vite.config.js`, `package.json`, and Vite-enabled `glaze.neon` defaults):
+
+```bash
+glaze init my-site --vite
+```
+
 Glaze asks a few questions interactively (title, base URL, taxonomies). To skip all prompts:
 
 ```bash
@@ -30,6 +36,14 @@ my-site/
   templates/
     page.sugar.php
   glaze.neon
+```
+
+When `--vite` is enabled, it also creates:
+
+```
+my-site/
+  vite.config.js
+  package.json
 ```
 
 ## 2. Explore the scaffold
@@ -73,6 +87,19 @@ glaze serve
 ```
 
 Open `http://127.0.0.1:8080`. The server renders each page on request -- edit content or templates and refresh to see changes immediately.
+
+If you enabled Vite, install dependencies and start Glaze + Vite together:
+
+```bash
+npm install
+glaze serve --vite
+```
+
+Then reference assets in your template using Sugar's Vite directive:
+
+```php
+<s-template s:vite="'assets/css/site.css'" />
+```
 
 ## 4. Add a page
 

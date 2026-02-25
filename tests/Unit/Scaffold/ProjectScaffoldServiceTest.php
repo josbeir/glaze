@@ -153,6 +153,77 @@ final class ProjectScaffoldServiceTest extends TestCase
     }
 
     /**
+     * Ensure Vite-enabled scaffolding writes vite.config.js and enables Vite settings in glaze.neon.
+     */
+    public function testScaffoldCreatesViteConfigurationWhenEnabled(): void
+    {
+        $target = $this->createTempDirectory() . '/vite-site';
+        $service = new ProjectScaffoldService();
+
+        $service->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'vite-site',
+            siteTitle: 'Vite Site',
+            pageTemplate: 'page',
+            description: 'Vite-enabled site description',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: ['tags', 'categories'],
+            enableVite: true,
+            force: false,
+        ));
+
+        $this->assertFileExists($target . '/vite.config.js');
+        $this->assertFileExists($target . '/package.json');
+
+        $viteConfig = file_get_contents($target . '/vite.config.js');
+        $this->assertIsString($viteConfig);
+        $this->assertStringContainsString('manifest: true', $viteConfig);
+        $this->assertStringContainsString("input: 'assets/css/site.css'", $viteConfig);
+
+        $package = file_get_contents($target . '/package.json');
+        $this->assertIsString($package);
+        $packageData = json_decode($package, true);
+        $this->assertIsArray($packageData);
+        $this->assertSame('vite-site', $packageData['name'] ?? null);
+        $this->assertSame('Vite-enabled site description', $packageData['description'] ?? null);
+        $this->assertArrayHasKey('devDependencies', $packageData);
+        $this->assertIsArray($packageData['devDependencies']);
+        /** @var array<string, mixed> $devDependencies */
+        $devDependencies = $packageData['devDependencies'];
+        $this->assertSame('latest', $devDependencies['vite'] ?? null);
+
+        $config = file_get_contents($target . '/glaze.neon');
+        $this->assertIsString($config);
+        $decoded = Neon::decode($config);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('build', $decoded);
+        $this->assertArrayHasKey('devServer', $decoded);
+        $this->assertIsArray($decoded['build']);
+        $this->assertIsArray($decoded['devServer']);
+        /** @var array<string, mixed> $buildConfig */
+        $buildConfig = $decoded['build'];
+        /** @var array<string, mixed> $devServerConfig */
+        $devServerConfig = $decoded['devServer'];
+
+        $this->assertArrayHasKey('vite', $buildConfig);
+        $this->assertArrayHasKey('vite', $devServerConfig);
+        $this->assertIsArray($buildConfig['vite']);
+        $this->assertIsArray($devServerConfig['vite']);
+        /** @var array<string, mixed> $buildViteConfig */
+        $buildViteConfig = $buildConfig['vite'];
+        /** @var array<string, mixed> $devServerViteConfig */
+        $devServerViteConfig = $devServerConfig['vite'];
+
+        $this->assertTrue($buildViteConfig['enabled'] ?? null);
+        $this->assertSame('npm run build', $buildViteConfig['command'] ?? null);
+        $this->assertSame('assets/css/site.css', $buildViteConfig['defaultEntry'] ?? null);
+        $this->assertTrue($devServerViteConfig['enabled'] ?? null);
+        $this->assertSame(5173, $devServerViteConfig['port'] ?? null);
+        $this->assertSame('assets/css/site.css', $devServerViteConfig['defaultEntry'] ?? null);
+    }
+
+    /**
      * Invoke a protected method on an object using scope-bound closure.
      *
      * @param object $object Object to invoke method on.

@@ -385,4 +385,34 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('Build complete: 2 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/draft/index.html');
     }
+
+    /**
+     * Ensure Vite build runs before page rendering when template uses s:vite in production mode.
+     */
+    public function testBuildCommandRunsConfiguredViteBuildBeforePageRendering(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $viteScriptPath = $projectRoot . '/vite-build-manifest.php';
+
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "build:\n  vite:\n    enabled: true\n    command: \"php vite-build-manifest.php\"\n",
+        );
+        file_put_contents(
+            $viteScriptPath,
+            "<?php\ndeclare(strict_types=1);\nif (!is_dir('public/assets/.vite')) {\n    mkdir('public/assets/.vite', 0755, true);\n}\nfile_put_contents(\n    'public/assets/.vite/manifest.json',\n    json_encode([\n        'resources/js/app.ts' => [\n            'file' => 'assets/app-abc123.js',\n            'isEntry' => true,\n        ],\n    ], JSON_THROW_ON_ERROR),\n);\n",
+        );
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Vite build complete.');
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('/assets/assets/app-abc123.js', $output);
+    }
 }

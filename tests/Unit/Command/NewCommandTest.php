@@ -5,10 +5,10 @@ namespace Glaze\Tests\Unit\Command;
 
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
-use Cake\Console\ConsoleOutput;
 use Closure;
 use Glaze\Command\NewCommand;
 use Glaze\Config\BuildConfig;
+use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
@@ -19,6 +19,7 @@ use RuntimeException;
  */
 final class NewCommandTest extends TestCase
 {
+    use ConsoleIoTestTrait;
     use ContainerTestTrait;
 
     /**
@@ -672,23 +673,6 @@ final class NewCommandTest extends TestCase
         mkdir($path, 0755, true);
 
         return $path;
-    }
-
-    /**
-     * Create a ConsoleIo instance that writes to in-memory streams.
-     */
-    protected function createConsoleIo(): ConsoleIo
-    {
-        $stdoutPath = tempnam(sys_get_temp_dir(), 'glaze-test-out-');
-        $stderrPath = tempnam(sys_get_temp_dir(), 'glaze-test-err-');
-
-        $this->assertIsString($stdoutPath);
-        $this->assertIsString($stderrPath);
-
-        return new ConsoleIo(
-            new ConsoleOutput($stdoutPath),
-            new ConsoleOutput($stderrPath),
-        );
     }
 
     /**

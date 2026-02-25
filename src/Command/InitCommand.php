@@ -76,6 +76,11 @@ final class InitCommand extends BaseCommand
                 'help' => 'Comma-separated taxonomy keys.',
                 'default' => null,
             ])
+            ->addOption('vite', [
+                'help' => 'Enable Vite integration and generate a vite.config.js file.',
+                'boolean' => true,
+                'default' => false,
+            ])
             ->addOption('force', [
                 'help' => 'Allow scaffolding into a non-empty directory.',
                 'boolean' => true,
@@ -164,6 +169,8 @@ final class InitCommand extends BaseCommand
             $taxonomiesDefault = $io->ask('Taxonomies (comma separated)', $taxonomiesDefault);
         }
 
+        $enableVite = $this->resolveEnableVite($args, $io, $nonInteractive);
+
         $directoryPath = Normalization::path($directory);
         if (!$this->isAbsolutePath($directoryPath)) {
             $currentDirectory = getcwd() ?: '.';
@@ -179,8 +186,32 @@ final class InitCommand extends BaseCommand
             baseUrl: $this->normalizeString($baseUrlDefault),
             basePath: $basePathDefault,
             taxonomies: $this->parseTaxonomies($taxonomiesDefault),
+            enableVite: $enableVite,
             force: (bool)$args->getOption('force'),
         );
+    }
+
+    /**
+     * Resolve Vite integration option from CLI flags and interactive prompt.
+     *
+     * @param \Cake\Console\Arguments $args Parsed command arguments.
+     * @param \Cake\Console\ConsoleIo $io Console IO service.
+     * @param bool $nonInteractive Whether prompts are disabled.
+     */
+    protected function resolveEnableVite(Arguments $args, ConsoleIo $io, bool $nonInteractive): bool
+    {
+        $enableVite = (bool)$args->getOption('vite');
+        if ($nonInteractive) {
+            return $enableVite;
+        }
+
+        $choice = strtolower($io->askChoice(
+            'Enable Vite integration',
+            ['no', 'yes'],
+            $enableVite ? 'yes' : 'no',
+        ));
+
+        return $choice === 'yes';
     }
 
     /**

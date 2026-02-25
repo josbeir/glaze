@@ -25,6 +25,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('--base-url');
         $this->assertOutputContains('--base-path');
         $this->assertOutputContains('--taxonomies');
+        $this->assertOutputContains('--vite');
         $this->assertOutputContains('--yes');
     }
 
@@ -54,6 +55,27 @@ final class InitCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure Vite option generates vite config file and enables Vite in project config.
+     */
+    public function testInitCommandCreatesViteConfigurationWhenEnabled(): void
+    {
+        $target = $this->createTempDirectory() . '/vite-site';
+
+        $this->exec(sprintf(
+            'init "%s" --name "vite-site" --title "Vite Site" --vite --yes',
+            $target,
+        ));
+
+        $this->assertExitCode(0);
+        $this->assertFileExists($target . '/vite.config.js');
+        $config = (string)file_get_contents($target . '/glaze.neon');
+        $this->assertStringContainsString('build:', $config);
+        $this->assertStringContainsString('devServer:', $config);
+        $this->assertStringContainsString('vite:', $config);
+        $this->assertStringContainsString('enabled: true', $config);
+    }
+
+    /**
      * Ensure interactive flow collects values and creates scaffold.
      */
     public function testInitCommandInteractiveFlowCreatesProject(): void
@@ -62,7 +84,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->exec(
             sprintf('init "%s"', $target),
-            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories'],
+            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories', 'no'],
         );
 
         $this->assertExitCode(0);
@@ -86,7 +108,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->exec(
             'init',
-            [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories'],
+            [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories', 'no'],
         );
 
         $this->assertExitCode(0);

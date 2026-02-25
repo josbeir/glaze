@@ -15,6 +15,15 @@ codeHighlighting:
 	theme: plastic
 	withGutter: false
 
+build:
+	vite:
+		enabled: true
+
+devServer:
+	vite:
+		enabled: true
+		port: 5174
+
 # --- Available options (uncomment and adjust as needed) ---
 # pageTemplate: page
 #

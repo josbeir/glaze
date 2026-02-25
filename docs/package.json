@@ -1,0 +1,17 @@
+{
+  "name": "glaze-docs",
+  "description": "Glaze documentation",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "latest"
+  },
+  "dependencies": {
+    "htmx.org": "^2.0.8",
+    "install": "^0.13.0",
+    "npm": "^11.10.1"
+  }
+}

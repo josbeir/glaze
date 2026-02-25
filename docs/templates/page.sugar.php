@@ -9,7 +9,7 @@ use function Sugar\Core\Runtime\raw;
 ?>
 <s-template s:extends="layout/page">
 
-<title s:prepend="title"><?= $title ?> |</title>
+<title s:prepend="title"><?= $title ?></title>
 
 <s-template s:block="content">
 	<?= $content |> raw() ?>

@@ -11,6 +11,7 @@ use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Serve\ViteBuildConfig;
 use Glaze\Serve\ViteBuildService;
+use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -21,6 +22,7 @@ use ReflectionProperty;
  */
 final class BuildCommandTest extends TestCase
 {
+    use ConsoleIoTestTrait;
     use ContainerTestTrait;
     use FilesystemTestTrait;
 
@@ -176,6 +178,35 @@ final class BuildCommandTest extends TestCase
             'clean',
         );
         $this->assertFalse($cleanFromDefault);
+    }
+
+    /**
+     * Ensure execute catches unexpected throwables and returns a clean command error.
+     */
+    public function testExecuteReturnsErrorWhenBuildThrowsThrowable(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents($projectRoot . '/content/index.dj', "# Home\n");
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?php throw new Exception("Template exploded"); ?>',
+        );
+
+        $command = $this->createCommand();
+
+        $args = new Arguments([], [
+            'root' => $projectRoot,
+            'clean' => false,
+            'drafts' => false,
+            'vite' => false,
+            'vite-command' => null,
+        ], []);
+
+        $exitCode = $command->execute($args, $this->createConsoleIo());
+
+        $this->assertSame(BuildCommand::CODE_ERROR, $exitCode);
     }
 
     /**

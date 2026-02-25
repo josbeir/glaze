@@ -14,7 +14,7 @@ use Glaze\Serve\ViteBuildConfig;
 use Glaze\Serve\ViteBuildService;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\ProjectRootResolver;
-use RuntimeException;
+use Throwable;
 
 /**
  * Build the static site from Djot content and Sugar templates.
@@ -69,7 +69,7 @@ final class BuildCommand extends BaseCommand
                 'default' => null,
             ])
             ->addOption('vite', [
-                'help' => 'Run Vite build process after static build.',
+                'help' => 'Run Vite build process as part of static build.',
                 'boolean' => true,
                 'default' => false,
             ])
@@ -103,6 +103,17 @@ final class BuildCommand extends BaseCommand
                 $projectRoot,
                 $includeDrafts,
             );
+
+            if ($viteBuildConfiguration->enabled && $cleanOutput) {
+                $this->removeDirectory($config->outputPath());
+                $cleanOutput = false;
+            }
+
+            if ($viteBuildConfiguration->enabled) {
+                $this->viteBuildService->run($viteBuildConfiguration, $projectRoot);
+                $io->out('Vite build complete.');
+            }
+
             $writtenFiles = $this->siteBuilder->build(
                 $config,
                 $cleanOutput,
@@ -112,13 +123,8 @@ final class BuildCommand extends BaseCommand
                 },
             );
             $io->out();
-
-            if ($viteBuildConfiguration->enabled) {
-                $this->viteBuildService->run($viteBuildConfiguration, $projectRoot);
-                $io->out('Vite build complete.');
-            }
-        } catch (RuntimeException $runtimeException) {
-            $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
+        } catch (Throwable $throwable) {
+            $io->err(sprintf('<error>%s</error>', $throwable->getMessage()));
 
             return self::CODE_ERROR;
         }
@@ -293,5 +299,43 @@ final class BuildCommand extends BaseCommand
         }
 
         return sprintf('%d B', $bytes);
+    }
+
+    /**
+     * Remove a directory recursively.
+     *
+     * @param string $directory Absolute directory path.
+     */
+    protected function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $entries = scandir($directory);
+        if (!is_array($entries)) {
+            return;
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.') {
+                continue;
+            }
+
+            if ($entry === '..') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($path)) {
+                $this->removeDirectory($path);
+
+                continue;
+            }
+
+            unlink($path);
+        }
+
+        rmdir($directory);
     }
 }

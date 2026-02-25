@@ -38,6 +38,10 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Install docs npm dependencies
+        working-directory: docs
+        run: npm install
+
       - name: Build docs site
         working-directory: docs
         run: ../bin/glaze build --clean

@@ -28,6 +28,7 @@ final class BuildConfig
      * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting Code highlighting configuration.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
+     * @param array<string, mixed> $templateVite Sugar Vite extension configuration.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
      */
@@ -48,6 +49,15 @@ final class BuildConfig
         ],
         public readonly array $contentTypes = [],
         public readonly array $taxonomies = ['tags'],
+        public readonly array $templateVite = [
+            'buildEnabled' => false,
+            'devEnabled' => false,
+            'assetBaseUrl' => '/assets/',
+            'manifestPath' => 'public/assets/.vite/manifest.json',
+            'devServerUrl' => 'http://127.0.0.1:5173',
+            'injectClient' => true,
+            'defaultEntry' => null,
+        ],
         ?SiteConfig $site = null,
         public readonly bool $includeDrafts = false,
     ) {
@@ -87,9 +97,90 @@ final class BuildConfig
             codeHighlighting: self::normalizeCodeHighlighting($projectConfiguration['codeHighlighting'] ?? null),
             contentTypes: self::normalizeContentTypes($projectConfiguration['contentTypes'] ?? null),
             taxonomies: self::normalizeTaxonomies($projectConfiguration['taxonomies'] ?? null),
+            templateVite: self::normalizeTemplateViteConfiguration($projectConfiguration, $normalizedRoot),
             site: SiteConfig::fromProjectConfig($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalize Sugar Vite extension settings from build and devServer configuration.
+     *
+     * @param array<string, mixed> $projectConfiguration Raw project configuration map.
+     * @param string $projectRoot Absolute project root path.
+     * @return array<string, mixed>
+     */
+    protected static function normalizeTemplateViteConfiguration(
+        array $projectConfiguration,
+        string $projectRoot,
+    ): array {
+        $buildConfiguration = $projectConfiguration['build'] ?? null;
+        $buildViteConfiguration = is_array($buildConfiguration)
+            ? ($buildConfiguration['vite'] ?? null)
+            : null;
+        if (!is_array($buildViteConfiguration)) {
+            $buildViteConfiguration = [];
+        }
+
+        $devServerConfiguration = $projectConfiguration['devServer'] ?? null;
+        $devServerViteConfiguration = is_array($devServerConfiguration)
+            ? ($devServerConfiguration['vite'] ?? null)
+            : null;
+        if (!is_array($devServerViteConfiguration)) {
+            $devServerViteConfiguration = [];
+        }
+
+        $buildEnabled = is_bool($buildViteConfiguration['enabled'] ?? null) && $buildViteConfiguration['enabled'];
+        $devEnabled = is_bool($devServerViteConfiguration['enabled'] ?? null) && $devServerViteConfiguration['enabled'];
+
+        $assetBaseUrl = Normalization::optionalString($buildViteConfiguration['assetBaseUrl'] ?? null)
+            ?? '/assets/';
+
+        $manifestPath = Normalization::optionalString($buildViteConfiguration['manifestPath'] ?? null)
+            ?? 'public/assets/.vite/manifest.json';
+        if (!str_starts_with($manifestPath, DIRECTORY_SEPARATOR)) {
+            $manifestPath = $projectRoot . DIRECTORY_SEPARATOR . ltrim($manifestPath, DIRECTORY_SEPARATOR);
+        }
+
+        /** @var array<string, mixed> $devServerViteConfiguration */
+        $devServerUrl = Normalization::optionalString($devServerViteConfiguration['url'] ?? null)
+            ?? self::buildViteServerUrl($devServerViteConfiguration);
+
+        $injectClient = is_bool($devServerViteConfiguration['injectClient'] ?? null)
+            ? $devServerViteConfiguration['injectClient']
+            : true;
+
+        $defaultEntry = Normalization::optionalString($devServerViteConfiguration['defaultEntry'] ?? null)
+            ?? Normalization::optionalString($buildViteConfiguration['defaultEntry'] ?? null);
+
+        return [
+            'buildEnabled' => $buildEnabled,
+            'devEnabled' => $devEnabled,
+            'assetBaseUrl' => rtrim($assetBaseUrl, '/') . '/',
+            'manifestPath' => Normalization::path($manifestPath),
+            'devServerUrl' => $devServerUrl,
+            'injectClient' => $injectClient,
+            'defaultEntry' => $defaultEntry,
+        ];
+    }
+
+    /**
+     * Build Vite dev server URL from host/port fallback settings.
+     *
+     * @param array<string, mixed> $devServerViteConfiguration Vite dev server configuration.
+     */
+    protected static function buildViteServerUrl(array $devServerViteConfiguration): string
+    {
+        $host = Normalization::optionalString($devServerViteConfiguration['host'] ?? null) ?? '127.0.0.1';
+        $portValue = $devServerViteConfiguration['port'] ?? null;
+        $port = is_int($portValue)
+            ? $portValue
+            : (is_string($portValue) && ctype_digit($portValue) ? (int)$portValue : 5173);
+        if ($port < 1 || $port > 65535) {
+            $port = 5173;
+        }
+
+        return sprintf('http://%s:%d', $host, $port);
     }
 
     /**

@@ -139,6 +139,29 @@ final class InitCommandTest extends TestCase
         $this->assertSame('relative-site', $options->siteName);
         $this->assertSame('page', $options->pageTemplate);
         $this->assertSame('/docs', $options->basePath);
+        $this->assertFalse($options->enableVite);
+    }
+
+    /**
+     * Ensure Vite option resolution supports non-interactive and interactive flows.
+     */
+    public function testResolveEnableViteHandlesInteractiveAndNonInteractiveModes(): void
+    {
+        $command = $this->createCommand();
+
+        $nonInteractiveArgs = new Arguments([], ['vite' => true], []);
+        $enabled = $this->callProtected($command, 'resolveEnableVite', $nonInteractiveArgs, new ConsoleIo(), true);
+        $this->assertTrue($enabled);
+
+        $interactiveArgs = new Arguments([], ['vite' => false], []);
+        $io = $this->createMock(ConsoleIo::class);
+        $io->expects($this->once())
+            ->method('askChoice')
+            ->with('Enable Vite integration', ['no', 'yes'], 'no')
+            ->willReturn('yes');
+
+        $interactiveEnabled = $this->callProtected($command, 'resolveEnableVite', $interactiveArgs, $io, false);
+        $this->assertTrue($interactiveEnabled);
     }
 
     /**

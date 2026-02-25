@@ -537,6 +537,124 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure live rendering enables Sugar Vite extension and uses runtime Vite URL.
+     */
+    public function testRenderRequestRendersViteDevelopmentTagsWhenEnabled(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "devServer:\n  vite:\n    enabled: true\n",
+        );
+        file_put_contents($projectRoot . '/content/index.dj', "# Home\n");
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+
+        $originalViteEnabled = getenv('GLAZE_VITE_ENABLED');
+        $originalViteUrl = getenv('GLAZE_VITE_URL');
+
+        try {
+            putenv('GLAZE_VITE_ENABLED=1');
+            putenv('GLAZE_VITE_URL=http://127.0.0.1:5179');
+
+            $html = $builder->renderRequest($config, '/');
+        } finally {
+            $this->restoreVariable('GLAZE_VITE_ENABLED', $originalViteEnabled);
+            $this->restoreVariable('GLAZE_VITE_URL', $originalViteUrl);
+        }
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('http://127.0.0.1:5179/@vite/client', $html);
+        $this->assertStringContainsString('http://127.0.0.1:5179/resources/js/app.ts', $html);
+    }
+
+    /**
+     * Ensure static builds enable Sugar Vite extension and render tags from manifest assets.
+     */
+    public function testBuildRendersViteProductionTagsWhenEnabled(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+        mkdir($projectRoot . '/public/assets/.vite', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "build:\n  vite:\n    enabled: true\n",
+        );
+        file_put_contents($projectRoot . '/content/index.dj', "# Home\n");
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/public/assets/.vite/manifest.json',
+            json_encode([
+                'resources/js/app.ts' => [
+                    'file' => 'assets/app-abc123.js',
+                    'css' => ['assets/app-def456.css'],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder->build($config);
+
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('/assets/assets/app-def456.css', $output);
+        $this->assertStringContainsString('/assets/assets/app-abc123.js', $output);
+    }
+
+    /**
+     * Ensure static builds apply site basePath to Vite production asset tags.
+     */
+    public function testBuildRendersViteProductionTagsWithBasePathWhenConfigured(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+        mkdir($projectRoot . '/public/assets/.vite', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "site:\n  basePath: /glaze\nbuild:\n  vite:\n    enabled: true\n",
+        );
+        file_put_contents($projectRoot . '/content/index.dj', "# Home\n");
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/public/assets/.vite/manifest.json',
+            json_encode([
+                'resources/js/app.ts' => [
+                    'file' => 'assets/app-abc123.js',
+                    'css' => ['assets/app-def456.css'],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder->build($config);
+
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('/glaze/assets/assets/app-def456.css', $output);
+        $this->assertStringContainsString('/glaze/assets/assets/app-abc123.js', $output);
+    }
+
+    /**
      * Invoke a protected method using scope-bound closure.
      *
      * @param object $object Object to invoke method on.
@@ -554,6 +672,23 @@ final class SiteBuilderTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Restore an environment variable to its previous value.
+     *
+     * @param string $name Variable name.
+     * @param string|false $value Previous variable value from getenv().
+     */
+    protected function restoreVariable(string $name, string|false $value): void
+    {
+        if ($value === false) {
+            putenv($name);
+
+            return;
+        }
+
+        putenv($name . '=' . $value);
     }
 
     /**
