@@ -5,22 +5,22 @@
 </div>
 
 <div align="center">
-	<a href="https://github.com/josbeir/glaze/actions" style="text-decoration: none;">
+	<a href="https://github.com/josbeir/glaze/actions">
 		<img src="https://github.com/josbeir/glaze/actions/workflows/ci.yml/badge.svg" alt="Build Status" />
 	</a>
-	<a href="https://github.com/josbeir/glaze" style="text-decoration: none;">
+	<a href="https://github.com/josbeir/glaze">
 		<img src="https://img.shields.io/badge/PHPStan-level%2010-brightgreen" alt="PHPStan Level 10" />
 	</a>
-	<a href="https://opensource.org/licenses/MIT" style="text-decoration: none;">
+	<a href="https://opensource.org/licenses/MIT">
 		<img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
 	</a>
-	<a href="https://www.php.net/releases/8.2/en.php" style="text-decoration: none;">
+	<a href="https://www.php.net/releases/8.2/en.php">
 		<img src="https://img.shields.io/badge/php-8.2%2B-blue.svg" alt="PHP Version" />
 	</a>
-    <a href="https://codecov.io/github/josbeir/glaze" >
-        <img src="https://codecov.io/github/josbeir/glaze/graph/badge.svg?token=WH6IX5EWK9"/>
+    <a href="https://codecov.io/gh/josbeir/glaze" >
+        <img src="https://codecov.io/gh/josbeir/glaze/branch/main/graph/badge.svg?token=WH6IX5EWK9"/>
     </a>
-	<a href="https://packagist.org/packages/josbeir/glaze" style="text-decoration: none;">
+	<a href="https://packagist.org/packages/josbeir/glaze">
 		<img src="https://img.shields.io/packagist/dt/josbeir/glaze" alt="Packagist Downloads" />
 	</a>
 </div>
