@@ -24,7 +24,35 @@ use RuntimeException;
  */
 final class ServeCommand extends BaseCommand
 {
-    protected ?ProjectConfigurationReader $projectConfigurationReader = null;
+    protected SiteBuilder $siteBuilder;
+
+    protected ProjectConfigurationReader $projectConfigurationReader;
+
+    protected ViteProcessService $viteProcessService;
+
+    protected PhpServerService $phpServerService;
+
+    /**
+     * Constructor.
+     *
+     * @param \Glaze\Build\SiteBuilder|null $siteBuilder Site builder service.
+     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader.
+     * @param \Glaze\Serve\ViteProcessService|null $viteProcessService Vite process service.
+     * @param \Glaze\Serve\PhpServerService|null $phpServerService PHP server service.
+     */
+    public function __construct(
+        ?SiteBuilder $siteBuilder = null,
+        ?ProjectConfigurationReader $projectConfigurationReader = null,
+        ?ViteProcessService $viteProcessService = null,
+        ?PhpServerService $phpServerService = null,
+    ) {
+        parent::__construct();
+
+        $this->siteBuilder = $siteBuilder ?? new SiteBuilder();
+        $this->projectConfigurationReader = $projectConfigurationReader ?? new ProjectConfigurationReader();
+        $this->viteProcessService = $viteProcessService ?? new ViteProcessService();
+        $this->phpServerService = $phpServerService ?? new PhpServerService();
+    }
 
     /**
      * Get command description text.
@@ -125,7 +153,7 @@ final class ServeCommand extends BaseCommand
             }
 
             try {
-                $writtenFiles = (new SiteBuilder())->build(
+                $writtenFiles = $this->siteBuilder->build(
                     BuildConfig::fromProjectRoot($projectRoot, $includeDrafts),
                 );
                 $io->out(sprintf('Build complete: %d page(s).', count($writtenFiles)));
@@ -149,7 +177,7 @@ final class ServeCommand extends BaseCommand
                 $docRoot,
                 $isStaticMode,
             );
-            $this->phpServerService()->assertCanRun($phpServerConfiguration);
+            $this->phpServerService->assertCanRun($phpServerConfiguration);
         } catch (InvalidArgumentException $invalidArgumentException) {
             $io->err(sprintf('<error>%s</error>', $invalidArgumentException->getMessage()));
 
@@ -179,7 +207,7 @@ final class ServeCommand extends BaseCommand
         $viteProcess = null;
         if (!$isStaticMode && $viteConfiguration->enabled) {
             try {
-                $viteProcess = $this->viteProcessService()->start($viteConfiguration, $projectRoot);
+                $viteProcess = $this->viteProcessService->start($viteConfiguration, $projectRoot);
             } catch (RuntimeException $runtimeException) {
                 $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
                 $this->restoreEnvironment($previousEnvironment);
@@ -191,9 +219,9 @@ final class ServeCommand extends BaseCommand
         $exitCode = self::CODE_SUCCESS;
 
         try {
-            $exitCode = $this->phpServerService()->start($phpServerConfiguration, $projectRoot);
+            $exitCode = $this->phpServerService->start($phpServerConfiguration, $projectRoot);
         } finally {
-            $this->viteProcessService()->stop($viteProcess);
+            $this->viteProcessService->stop($viteProcess);
 
             if (!$isStaticMode) {
                 $this->restoreEnvironment($previousEnvironment);
@@ -320,7 +348,7 @@ final class ServeCommand extends BaseCommand
      */
     protected function readProjectConfiguration(string $projectRoot): array
     {
-        return $this->projectConfigurationReader()->read($projectRoot);
+        return $this->projectConfigurationReader->read($projectRoot);
     }
 
     /**
@@ -383,34 +411,6 @@ final class ServeCommand extends BaseCommand
 
             putenv($key . '=' . $value);
         }
-    }
-
-    /**
-     * Return Vite process service.
-     */
-    protected function viteProcessService(): ViteProcessService
-    {
-        return new ViteProcessService();
-    }
-
-    /**
-     * Return PHP server process service.
-     */
-    protected function phpServerService(): PhpServerService
-    {
-        return new PhpServerService();
-    }
-
-    /**
-     * Return project configuration reader service.
-     */
-    protected function projectConfigurationReader(): ProjectConfigurationReader
-    {
-        if (!$this->projectConfigurationReader instanceof ProjectConfigurationReader) {
-            $this->projectConfigurationReader = new ProjectConfigurationReader();
-        }
-
-        return $this->projectConfigurationReader;
     }
 
     /**

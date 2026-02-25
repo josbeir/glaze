@@ -18,7 +18,19 @@ use RuntimeException;
  */
 final class InitCommand extends BaseCommand
 {
-    protected ?ProjectScaffoldService $scaffoldService = null;
+    protected ProjectScaffoldService $scaffoldService;
+
+    /**
+     * Constructor.
+     *
+     * @param \Glaze\Scaffold\ProjectScaffoldService|null $scaffoldService Scaffold service.
+     */
+    public function __construct(?ProjectScaffoldService $scaffoldService = null)
+    {
+        parent::__construct();
+
+        $this->scaffoldService = $scaffoldService ?? new ProjectScaffoldService();
+    }
 
     /**
      * Get command description text.
@@ -92,7 +104,7 @@ final class InitCommand extends BaseCommand
     {
         try {
             $options = $this->resolveScaffoldOptions($args, $io);
-            $this->scaffoldService()->scaffold($options);
+            $this->scaffoldService->scaffold($options);
         } catch (RuntimeException $runtimeException) {
             $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
 
@@ -282,19 +294,5 @@ final class InitCommand extends BaseCommand
         }
 
         return preg_match('/^[A-Za-z]:\\\\/', $path) === 1;
-    }
-
-    /**
-     * Create or reuse scaffold service instance.
-     */
-    protected function scaffoldService(): ProjectScaffoldService
-    {
-        if ($this->scaffoldService instanceof ProjectScaffoldService) {
-            return $this->scaffoldService;
-        }
-
-        $this->scaffoldService = new ProjectScaffoldService();
-
-        return $this->scaffoldService;
     }
 }

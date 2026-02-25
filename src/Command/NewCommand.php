@@ -23,7 +23,19 @@ use Throwable;
  */
 final class NewCommand extends BaseCommand
 {
-    protected ?PageScaffoldService $pageScaffoldService = null;
+    protected PageScaffoldService $pageScaffoldService;
+
+    /**
+     * Constructor.
+     *
+     * @param \Glaze\Scaffold\PageScaffoldService|null $pageScaffoldService Page scaffold service.
+     */
+    public function __construct(?PageScaffoldService $pageScaffoldService = null)
+    {
+        parent::__construct();
+
+        $this->pageScaffoldService = $pageScaffoldService ?? new PageScaffoldService();
+    }
 
     /**
      * Get command description text.
@@ -109,7 +121,7 @@ final class NewCommand extends BaseCommand
             $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
             $config = BuildConfig::fromProjectRoot($projectRoot, true);
             $input = $this->resolvePageInput($args, $io, $config);
-            $targetPath = $this->pageScaffoldService()->scaffold(
+            $targetPath = $this->pageScaffoldService->scaffold(
                 $config->contentPath(),
                 new PageScaffoldOptions(
                     title: $input['title'],
@@ -220,13 +232,13 @@ final class NewCommand extends BaseCommand
             return null;
         }
 
-        $rules = $this->pageScaffoldService()->typePathRules($contentTypes[$type]['paths'] ?? []);
+        $rules = $this->pageScaffoldService->typePathRules($contentTypes[$type]['paths'] ?? []);
         if ($rules === []) {
             return null;
         }
 
         if ($selectedPath !== null) {
-            $rule = $this->pageScaffoldService()->findPathRuleByMatch($rules, $selectedPath);
+            $rule = $this->pageScaffoldService->findPathRuleByMatch($rules, $selectedPath);
             if ($rule === null) {
                 throw new RuntimeException(sprintf(
                     'Unknown path "%s" for type "%s". Available paths: %s',
@@ -253,7 +265,7 @@ final class NewCommand extends BaseCommand
 
         $choices = array_map(static fn(array $entry): string => $entry['match'], $rules);
         $selected = strtolower($io->askChoice('Path', $choices, $choices[0] ?? null));
-        $rule = $this->pageScaffoldService()->findPathRuleByMatch($rules, $selected);
+        $rule = $this->pageScaffoldService->findPathRuleByMatch($rules, $selected);
         if ($rule !== null) {
             return $rule;
         }
@@ -507,17 +519,5 @@ final class NewCommand extends BaseCommand
         $last = end($segments);
 
         return Inflector::humanize(str_replace('-', '_', $last));
-    }
-
-    /**
-     * Resolve page scaffold service instance.
-     */
-    protected function pageScaffoldService(): PageScaffoldService
-    {
-        if (!$this->pageScaffoldService instanceof PageScaffoldService) {
-            $this->pageScaffoldService = new PageScaffoldService();
-        }
-
-        return $this->pageScaffoldService;
     }
 }

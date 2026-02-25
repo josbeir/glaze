@@ -10,6 +10,7 @@ use Glaze\Command\BuildCommand;
 use Glaze\Serve\ViteBuildConfig;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 /**
  * Unit tests for build command internals.
@@ -44,17 +45,17 @@ final class BuildCommandTest extends TestCase
     }
 
     /**
-     * Ensure command caches and reuses its site builder instance.
+     * Ensure command reuses the injected site builder instance.
      */
-    public function testSiteBuilderAccessorCachesInstance(): void
+    public function testConstructorUsesInjectedSiteBuilder(): void
     {
-        $command = new BuildCommand();
+        $siteBuilder = new SiteBuilder();
+        $command = new BuildCommand(siteBuilder: $siteBuilder);
 
-        $firstBuilder = $this->callProtected($command, 'siteBuilder');
-        $secondBuilder = $this->callProtected($command, 'siteBuilder');
+        $siteBuilderProperty = new ReflectionProperty($command, 'siteBuilder');
+        $resolvedSiteBuilder = $siteBuilderProperty->getValue($command);
 
-        $this->assertInstanceOf(SiteBuilder::class, $firstBuilder);
-        $this->assertSame($firstBuilder, $secondBuilder);
+        $this->assertSame($siteBuilder, $resolvedSiteBuilder);
     }
 
     /**

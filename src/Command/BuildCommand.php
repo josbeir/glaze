@@ -21,11 +21,30 @@ use RuntimeException;
  */
 final class BuildCommand extends BaseCommand
 {
-    protected ?SiteBuilder $siteBuilder = null;
+    protected SiteBuilder $siteBuilder;
 
-    protected ?ProjectConfigurationReader $projectConfigurationReader = null;
+    protected ProjectConfigurationReader $projectConfigurationReader;
 
-    protected ?ViteBuildService $viteBuildService = null;
+    protected ViteBuildService $viteBuildService;
+
+    /**
+     * Constructor.
+     *
+     * @param \Glaze\Build\SiteBuilder|null $siteBuilder Site builder service.
+     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader.
+     * @param \Glaze\Serve\ViteBuildService|null $viteBuildService Vite build service.
+     */
+    public function __construct(
+        ?SiteBuilder $siteBuilder = null,
+        ?ProjectConfigurationReader $projectConfigurationReader = null,
+        ?ViteBuildService $viteBuildService = null,
+    ) {
+        parent::__construct();
+
+        $this->siteBuilder = $siteBuilder ?? new SiteBuilder();
+        $this->projectConfigurationReader = $projectConfigurationReader ?? new ProjectConfigurationReader();
+        $this->viteBuildService = $viteBuildService ?? new ViteBuildService();
+    }
 
     /**
      * Get command description text.
@@ -92,7 +111,7 @@ final class BuildCommand extends BaseCommand
                 $projectRoot,
                 $includeDrafts,
             );
-            $writtenFiles = $this->siteBuilder()->build(
+            $writtenFiles = $this->siteBuilder->build(
                 $config,
                 $cleanOutput,
                 function (int $completedPages, int $totalPages) use ($io): void {
@@ -103,7 +122,7 @@ final class BuildCommand extends BaseCommand
             $io->out();
 
             if ($viteBuildConfiguration->enabled) {
-                $this->viteBuildService()->run($viteBuildConfiguration, $projectRoot);
+                $this->viteBuildService->run($viteBuildConfiguration, $projectRoot);
                 $io->out('Vite build complete.');
             }
         } catch (RuntimeException $runtimeException) {
@@ -188,7 +207,7 @@ final class BuildCommand extends BaseCommand
      */
     protected function readProjectConfiguration(string $projectRoot): array
     {
-        return $this->projectConfigurationReader()->read($projectRoot);
+        return $this->projectConfigurationReader->read($projectRoot);
     }
 
     /**
@@ -218,30 +237,6 @@ final class BuildCommand extends BaseCommand
     }
 
     /**
-     * Return project configuration reader service.
-     */
-    protected function projectConfigurationReader(): ProjectConfigurationReader
-    {
-        if (!$this->projectConfigurationReader instanceof ProjectConfigurationReader) {
-            $this->projectConfigurationReader = new ProjectConfigurationReader();
-        }
-
-        return $this->projectConfigurationReader;
-    }
-
-    /**
-     * Return Vite build service.
-     */
-    protected function viteBuildService(): ViteBuildService
-    {
-        if (!$this->viteBuildService instanceof ViteBuildService) {
-            $this->viteBuildService = new ViteBuildService();
-        }
-
-        return $this->viteBuildService;
-    }
-
-    /**
      * Convert absolute path to root-relative display path.
      *
      * @param string $filePath Absolute file path.
@@ -256,20 +251,6 @@ final class BuildCommand extends BaseCommand
         }
 
         return $filePath;
-    }
-
-    /**
-     * Create or reuse the site builder instance.
-     */
-    protected function siteBuilder(): SiteBuilder
-    {
-        if ($this->siteBuilder instanceof SiteBuilder) {
-            return $this->siteBuilder;
-        }
-
-        $this->siteBuilder = new SiteBuilder();
-
-        return $this->siteBuilder;
     }
 
     /**

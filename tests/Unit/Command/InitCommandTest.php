@@ -10,6 +10,7 @@ use Glaze\Command\InitCommand;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 use RuntimeException;
 
 /**
@@ -52,17 +53,17 @@ final class InitCommandTest extends TestCase
     }
 
     /**
-     * Ensure scaffold service accessor caches single instance.
+     * Ensure constructor keeps the injected scaffold service instance.
      */
-    public function testScaffoldServiceAccessorCachesInstance(): void
+    public function testConstructorUsesInjectedScaffoldService(): void
     {
-        $command = new InitCommand();
+        $scaffoldService = new ProjectScaffoldService();
+        $command = new InitCommand($scaffoldService);
 
-        $first = $this->callProtected($command, 'scaffoldService');
-        $second = $this->callProtected($command, 'scaffoldService');
+        $scaffoldServiceProperty = new ReflectionProperty($command, 'scaffoldService');
+        $resolvedScaffoldService = $scaffoldServiceProperty->getValue($command);
 
-        $this->assertInstanceOf(ProjectScaffoldService::class, $first);
-        $this->assertSame($first, $second);
+        $this->assertSame($scaffoldService, $resolvedScaffoldService);
     }
 
     /**
