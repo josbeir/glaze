@@ -20,37 +20,22 @@ use RuntimeException;
  */
 final class SiteBuilder
 {
-    protected ContentDiscoveryService $discoveryService;
-
-    protected DjotRenderer $djotRenderer;
-
-    protected ContentAssetPublisher $assetPublisher;
-
-    protected PageMetaResolver $pageMetaResolver;
-
-    protected GlideImageTransformer $glideImageTransformer;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Content\ContentDiscoveryService|null $discoveryService Content discovery service.
-     * @param \Glaze\Render\DjotRenderer|null $djotRenderer Djot renderer service.
-     * @param \Glaze\Build\ContentAssetPublisher|null $assetPublisher Asset publishing service.
-     * @param \Glaze\Build\PageMetaResolver|null $pageMetaResolver Page meta resolver.
-     * @param \Glaze\Image\GlideImageTransformer|null $glideImageTransformer Glide image transformer.
+     * @param \Glaze\Content\ContentDiscoveryService $discoveryService Content discovery service.
+     * @param \Glaze\Render\DjotRenderer $djotRenderer Djot renderer service.
+     * @param \Glaze\Build\ContentAssetPublisher $assetPublisher Asset publishing service.
+     * @param \Glaze\Build\PageMetaResolver $pageMetaResolver Page meta resolver.
+     * @param \Glaze\Image\GlideImageTransformer $glideImageTransformer Glide image transformer.
      */
     public function __construct(
-        ?ContentDiscoveryService $discoveryService = null,
-        ?DjotRenderer $djotRenderer = null,
-        ?ContentAssetPublisher $assetPublisher = null,
-        ?PageMetaResolver $pageMetaResolver = null,
-        ?GlideImageTransformer $glideImageTransformer = null,
+        protected ContentDiscoveryService $discoveryService,
+        protected DjotRenderer $djotRenderer,
+        protected ContentAssetPublisher $assetPublisher,
+        protected PageMetaResolver $pageMetaResolver,
+        protected GlideImageTransformer $glideImageTransformer,
     ) {
-        $this->discoveryService = $discoveryService ?? new ContentDiscoveryService();
-        $this->djotRenderer = $djotRenderer ?? new DjotRenderer();
-        $this->assetPublisher = $assetPublisher ?? new ContentAssetPublisher();
-        $this->pageMetaResolver = $pageMetaResolver ?? new PageMetaResolver();
-        $this->glideImageTransformer = $glideImageTransformer ?? new GlideImageTransformer();
     }
 
     /**

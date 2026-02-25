@@ -15,19 +15,16 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 abstract class AbstractAssetMiddleware implements MiddlewareInterface
 {
-    protected AssetResponder $assetResponder;
-
     /**
      * Constructor.
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @param \Glaze\Http\AssetResponder|null $assetResponder Asset responder service.
+     * @param \Glaze\Http\AssetResponder $assetResponder Asset responder service.
      */
     public function __construct(
         protected BuildConfig $config,
-        ?AssetResponder $assetResponder = null,
+        protected AssetResponder $assetResponder,
     ) {
-        $this->assetResponder = $assetResponder ?? new AssetResponder();
     }
 
     /**

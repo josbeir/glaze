@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Content;
 use Cake\Chronos\Chronos;
 use Closure;
 use Glaze\Content\ContentDiscoveryService;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -15,6 +16,7 @@ use RuntimeException;
  */
 final class ContentDiscoveryServiceTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -22,7 +24,7 @@ final class ContentDiscoveryServiceTest extends TestCase
      */
     public function testDiscoverReturnsEmptyArrayWhenContentDirectoryMissing(): void
     {
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($this->createTempDirectory() . '/missing');
 
         $this->assertSame([], $pages);
@@ -38,7 +40,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         mkdir($contentPath . '/blog', 0755, true);
         file_put_contents($contentPath . '/blog/Hello World.dj', "# Blog\n");
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath);
 
         $this->assertCount(2, $pages);
@@ -71,7 +73,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ntitle: Front Home\nslug: custom/home\ndraft: true\ndate: 2026-02-24T14:30:00+01:00\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath);
 
         $this->assertCount(1, $pages);
@@ -102,7 +104,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ndate: \"2026-02-24T14:30:00+01:00\"\nmeta:\n  date: \"2026-02-01\"\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath);
 
         $this->assertCount(1, $pages);
@@ -130,7 +132,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ndate: not-a-date\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invalid frontmatter "date" value');
@@ -150,7 +152,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\nmeta:\n  date: invalid-date\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invalid frontmatter "date" value');
@@ -167,7 +169,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         mkdir($contentPath . '/blog', 0755, true);
         file_put_contents($contentPath . '/blog/index.dj', "# Blog\n");
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath);
 
         $this->assertCount(2, $pages);
@@ -191,7 +193,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\nslug: ///\nname: 123\ntags:\n  - one\n  - 2\n  - null\n  - { bad: value }\nobj: { foo: bar }\nmeta:\n  robots: noindex\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath);
 
         $this->assertCount(1, $pages);
@@ -219,7 +221,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ntitle: Home\ntags:\n  - Tag1\n  - tag2\ncategories:\n  - Category1\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover($contentPath, ['tags', 'categories']);
 
         $this->assertCount(1, $pages);
@@ -244,7 +246,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ntitle: Custom title\n+++\n# Post\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
             ['tags'],
@@ -284,7 +286,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ntype: docs\n+++\n# Post\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
             ['tags'],
@@ -324,7 +326,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "+++\ntype: unknown\n+++\n# Home\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('unknown content type');
@@ -356,7 +358,7 @@ final class ContentDiscoveryServiceTest extends TestCase
             "# Note\n",
         );
 
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
             ['tags'],
@@ -381,7 +383,7 @@ final class ContentDiscoveryServiceTest extends TestCase
      */
     public function testProtectedHelpersHandleFallbackPaths(): void
     {
-        $service = new ContentDiscoveryService();
+        $service = $this->createService();
 
         $slug = $this->callProtected($service, 'slugifyPath', '///');
         $title = $this->callProtected($service, 'resolveTitle', 'blog/my-post', ['title' => '']);
@@ -417,5 +419,14 @@ final class ContentDiscoveryServiceTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a content discovery service with concrete dependencies.
+     */
+    protected function createService(): ContentDiscoveryService
+    {
+        /** @var \Glaze\Content\ContentDiscoveryService */
+        return $this->service(ContentDiscoveryService::class);
     }
 }

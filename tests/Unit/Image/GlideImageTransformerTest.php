@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Image;
 
 use Closure;
 use Glaze\Image\GlideImageTransformer;
+use Glaze\Image\ImagePresetResolver;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -32,7 +33,7 @@ final class GlideImageTransformerTest extends TestCase
         mkdir($rootPath . '/images', 0755, true);
         $this->createJpegImage($rootPath . '/images/pixel.jpg');
 
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
         $response = $transformer->createResponse(
             rootPath: $rootPath,
             requestPath: '/images/pixel.jpg',
@@ -50,7 +51,7 @@ final class GlideImageTransformerTest extends TestCase
      */
     public function testCreateResponseReturnsNullForUnsafePath(): void
     {
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
         $response = $transformer->createResponse(
             rootPath: $this->createTempDirectory(),
             requestPath: '/../secret.png',
@@ -70,7 +71,7 @@ final class GlideImageTransformerTest extends TestCase
     {
         $rootPath = $this->createTempDirectory();
 
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
         $response = $transformer->createResponse(
             rootPath: $rootPath,
             requestPath: '/images/missing.jpg',
@@ -98,7 +99,7 @@ final class GlideImageTransformerTest extends TestCase
 
         $cachePath = $this->createTempDirectory() . '/cache';
 
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
         $response = $transformer->createResponse(
             rootPath: $rootPath,
             requestPath: '/images/pixel.jpg',
@@ -130,7 +131,7 @@ final class GlideImageTransformerTest extends TestCase
         $this->createJpegImage($rootPath . '/images/pixel.jpg');
 
         $cachePath = $this->createTempDirectory() . '/cache';
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
 
         $firstResponse = $transformer->createResponse(
             rootPath: $rootPath,
@@ -172,7 +173,7 @@ final class GlideImageTransformerTest extends TestCase
      */
     public function testProtectedHelpersHandlePathNormalizationAndValidation(): void
     {
-        $transformer = new GlideImageTransformer();
+        $transformer = $this->createTransformer();
 
         $relative = $this->callProtected($transformer, 'toRelativeRequestPath', '/images/pixel.png');
         $emptyRelative = $this->callProtected($transformer, 'toRelativeRequestPath', '/');
@@ -296,5 +297,13 @@ final class GlideImageTransformerTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create an image transformer with concrete dependencies.
+     */
+    protected function createTransformer(): GlideImageTransformer
+    {
+        return new GlideImageTransformer(new ImagePresetResolver());
     }
 }

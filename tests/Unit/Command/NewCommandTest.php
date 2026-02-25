@@ -9,6 +9,7 @@ use Cake\Console\ConsoleOutput;
 use Closure;
 use Glaze\Command\NewCommand;
 use Glaze\Config\BuildConfig;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -18,12 +19,14 @@ use RuntimeException;
  */
 final class NewCommandTest extends TestCase
 {
+    use ContainerTestTrait;
+
     /**
      * Ensure command description and parser options are registered.
      */
     public function testDescriptionAndParserConfiguration(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $parser = $command->getOptionParser();
         $arguments = $parser->arguments();
 
@@ -44,7 +47,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeDateInputValidation(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
 
         $normalized = $this->callProtected($command, 'normalizeDateInput', '2026-02-24T14:30:00+01:00');
         $this->assertSame('2026-02-24T14:30:00+01:00', $normalized);
@@ -59,7 +62,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeTypeInputValidation(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $contentTypes = [
             'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
             'docs' => ['paths' => [['match' => 'docs', 'createPattern' => null]], 'defaults' => []],
@@ -81,7 +84,7 @@ final class NewCommandTest extends TestCase
      */
     public function testNormalizeTypeInputRejectsWhenNoContentTypesConfigured(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No content types are configured');
@@ -93,7 +96,7 @@ final class NewCommandTest extends TestCase
      */
     public function testSlugifyPathNormalizesSegments(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
 
         $slug = $this->callProtected($command, 'slugifyPath', 'Hello World/Another Post');
 
@@ -105,7 +108,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolvePageInputUsesArgumentsAndDraftOption(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $config = new BuildConfig(
             projectRoot: '/tmp/project',
             contentTypes: [
@@ -152,7 +155,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolvePageInputUsesPromptDefaultsWhenNotInteractive(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $config = new BuildConfig(projectRoot: '/tmp/project');
         $args = new Arguments(
             ['My Post'],
@@ -190,7 +193,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolvePageInputDerivesTitleFromSlug(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $config = new BuildConfig(projectRoot: '/tmp/project');
         $args = new Arguments(
             [],
@@ -218,7 +221,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolvePageInputRequiresPathForMultiPathTypeInNonInteractiveMode(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $config = new BuildConfig(
             projectRoot: '/tmp/project',
             contentTypes: [
@@ -256,7 +259,7 @@ final class NewCommandTest extends TestCase
      */
     public function testResolvePageInputRejectsMissingTitleInNonInteractiveMode(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $config = new BuildConfig(projectRoot: '/tmp/project');
         $args = new Arguments([], ['yes' => true], ['title']);
 
@@ -277,7 +280,7 @@ final class NewCommandTest extends TestCase
             "contentTypes:\n  blog:\n    paths:\n      - blog\n    defaults: {}\n",
         );
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $args = new Arguments(
             ['My Post'],
             [
@@ -320,7 +323,7 @@ final class NewCommandTest extends TestCase
             "contentTypes:\n  blog:\n    paths:\n      - match: blog\n        createPattern: 'blog/{date:Y}'\n      - match: posts\n    defaults: {}\n",
         );
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $args = new Arguments(
             ['My Post'],
             [
@@ -356,7 +359,7 @@ final class NewCommandTest extends TestCase
             "contentTypes:\n  blog:\n    paths:\n      - match: blog\n        createPattern: 'blog/{date:Y/m}'\n    defaults: {}\n",
         );
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $args = new Arguments(
             ['My Post'],
             [
@@ -388,7 +391,7 @@ final class NewCommandTest extends TestCase
     {
         $projectRoot = $this->createTempProjectRoot();
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $args = new Arguments(
             ['My Post'],
             [
@@ -424,7 +427,7 @@ final class NewCommandTest extends TestCase
             "contentTypes:\n  blog:\n    paths:\n      - blog\n    defaults: {}\n",
         );
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $args = new Arguments(
             ['My Post'],
             [
@@ -458,7 +461,7 @@ final class NewCommandTest extends TestCase
         );
         file_put_contents($projectRoot . '/content/blog/my-post.dj', 'existing');
 
-        $command = new NewCommand();
+        $command = $this->createCommand();
         $baseOptions = [
             'root' => $projectRoot,
             'yes' => true,
@@ -481,7 +484,7 @@ final class NewCommandTest extends TestCase
      */
     public function testHelperNormalizationFallbacks(): void
     {
-        $command = new NewCommand();
+        $command = $this->createCommand();
 
         $emptySlug = $this->callProtected($command, 'slugifyPath', '///');
         $relativePath = $this->callProtected($command, 'relativeToRoot', '/other/path/file.dj', '/tmp/project');
@@ -542,5 +545,14 @@ final class NewCommandTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a command instance with concrete dependencies.
+     */
+    protected function createCommand(): NewCommand
+    {
+        /** @var \Glaze\Command\NewCommand */
+        return $this->service(NewCommand::class);
     }
 }

@@ -19,16 +19,13 @@ use Throwable;
  */
 final class ContentDiscoveryService
 {
-    protected FrontMatterParser $frontMatterParser;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Content\FrontMatterParser|null $frontMatterParser Frontmatter parser service.
+     * @param \Glaze\Content\FrontMatterParser $frontMatterParser Frontmatter parser service.
      */
-    public function __construct(?FrontMatterParser $frontMatterParser = null)
+    public function __construct(protected FrontMatterParser $frontMatterParser)
     {
-        $this->frontMatterParser = $frontMatterParser ?? new FrontMatterParser();
     }
 
     /**

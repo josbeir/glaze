@@ -5,7 +5,6 @@ namespace Glaze\Http\Middleware;
 
 use Glaze\Config\BuildConfig;
 use Glaze\Http\AssetResponder;
-use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImageTransformerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -15,22 +14,19 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 abstract class AbstractGlideAssetMiddleware extends AbstractAssetMiddleware
 {
-    protected ImageTransformerInterface $imageTransformer;
-
     /**
      * Constructor.
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @param \Glaze\Http\AssetResponder|null $assetResponder Asset responder service.
-     * @param \Glaze\Image\ImageTransformerInterface|null $imageTransformer Image transformer service.
+     * @param \Glaze\Http\AssetResponder $assetResponder Asset responder service.
+     * @param \Glaze\Image\ImageTransformerInterface $imageTransformer Image transformer service.
      */
     public function __construct(
         BuildConfig $config,
-        ?AssetResponder $assetResponder = null,
-        ?ImageTransformerInterface $imageTransformer = null,
+        AssetResponder $assetResponder,
+        protected ImageTransformerInterface $imageTransformer,
     ) {
         parent::__construct($config, $assetResponder);
-        $this->imageTransformer = $imageTransformer ?? new GlideImageTransformer();
     }
 
     /**

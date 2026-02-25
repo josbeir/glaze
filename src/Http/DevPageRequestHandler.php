@@ -15,19 +15,16 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class DevPageRequestHandler implements RequestHandlerInterface
 {
-    protected SiteBuilder $siteBuilder;
-
     /**
      * Constructor.
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @param \Glaze\Build\SiteBuilder|null $siteBuilder Site builder service.
+     * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
      */
     public function __construct(
         protected BuildConfig $config,
-        ?SiteBuilder $siteBuilder = null,
+        protected SiteBuilder $siteBuilder,
     ) {
-        $this->siteBuilder = $siteBuilder ?? new SiteBuilder();
     }
 
     /**

@@ -11,8 +11,6 @@ use RuntimeException;
  */
 final class BuildConfig
 {
-    protected static ?ProjectConfigurationReader $projectConfigurationReader = null;
-
     public readonly SiteConfig $site;
 
     /**
@@ -61,11 +59,18 @@ final class BuildConfig
      *
      * @param string $projectRoot Project root path.
      * @param bool $includeDrafts Whether draft pages should be included.
+     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader service.
      */
-    public static function fromProjectRoot(string $projectRoot, bool $includeDrafts = false): self
-    {
+    public static function fromProjectRoot(
+        string $projectRoot,
+        bool $includeDrafts = false,
+        ?ProjectConfigurationReader $projectConfigurationReader = null,
+    ): self {
         $normalizedRoot = Normalization::path($projectRoot);
-        $projectConfiguration = self::readProjectConfiguration($normalizedRoot);
+        $projectConfiguration = self::readProjectConfiguration(
+            projectRoot: $normalizedRoot,
+            projectConfigurationReader: $projectConfigurationReader,
+        );
         $imageConfiguration = $projectConfiguration['images'] ?? null;
         $imagePresets = [];
         $imageOptions = [];
@@ -354,23 +359,16 @@ final class BuildConfig
      * Read optional project configuration from `glaze.neon`.
      *
      * @param string $projectRoot Absolute project root path.
+     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader service.
      * @return array<string, mixed>
      */
-    protected static function readProjectConfiguration(string $projectRoot): array
-    {
-        return self::projectConfigurationReader()->read($projectRoot);
-    }
+    protected static function readProjectConfiguration(
+        string $projectRoot,
+        ?ProjectConfigurationReader $projectConfigurationReader = null,
+    ): array {
+        $reader = $projectConfigurationReader ?? new ProjectConfigurationReader();
 
-    /**
-     * Resolve project configuration reader service instance.
-     */
-    protected static function projectConfigurationReader(): ProjectConfigurationReader
-    {
-        if (!self::$projectConfigurationReader instanceof ProjectConfigurationReader) {
-            self::$projectConfigurationReader = new ProjectConfigurationReader();
-        }
-
-        return self::$projectConfigurationReader;
+        return $reader->read($projectRoot);
     }
 
     /**

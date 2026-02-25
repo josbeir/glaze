@@ -5,13 +5,17 @@ namespace Glaze\Tests\Unit\Http;
 
 use Cake\Http\Response;
 use Cake\Http\ServerRequestFactory;
+use Closure;
 use Glaze\Config\BuildConfig;
+use Glaze\Http\AssetResponder;
 use Glaze\Http\Middleware\AbstractAssetMiddleware;
 use Glaze\Http\Middleware\AbstractGlideAssetMiddleware;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
 use Glaze\Http\Middleware\StaticAssetMiddleware;
+use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImageTransformerInterface;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -23,6 +27,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class AssetMiddlewareTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -35,7 +40,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new PublicAssetMiddleware($config);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/images/logo.jpg');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -56,7 +61,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new PublicAssetMiddleware($config);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/images/logo.jpg');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -76,7 +81,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/static/image.png', 'png-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new StaticAssetMiddleware($config);
+        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/image.png');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -97,7 +102,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new StaticAssetMiddleware($config);
+        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/image.png');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -116,7 +121,7 @@ final class AssetMiddlewareTest extends TestCase
         mkdir($projectRoot . '/content', 0755, true);
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new ContentAssetMiddleware($config);
+        $middleware = new ContentAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/missing.jpg');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -155,7 +160,7 @@ final class AssetMiddlewareTest extends TestCase
             }
         };
 
-        $middleware = new PublicAssetMiddleware($config, null, $transformer);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
         $request = (new ServerRequestFactory())
             ->createServerRequest('GET', '/images/logo.jpg')
             ->withQueryParams(['h' => '500']);
@@ -201,7 +206,7 @@ final class AssetMiddlewareTest extends TestCase
             }
         };
 
-        $middleware = new PublicAssetMiddleware($config, null, $transformer);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
         $request = (new ServerRequestFactory())
             ->createServerRequest('GET', '/glaze/images/logo.jpg')
             ->withQueryParams(['h' => '500']);
@@ -235,7 +240,7 @@ final class AssetMiddlewareTest extends TestCase
             }
         };
 
-        $middleware = new PublicAssetMiddleware($config, null, $transformer);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
         $request = (new ServerRequestFactory())
             ->createServerRequest('GET', '/images/logo.jpg')
             ->withQueryParams(['h' => '500']);
@@ -255,31 +260,20 @@ final class AssetMiddlewareTest extends TestCase
         mkdir($projectRoot . '/public', 0755, true);
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new class ($config) extends AbstractGlideAssetMiddleware {
-            public function imagePath(string $requestPath): bool
-            {
-                return $this->isImagePath($requestPath);
-            }
-
-            /**
-             * @param array<mixed> $queryParams Query parameter map.
-             * @return array<string, mixed>
-             */
-            public function normalizedQueryParams(array $queryParams): array
-            {
-                return $this->normalizeQueryParams($queryParams);
-            }
-
+        $middleware = new class ($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class)) extends AbstractGlideAssetMiddleware {
             protected function assetRootPath(): string
             {
                 return $this->config->outputPath();
             }
         };
 
-        $this->assertTrue($middleware->imagePath('/images/photo.jpg'));
-        $this->assertFalse($middleware->imagePath('/images/readme.txt'));
-        $this->assertFalse($middleware->imagePath('/images/photo'));
-        $this->assertSame(['h' => '500'], $middleware->normalizedQueryParams(['h' => '500', 0 => 'ignored']));
+        $this->assertTrue($this->callProtected($middleware, 'isImagePath', '/images/photo.jpg'));
+        $this->assertFalse($this->callProtected($middleware, 'isImagePath', '/images/readme.txt'));
+        $this->assertFalse($this->callProtected($middleware, 'isImagePath', '/images/photo'));
+        $this->assertSame(
+            ['h' => '500'],
+            $this->callProtected($middleware, 'normalizeQueryParams', ['h' => '500', 0 => 'ignored']),
+        );
     }
 
     /**
@@ -292,7 +286,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new class ($config) extends AbstractAssetMiddleware {
+        $middleware = new class ($config, $this->service(AssetResponder::class)) extends AbstractAssetMiddleware {
             protected function shouldHandleRequest(ServerRequestInterface $request): bool
             {
                 return false;
@@ -319,7 +313,7 @@ final class AssetMiddlewareTest extends TestCase
         $projectRoot = $this->createTempDirectory();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
 
-        $middleware = new class ($config) extends AbstractAssetMiddleware {
+        $middleware = new class ($config, $this->service(AssetResponder::class)) extends AbstractAssetMiddleware {
             protected function createAssetResponse(ServerRequestInterface $request): ResponseInterface
             {
                 return (new Response(['charset' => 'UTF-8']))
@@ -356,5 +350,25 @@ final class AssetMiddlewareTest extends TestCase
                     ->withStringBody('fallback');
             }
         };
+    }
+
+    /**
+     * Invoke a protected method on an object using scope-bound closure.
+     *
+     * @param object $object Object to invoke method on.
+     * @param string $method Protected method name.
+     * @param mixed ...$arguments Method arguments.
+     */
+    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
+    {
+        $invoker = Closure::bind(
+            function (string $method, mixed ...$arguments): mixed {
+                return $this->{$method}(...$arguments);
+            },
+            $object,
+            $object::class,
+        );
+
+        return $invoker($method, ...$arguments);
     }
 }

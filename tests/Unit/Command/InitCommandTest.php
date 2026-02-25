@@ -9,6 +9,7 @@ use Closure;
 use Glaze\Command\InitCommand;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use RuntimeException;
@@ -18,12 +19,14 @@ use RuntimeException;
  */
 final class InitCommandTest extends TestCase
 {
+    use ContainerTestTrait;
+
     /**
      * Ensure taxonomy parsing handles empty values and deduplication.
      */
     public function testParseTaxonomiesNormalizesInput(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
 
         $parsed = $this->callProtected($command, 'parseTaxonomies', ' Tags, categories, tags, , ');
         $fallback = $this->callProtected($command, 'parseTaxonomies', ' , ');
@@ -37,7 +40,7 @@ final class InitCommandTest extends TestCase
      */
     public function testPathAndTitleHelpers(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
 
         $title = $this->callProtected($command, 'defaultTitle', 'my-site');
         $absoluteUnix = $this->callProtected($command, 'isAbsolutePath', '/tmp/new-site');
@@ -71,7 +74,7 @@ final class InitCommandTest extends TestCase
      */
     public function testNormalizeStringReturnsNullForInvalidValues(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
 
         $empty = $this->callProtected($command, 'normalizeString', '   ');
         $nonString = $this->callProtected($command, 'normalizeString', ['site']);
@@ -87,7 +90,7 @@ final class InitCommandTest extends TestCase
      */
     public function testNormalizeBasePathNormalizesInput(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
 
         $empty = $this->callProtected($command, 'normalizeBasePath', null);
         $root = $this->callProtected($command, 'normalizeBasePath', '/');
@@ -105,7 +108,7 @@ final class InitCommandTest extends TestCase
      */
     public function testNormalizeTemplateNameNormalizesInput(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
 
         $defaultTemplate = $this->callProtected($command, 'normalizeTemplateName', null);
         $emptyTemplate = $this->callProtected($command, 'normalizeTemplateName', '  ');
@@ -121,7 +124,7 @@ final class InitCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsNormalizesRelativeDirectory(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
         $arguments = new Arguments(
             ['relative-site'],
             ['yes' => true, 'base-path' => 'docs'],
@@ -143,7 +146,7 @@ final class InitCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsRejectsMissingDirectory(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
         $arguments = new Arguments([], ['yes' => true], ['directory']);
         $io = new ConsoleIo();
 
@@ -158,7 +161,7 @@ final class InitCommandTest extends TestCase
      */
     public function testResolveScaffoldOptionsRejectsMissingDerivedSiteName(): void
     {
-        $command = new InitCommand();
+        $command = $this->createCommand();
         $arguments = new Arguments(['/'], ['yes' => true], ['directory']);
         $io = new ConsoleIo();
 
@@ -186,5 +189,14 @@ final class InitCommandTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a command instance with concrete dependencies.
+     */
+    protected function createCommand(): InitCommand
+    {
+        /** @var \Glaze\Command\InitCommand */
+        return $this->service(InitCommand::class);
     }
 }

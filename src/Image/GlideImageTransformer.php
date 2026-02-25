@@ -14,16 +14,13 @@ use Throwable;
  */
 final class GlideImageTransformer implements ImageTransformerInterface
 {
-    protected ImagePresetResolver $presetResolver;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Image\ImagePresetResolver|null $presetResolver Preset resolver service.
+     * @param \Glaze\Image\ImagePresetResolver $presetResolver Preset resolver service.
      */
-    public function __construct(?ImagePresetResolver $presetResolver = null)
+    public function __construct(protected ImagePresetResolver $presetResolver)
     {
-        $this->presetResolver = $presetResolver ?? new ImagePresetResolver();
     }
 
     /**

@@ -7,7 +7,11 @@ use Cake\Console\Arguments;
 use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Command\BuildCommand;
+use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Serve\ViteBuildConfig;
+use Glaze\Serve\ViteBuildService;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -17,6 +21,7 @@ use ReflectionProperty;
  */
 final class BuildCommandTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -24,7 +29,7 @@ final class BuildCommandTest extends TestCase
      */
     public function testRelativeToRootHandlesMatchingAndNonMatchingRoots(): void
     {
-        $command = new BuildCommand();
+        $command = $this->createCommand();
 
         $relative = $this->callProtected(
             $command,
@@ -49,8 +54,13 @@ final class BuildCommandTest extends TestCase
      */
     public function testConstructorUsesInjectedSiteBuilder(): void
     {
-        $siteBuilder = new SiteBuilder();
-        $command = new BuildCommand(siteBuilder: $siteBuilder);
+        $siteBuilder = $this->service(SiteBuilder::class);
+        $command = new BuildCommand(
+            siteBuilder: $siteBuilder,
+            projectConfigurationReader: $this->service(ProjectConfigurationReader::class),
+            viteBuildService: $this->service(ViteBuildService::class),
+            buildConfigFactory: $this->service(BuildConfigFactory::class),
+        );
 
         $siteBuilderProperty = new ReflectionProperty($command, 'siteBuilder');
         $resolvedSiteBuilder = $siteBuilderProperty->getValue($command);
@@ -63,7 +73,7 @@ final class BuildCommandTest extends TestCase
      */
     public function testNormalizeRootOptionHandlesVariants(): void
     {
-        $command = new BuildCommand();
+        $command = $this->createCommand();
 
         $trimmed = $this->callProtected($command, 'normalizeRootOption', ' /tmp/site ');
         $blank = $this->callProtected($command, 'normalizeRootOption', '   ');
@@ -79,7 +89,7 @@ final class BuildCommandTest extends TestCase
      */
     public function testResolveViteBuildConfigurationFromConfigAndCliOverrides(): void
     {
-        $command = new BuildCommand();
+        $command = $this->createCommand();
 
         $argsFromConfig = new Arguments([], [
             'vite' => false,
@@ -129,7 +139,7 @@ final class BuildCommandTest extends TestCase
      */
     public function testResolveBuildBooleanOptionFromCliAndConfiguration(): void
     {
-        $command = new BuildCommand();
+        $command = $this->createCommand();
 
         $argsFromCli = new Arguments([], [
             'clean' => true,
@@ -186,5 +196,14 @@ final class BuildCommandTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a command instance with concrete dependencies.
+     */
+    protected function createCommand(): BuildCommand
+    {
+        /** @var \Glaze\Command\BuildCommand */
+        return $this->service(BuildCommand::class);
     }
 }

@@ -8,7 +8,7 @@ use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
-use Glaze\Config\BuildConfig;
+use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Serve\PhpServerConfig;
 use Glaze\Serve\PhpServerService;
@@ -24,34 +24,23 @@ use RuntimeException;
  */
 final class ServeCommand extends BaseCommand
 {
-    protected SiteBuilder $siteBuilder;
-
-    protected ProjectConfigurationReader $projectConfigurationReader;
-
-    protected ViteProcessService $viteProcessService;
-
-    protected PhpServerService $phpServerService;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Build\SiteBuilder|null $siteBuilder Site builder service.
-     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader.
-     * @param \Glaze\Serve\ViteProcessService|null $viteProcessService Vite process service.
-     * @param \Glaze\Serve\PhpServerService|null $phpServerService PHP server service.
+     * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
+     * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
+     * @param \Glaze\Serve\ViteProcessService $viteProcessService Vite process service.
+     * @param \Glaze\Serve\PhpServerService $phpServerService PHP server service.
+     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
-        ?SiteBuilder $siteBuilder = null,
-        ?ProjectConfigurationReader $projectConfigurationReader = null,
-        ?ViteProcessService $viteProcessService = null,
-        ?PhpServerService $phpServerService = null,
+        protected SiteBuilder $siteBuilder,
+        protected ProjectConfigurationReader $projectConfigurationReader,
+        protected ViteProcessService $viteProcessService,
+        protected PhpServerService $phpServerService,
+        protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
-
-        $this->siteBuilder = $siteBuilder ?? new SiteBuilder();
-        $this->projectConfigurationReader = $projectConfigurationReader ?? new ProjectConfigurationReader();
-        $this->viteProcessService = $viteProcessService ?? new ViteProcessService();
-        $this->phpServerService = $phpServerService ?? new PhpServerService();
     }
 
     /**
@@ -154,7 +143,7 @@ final class ServeCommand extends BaseCommand
 
             try {
                 $writtenFiles = $this->siteBuilder->build(
-                    BuildConfig::fromProjectRoot($projectRoot, $includeDrafts),
+                    $this->buildConfigFactory->fromProjectRoot($projectRoot, $includeDrafts),
                 );
                 $io->out(sprintf('Build complete: %d page(s).', count($writtenFiles)));
             } catch (RuntimeException $runtimeException) {

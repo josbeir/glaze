@@ -8,17 +8,13 @@ use Cake\Core\ConsoleApplicationInterface;
 use Cake\Core\Container;
 use Cake\Core\ContainerApplicationInterface;
 use Cake\Core\ContainerInterface;
-use Glaze\Build\SiteBuilder;
 use Glaze\Command\BuildCommand;
 use Glaze\Command\InitCommand;
 use Glaze\Command\NewCommand;
 use Glaze\Command\ServeCommand;
-use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Scaffold\PageScaffoldService;
-use Glaze\Scaffold\ProjectScaffoldService;
-use Glaze\Serve\PhpServerService;
-use Glaze\Serve\ViteBuildService;
-use Glaze\Serve\ViteProcessService;
+use Glaze\Image\GlideImageTransformer;
+use Glaze\Image\ImagePresetResolver;
+use Glaze\Image\ImageTransformerInterface;
 use League\Container\ReflectionContainer;
 
 /**
@@ -57,13 +53,15 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
      */
     public function services(ContainerInterface $container): void
     {
-        $container->addShared(SiteBuilder::class);
-        $container->addShared(ProjectConfigurationReader::class);
-        $container->addShared(ViteBuildService::class);
-        $container->addShared(ViteProcessService::class);
-        $container->addShared(PhpServerService::class);
-        $container->addShared(ProjectScaffoldService::class);
-        $container->addShared(PageScaffoldService::class);
+        $container->addShared(
+            ImageTransformerInterface::class,
+            function () use ($container): ImageTransformerInterface {
+                /** @var \Glaze\Image\ImagePresetResolver $presetResolver */
+                $presetResolver = $container->get(ImagePresetResolver::class);
+
+                return new GlideImageTransformer($presetResolver);
+            },
+        );
     }
 
     /**

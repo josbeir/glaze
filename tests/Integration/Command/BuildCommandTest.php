@@ -315,16 +315,15 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     public function testBuildCommandCanRunViteBuildProcess(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
-        $viteScriptPath = $projectRoot . '/vite-build.sh';
+        $viteScriptPath = $projectRoot . '/vite-build.php';
 
         file_put_contents(
             $viteScriptPath,
-            "#!/usr/bin/env sh\nmkdir -p public\necho vite-built > public/vite-build.txt\n",
+            "<?php\ndeclare(strict_types=1);\nif (!is_dir('public')) {\n    mkdir('public', 0755, true);\n}\nfile_put_contents('public/vite-build.txt', 'vite-built' . PHP_EOL);\n",
         );
-        chmod($viteScriptPath, 0755);
 
         $this->exec(sprintf(
-            'build --root "%s" --vite --vite-command "./vite-build.sh"',
+            'build --root "%s" --vite --vite-command "php vite-build.php"',
             $projectRoot,
         ));
 
@@ -340,16 +339,15 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     public function testBuildCommandReportsViteBuildFailure(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
-        $viteScriptPath = $projectRoot . '/vite-build-fail.sh';
+        $viteScriptPath = $projectRoot . '/vite-build-fail.php';
 
         file_put_contents(
             $viteScriptPath,
-            "#!/usr/bin/env sh\necho vite failed >&2\nexit 1\n",
+            "<?php\ndeclare(strict_types=1);\nfwrite(STDERR, 'vite failed');\nexit(1);\n",
         );
-        chmod($viteScriptPath, 0755);
 
         $this->exec(sprintf(
-            'build --root "%s" --vite --vite-command "./vite-build-fail.sh"',
+            'build --root "%s" --vite --vite-command "php vite-build-fail.php"',
             $projectRoot,
         ));
 

@@ -18,18 +18,14 @@ use RuntimeException;
  */
 final class InitCommand extends BaseCommand
 {
-    protected ProjectScaffoldService $scaffoldService;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Scaffold\ProjectScaffoldService|null $scaffoldService Scaffold service.
+     * @param \Glaze\Scaffold\ProjectScaffoldService $scaffoldService Scaffold service.
      */
-    public function __construct(?ProjectScaffoldService $scaffoldService = null)
+    public function __construct(protected ProjectScaffoldService $scaffoldService)
     {
         parent::__construct();
-
-        $this->scaffoldService = $scaffoldService ?? new ProjectScaffoldService();
     }
 
     /**

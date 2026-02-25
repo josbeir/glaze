@@ -8,7 +8,7 @@ use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
-use Glaze\Config\BuildConfig;
+use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Serve\ViteBuildConfig;
 use Glaze\Serve\ViteBuildService;
@@ -21,29 +21,21 @@ use RuntimeException;
  */
 final class BuildCommand extends BaseCommand
 {
-    protected SiteBuilder $siteBuilder;
-
-    protected ProjectConfigurationReader $projectConfigurationReader;
-
-    protected ViteBuildService $viteBuildService;
-
     /**
      * Constructor.
      *
-     * @param \Glaze\Build\SiteBuilder|null $siteBuilder Site builder service.
-     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader.
-     * @param \Glaze\Serve\ViteBuildService|null $viteBuildService Vite build service.
+     * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
+     * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
+     * @param \Glaze\Serve\ViteBuildService $viteBuildService Vite build service.
+     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
-        ?SiteBuilder $siteBuilder = null,
-        ?ProjectConfigurationReader $projectConfigurationReader = null,
-        ?ViteBuildService $viteBuildService = null,
+        protected SiteBuilder $siteBuilder,
+        protected ProjectConfigurationReader $projectConfigurationReader,
+        protected ViteBuildService $viteBuildService,
+        protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
-
-        $this->siteBuilder = $siteBuilder ?? new SiteBuilder();
-        $this->projectConfigurationReader = $projectConfigurationReader ?? new ProjectConfigurationReader();
-        $this->viteBuildService = $viteBuildService ?? new ViteBuildService();
     }
 
     /**
@@ -107,7 +99,7 @@ final class BuildCommand extends BaseCommand
             $viteBuildConfiguration = $this->resolveViteBuildConfiguration($args, $buildConfiguration);
 
             $io->out('Building pages...', 0);
-            $config = BuildConfig::fromProjectRoot(
+            $config = $this->buildConfigFactory->fromProjectRoot(
                 $projectRoot,
                 $includeDrafts,
             );

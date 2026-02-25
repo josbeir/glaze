@@ -6,9 +6,11 @@ namespace Glaze\Tests\Unit\Http;
 use Cake\Http\MiddlewareQueue;
 use Cake\Http\Runner;
 use Cake\Http\ServerRequestFactory;
+use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ErrorHandlingMiddleware;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -21,6 +23,7 @@ use RuntimeException;
  */
 final class ErrorHandlingMiddlewareTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -65,7 +68,11 @@ final class ErrorHandlingMiddlewareTest extends TestCase
         $queue->add(new ErrorHandlingMiddleware(true));
 
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/');
-        $response = (new Runner())->run($queue, $request, new DevPageRequestHandler($config));
+        $response = (new Runner())->run(
+            $queue,
+            $request,
+            new DevPageRequestHandler($config, $this->service(SiteBuilder::class)),
+        );
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertStringContainsString('Execution stopped by dd().', (string)$response->getBody());

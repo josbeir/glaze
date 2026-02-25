@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Http;
 
 use Cake\Http\ServerRequestFactory;
+use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Http\DevPageRequestHandler;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -14,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class DevPageRequestHandlerTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -24,7 +27,7 @@ final class DevPageRequestHandlerTest extends TestCase
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $handler = new DevPageRequestHandler($config);
+        $handler = $this->createHandler($config);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/');
 
         $response = $handler->handle($request);
@@ -42,7 +45,7 @@ final class DevPageRequestHandlerTest extends TestCase
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $handler = new DevPageRequestHandler($config);
+        $handler = $this->createHandler($config);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/missing');
 
         $response = $handler->handle($request);
@@ -61,7 +64,7 @@ final class DevPageRequestHandlerTest extends TestCase
         file_put_contents($projectRoot . '/content/blog/index.dj', "# Blog\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $handler = new DevPageRequestHandler($config);
+        $handler = $this->createHandler($config);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/blog');
 
         $response = $handler->handle($request);
@@ -79,7 +82,7 @@ final class DevPageRequestHandlerTest extends TestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $handler = new DevPageRequestHandler($config);
+        $handler = $this->createHandler($config);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/docs/');
 
         $response = $handler->handle($request);
@@ -99,12 +102,29 @@ final class DevPageRequestHandlerTest extends TestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $handler = new DevPageRequestHandler($config);
+        $handler = $this->createHandler($config);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/docs/blog');
 
         $response = $handler->handle($request);
 
         $this->assertSame(301, $response->getStatusCode());
         $this->assertSame('/docs/blog/', $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * Create a request handler with explicit dependencies.
+     */
+    protected function createHandler(BuildConfig $config): DevPageRequestHandler
+    {
+        return new DevPageRequestHandler($config, $this->createSiteBuilder());
+    }
+
+    /**
+     * Create a site builder with concrete dependencies.
+     */
+    protected function createSiteBuilder(): SiteBuilder
+    {
+        /** @var \Glaze\Build\SiteBuilder */
+        return $this->service(SiteBuilder::class);
     }
 }

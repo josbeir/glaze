@@ -8,6 +8,7 @@ use Closure;
 use Glaze\Command\ServeCommand;
 use Glaze\Serve\PhpServerConfig;
 use Glaze\Serve\ViteServeConfig;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ServeCommandTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -24,7 +26,7 @@ final class ServeCommandTest extends TestCase
      */
     public function testApplyAndRestoreEnvironmentRoundTrip(): void
     {
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $originalProjectRoot = getenv('GLAZE_PROJECT_ROOT');
         $originalIncludeDrafts = getenv('GLAZE_INCLUDE_DRAFTS');
@@ -65,7 +67,7 @@ final class ServeCommandTest extends TestCase
      */
     public function testNormalizeHelpers(): void
     {
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $normalizedRoot = $this->callProtected($command, 'normalizeRootOption', ' /tmp/test/ ');
         $blankRoot = $this->callProtected($command, 'normalizeRootOption', '   ');
@@ -84,7 +86,7 @@ final class ServeCommandTest extends TestCase
      */
     public function testBuildLiveEnvironmentContainsExpectedValues(): void
     {
-        $command = new ServeCommand();
+        $command = $this->createCommand();
         $viteEnabled = new ViteServeConfig(true, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
         $viteDisabled = new ViteServeConfig(false, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
 
@@ -118,7 +120,7 @@ final class ServeCommandTest extends TestCase
             "devServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5175\n    command: 'npm run dev -- --host {host} --port {port}'\n",
         );
 
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $argsFromConfig = new Arguments([], [
             'vite' => false,
@@ -172,7 +174,7 @@ final class ServeCommandTest extends TestCase
             "devServer:\n  php:\n    host: 0.0.0.0\n    port: 9080\n",
         );
 
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $argsFromConfig = new Arguments([], [
             'host' => null,
@@ -220,7 +222,7 @@ final class ServeCommandTest extends TestCase
         $configurationFile = $projectRoot . '/glaze.neon';
         file_put_contents($configurationFile, "devServer:\n  php:\n    port: 8081\n");
 
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $first = $this->callProtected($command, 'readProjectConfiguration', $projectRoot);
         $this->assertIsArray($first);
@@ -261,7 +263,7 @@ final class ServeCommandTest extends TestCase
         $projectRoot = $this->createTempDirectory();
         file_put_contents($projectRoot . '/glaze.neon', "devServer: true\n");
 
-        $command = new ServeCommand();
+        $command = $this->createCommand();
         $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
 
         $this->assertSame([], $result);
@@ -275,7 +277,7 @@ final class ServeCommandTest extends TestCase
         $projectRoot = $this->createTempDirectory();
         file_put_contents($projectRoot . '/glaze.neon', "devServer:\n  php:\n    port: 8082\n  1: ignored\n");
 
-        $command = new ServeCommand();
+        $command = $this->createCommand();
         $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
 
         $this->assertIsArray($result);
@@ -290,7 +292,7 @@ final class ServeCommandTest extends TestCase
     public function testResolveViteConfigurationRejectsInvalidCliPort(): void
     {
         $projectRoot = $this->createTempDirectory();
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $args = new Arguments([], [
             'vite' => false,
@@ -311,7 +313,7 @@ final class ServeCommandTest extends TestCase
     public function testResolvePhpServerConfigurationRejectsInvalidCliPort(): void
     {
         $projectRoot = $this->createTempDirectory();
-        $command = new ServeCommand();
+        $command = $this->createCommand();
 
         $args = new Arguments([], [
             'host' => null,
@@ -366,5 +368,14 @@ final class ServeCommandTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a command instance with concrete dependencies.
+     */
+    protected function createCommand(): ServeCommand
+    {
+        /** @var \Glaze\Command\ServeCommand */
+        return $this->service(ServeCommand::class);
     }
 }

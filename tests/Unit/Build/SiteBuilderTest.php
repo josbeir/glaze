@@ -7,7 +7,7 @@ use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\SiteConfig;
-use Glaze\Image\GlideImageTransformer;
+use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class SiteBuilderTest extends TestCase
 {
+    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -30,7 +31,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/content/docs/getting-started.dj', "# Start\n");
         file_put_contents($projectRoot . '/content/docs/images/cover.jpg', 'binary-image');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $writtenFiles = $builder->build($config);
 
@@ -60,7 +61,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/content/blog/my-post/index.dj', "# Post\n");
         file_put_contents($projectRoot . '/content/blog/my-post/photo.png', 'png-bytes');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $builder->build($config);
 
@@ -79,7 +80,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/static/robots.txt', "User-agent: *\nAllow: /\n");
         file_put_contents($projectRoot . '/static/js/app.js', 'console.log("ok");');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $builder->build($config);
 
@@ -95,7 +96,7 @@ final class SiteBuilderTest extends TestCase
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $html = $builder->renderRequest($config, '/');
 
@@ -111,7 +112,7 @@ final class SiteBuilderTest extends TestCase
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $html = $builder->renderRequest($config, '/missing-page/');
 
@@ -128,7 +129,7 @@ final class SiteBuilderTest extends TestCase
 
         file_put_contents($projectRoot . '/public/old/stale.html', 'stale');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $builder->build($config, true);
 
@@ -143,7 +144,7 @@ final class SiteBuilderTest extends TestCase
     {
         $projectRoot = $this->copyFixtureToTemp('projects/with-draft');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $writtenFiles = $builder->build($config);
 
@@ -159,7 +160,7 @@ final class SiteBuilderTest extends TestCase
     {
         $projectRoot = $this->copyFixtureToTemp('projects/with-draft');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $writtenFiles = $builder->build($config);
 
@@ -179,7 +180,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/content/index.dj', "+++\ndescription: Hello world\n+++\n# Welcome\n");
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<p><?= $meta["description"] ?? "none" ?></p><?= $content |> raw() ?>');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $html = $builder->renderRequest($config, '/');
 
@@ -204,7 +205,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<p class="template">default</p>');
         file_put_contents($projectRoot . '/templates/blog.sugar.php', '<p class="template">blog</p><p class="type"><?= $page->type ?></p>');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $html = $builder->renderRequest($config, '/blog/post/');
 
@@ -246,7 +247,7 @@ final class SiteBuilderTest extends TestCase
             . '<?= $content |> raw() ?>',
         );
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $html = $builder->renderRequest($config, '/blog/post-a/');
 
@@ -274,7 +275,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $html = $builder->renderRequest($config, '/blog/asset-test-page/');
 
@@ -298,7 +299,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($projectRoot . '/content/blog/test2.jpg', 'jpg-bytes');
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $builder->build($config);
 
@@ -323,7 +324,7 @@ final class SiteBuilderTest extends TestCase
         );
         file_put_contents($projectRoot . '/templates/page.sugar.php', '<?= $content |> raw() ?>');
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $html = $builder->renderRequest($config, '/blog/');
 
@@ -356,7 +357,7 @@ final class SiteBuilderTest extends TestCase
             '<p class="url"><?= $url ?></p><?= $content |> raw() ?>',
         );
 
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $html = $builder->renderRequest($config, '/blog/');
 
@@ -372,7 +373,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testResourcePathHelpersHandleEmptyAndDotSegments(): void
     {
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
 
         $empty = $this->callProtected(
             $builder,
@@ -403,7 +404,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testApplyBasePathToPathHandlesVariants(): void
     {
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
 
         $withBasePath = new SiteConfig(basePath: '/docs');
         $withoutBasePath = new SiteConfig(basePath: null);
@@ -426,7 +427,7 @@ final class SiteBuilderTest extends TestCase
      */
     public function testStripBasePathFromPathHandlesVariants(): void
     {
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
 
         $stripped = $this->callProtected($builder, 'stripBasePathFromPath', '/docs/blog/photo.jpg', new SiteConfig(basePath: '/docs'));
         $root = $this->callProtected($builder, 'stripBasePathFromPath', '/docs', new SiteConfig(basePath: '/docs'));
@@ -450,7 +451,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($transformed, 'transformed-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
 
         $url = $this->callProtected(
             $builder,
@@ -481,7 +482,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($transformed, 'transformed-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $builder = new SiteBuilder();
+        $builder = $this->createSiteBuilder();
 
         $url = $this->callProtected(
             $builder,
@@ -520,7 +521,7 @@ final class SiteBuilderTest extends TestCase
         imagefill($image, 0, 0, $fillColor);
         imagepng($image, $projectRoot . '/content/images/hero.png');
 
-        $builder = new SiteBuilder(glideImageTransformer: new GlideImageTransformer());
+        $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
 
         $html = '<img src="/images/hero.png?w=100&h=50"><img src="/images/plain.png"><img src="https://example.com/img.png?w=100">';
@@ -553,5 +554,14 @@ final class SiteBuilderTest extends TestCase
         );
 
         return $invoker($method, ...$arguments);
+    }
+
+    /**
+     * Create a site builder instance with concrete dependencies.
+     */
+    protected function createSiteBuilder(): SiteBuilder
+    {
+        /** @var \Glaze\Build\SiteBuilder */
+        return $this->service(SiteBuilder::class);
     }
 }
