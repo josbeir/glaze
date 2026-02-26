@@ -89,7 +89,7 @@ final class SiteContextTest extends TestCase
     public function testExtensionMethodDelegatesToRegistry(): void
     {
         $registry = new ExtensionRegistry();
-        $registry->register('greet', fn(string $who) => "Hello, {$who}!");
+        $registry->register('greet', fn(string $who) => sprintf('Hello, %s!', $who));
 
         $index = new SiteIndex([
             $this->makePage('index', '/', 'index.dj', []),

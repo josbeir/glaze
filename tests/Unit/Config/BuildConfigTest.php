@@ -70,8 +70,6 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame('src/Extensions', $config->extensionsDir);
-
-        rmdir($projectRoot);
     }
 
     /**
@@ -86,8 +84,6 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame('extensions', $config->extensionsDir);
-
-        rmdir($projectRoot);
     }
 
     /**

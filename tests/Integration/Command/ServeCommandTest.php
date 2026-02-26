@@ -152,13 +152,13 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
 
         $this->exec(sprintf(
-            'serve --root "%s" --host invalid_host_name --port 8099',
+            'serve --root "%s" --host 192.0.2.1 --port 8099',
             $projectRoot,
         ));
 
         $this->assertExitCode(1);
         $this->assertOutputContains('Glaze development server:');
-        $this->assertOutputContains('http://invalid_host_name:8099');
+        $this->assertOutputContains('http://192.0.2.1:8099');
     }
 
     /**
@@ -172,7 +172,7 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
 
         $this->exec(sprintf(
-            'serve --root "%s" --host invalid_host_name --port 8099 --verbose',
+            'serve --root "%s" --host 192.0.2.1 --port 8099 --verbose',
             $projectRoot,
         ));
 

@@ -140,6 +140,35 @@ final class PhpServerServiceTest extends TestCase
     }
 
     /**
+     * Ensure a custom output callback receives server output when streamOutput is enabled.
+     *
+     * Uses a non-routable address to force an immediate server failure so the
+     * process terminates quickly, while verifying the callback is invoked with
+     * the server's stderr output.
+     */
+    public function testStartInvokesCustomOutputCallbackForStreamOutput(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        $service = new PhpServerService();
+
+        $config = new PhpServerConfig(
+            host: '192.0.2.1',
+            port: 8099,
+            docRoot: $projectRoot,
+            projectRoot: $projectRoot,
+            staticMode: true,
+            streamOutput: true,
+        );
+
+        $received = [];
+        $service->start($config, $projectRoot, function (string $type, string $buffer) use (&$received): void {
+            $received[] = [$type, $buffer];
+        });
+
+        $this->assertNotEmpty($received);
+    }
+
+    /**
      * Ensure stop method is a no-op for compatibility with shared interface.
      */
     public function testStopIsNoOp(): void

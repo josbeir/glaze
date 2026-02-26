@@ -15,10 +15,15 @@ final class PhpServerService implements ServeProcessInterface
     /**
      * Start PHP server runtime for shared process interface compatibility.
      *
+     * When `streamOutput` is enabled on the configuration, process output is forwarded
+     * to the provided `$outputCallback`. If no callback is given, the default behaviour
+     * forwards stdout to `STDOUT` and stderr to `STDERR`.
+     *
      * @param object $configuration Process-specific configuration.
      * @param string $workingDirectory Unused working directory argument.
+     * @param callable|null $outputCallback Optional output callback `(string $type, string $buffer): void`.
      */
-    public function start(object $configuration, string $workingDirectory): int
+    public function start(object $configuration, string $workingDirectory, ?callable $outputCallback = null): int
     {
         if (!$configuration instanceof PhpServerConfig) {
             throw new InvalidArgumentException(sprintf(
@@ -37,7 +42,7 @@ final class PhpServerService implements ServeProcessInterface
         $process->setTimeout(null);
 
         if ($configuration->streamOutput) {
-            $process->run(function (string $type, string $buffer): void {
+            $callback = $outputCallback ?? static function (string $type, string $buffer): void {
                 if ($type === Process::ERR) {
                     fwrite(STDERR, $buffer);
 
@@ -45,7 +50,8 @@ final class PhpServerService implements ServeProcessInterface
                 }
 
                 fwrite(STDOUT, $buffer);
-            });
+            };
+            $process->run($callback);
         } else {
             $process->run();
         }

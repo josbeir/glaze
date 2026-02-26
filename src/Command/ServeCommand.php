@@ -217,7 +217,24 @@ final class ServeCommand extends AbstractGlazeCommand
         $exitCode = self::CODE_SUCCESS;
 
         try {
-            $exitCode = $this->phpServerService->start($phpServerConfiguration, $projectRoot);
+            $exitCode = $this->phpServerService->start(
+                $phpServerConfiguration,
+                $projectRoot,
+                static function (string $type, string $buffer) use ($io): void {
+                    $line = rtrim($buffer, "\n");
+                    if ($line === '') {
+                        return;
+                    }
+
+                    if ($type === 'err') {
+                        $io->err($line);
+
+                        return;
+                    }
+
+                    $io->out($line);
+                },
+            );
         } finally {
             $this->viteProcessService->stop($viteProcess);
 
