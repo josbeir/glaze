@@ -323,7 +323,7 @@ build:
     defaultEntry: assets/css/site.css
 ```
 
-- `clean` -- clean output directory before build (equivalent to `--clean`)
+- `clean` -- clean output directory before build (`true` by default; `--noclean` always disables)
 - `drafts` -- include drafts during build (equivalent to `--drafts`)
 - `vite.enabled` -- opt-in default for Vite build integration (`false` by default)
 - `vite.command` -- command used to run Vite build in the project root
@@ -331,7 +331,7 @@ build:
 - `vite.manifestPath` -- path to Vite manifest used for production template rendering
 - `vite.defaultEntry` -- default entry used by `s:vite` in production mode
 
-CLI options override these values (`--clean`, `--drafts`, `--vite`, `--vite-command`).
+CLI options override these values (`--noclean`, `--drafts`, `--vite`, `--vite-command`).
 
 ### `build.vite`
 

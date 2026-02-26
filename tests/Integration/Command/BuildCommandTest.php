@@ -21,6 +21,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
+        $this->assertOutputContains('version <success>');
         $this->assertOutputContains('Build complete: 1 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/index.html');
     }
@@ -328,7 +329,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         ));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Vite build complete.');
+        $this->assertOutputContains('<success>✓ done</success> <info>[Vite]</info> Running Vite build...');
         $this->assertFileExists($projectRoot . '/public/vite-build.txt');
         $this->assertSame('vite-built' . PHP_EOL, file_get_contents($projectRoot . '/public/vite-build.txt'));
     }
@@ -372,6 +373,53 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure output cleanup runs by default when build.clean is not configured.
+     */
+    public function testBuildCommandCleansOutputByDefault(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+        file_put_contents($projectRoot . '/public/stale.txt', 'stale');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertFileDoesNotExist($projectRoot . '/public/stale.txt');
+    }
+
+    /**
+     * Ensure build.clean false disables output cleanup.
+     */
+    public function testBuildCommandSupportsCleanDisableFromConfiguration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+        file_put_contents($projectRoot . '/public/stale.txt', 'stale');
+        file_put_contents($projectRoot . '/glaze.neon', "build:\n  clean: false\n");
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertFileExists($projectRoot . '/public/stale.txt');
+    }
+
+    /**
+     * Ensure --noclean disables cleanup even when build.clean is enabled in config.
+     */
+    public function testBuildCommandNoCleanOptionOverridesConfigurationCleanDefault(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/public', 0755, true);
+        file_put_contents($projectRoot . '/public/stale.txt', 'stale');
+        file_put_contents($projectRoot . '/glaze.neon', "build:\n  clean: true\n");
+
+        $this->exec(sprintf('build --root "%s" --noclean', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertFileExists($projectRoot . '/public/stale.txt');
+    }
+
+    /**
      * Ensure build.drafts configuration enables draft rendering by default.
      */
     public function testBuildCommandSupportsDraftsDefaultFromConfiguration(): void
@@ -410,7 +458,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('Vite build complete.');
+        $this->assertOutputContains('<success>✓ done</success> <info>[Vite]</info> Running Vite build...');
         $output = file_get_contents($projectRoot . '/public/index.html');
         $this->assertIsString($output);
         $this->assertStringContainsString('/assets/assets/app-abc123.js', $output);

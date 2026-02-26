@@ -49,6 +49,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertFileExists($target . '/.gitignore');
         $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
+        $this->assertOutputContains('version <success>');
         $this->assertOutputContains('<success>created</success>');
         $this->assertStringContainsString('pageTemplate: landing', (string)file_get_contents($target . '/glaze.neon'));
         $this->assertStringContainsString('basePath: /blog', (string)file_get_contents($target . '/glaze.neon'));

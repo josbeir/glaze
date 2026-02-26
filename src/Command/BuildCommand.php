@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
-use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
@@ -19,7 +18,7 @@ use Throwable;
 /**
  * Build the static site from Djot content and Sugar templates.
  */
-final class BuildCommand extends BaseCommand
+final class BuildCommand extends AbstractGlazeCommand
 {
     /**
      * Constructor.
@@ -58,10 +57,10 @@ final class BuildCommand extends BaseCommand
                 'help' => 'Project root directory containing content/ and templates/.',
                 'default' => null,
             ])
-            ->addOption('clean', [
-                'help' => 'Clean the output directory before writing files.',
+            ->addOption('noclean', [
+                'help' => 'Skip cleaning the output directory before writing files.',
                 'boolean' => true,
-                'default' => null,
+                'default' => false,
             ])
             ->addOption('drafts', [
                 'help' => 'Include draft pages during build.',
@@ -89,53 +88,94 @@ final class BuildCommand extends BaseCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
+        $this->renderVersionHeader($io);
         $startedAt = microtime(true);
+        $pendingIcon = '<comment>✓ working</comment>';
+        $doneIcon = '<success>✓ done</success>';
+        $formatStageMessage = static fn(string $icon, string $label, string $message): string => sprintf(
+            '%s <info>[%s]</info> %s',
+            $icon,
+            $label,
+            $message,
+        );
 
         try {
+            $configMessage = $formatStageMessage($pendingIcon, 'Config', 'Resolving project configuration...');
+            $io->out($configMessage, 0);
             $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
             $buildConfiguration = $this->readBuildConfiguration($projectRoot);
             $includeDrafts = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'drafts');
-            $cleanOutput = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'clean');
+            $cleanOutput = $this->resolveCleanOutputOption($args, $buildConfiguration);
             $viteBuildConfiguration = $this->resolveViteBuildConfiguration($args, $buildConfiguration);
 
-            $io->out('Building pages...', 0);
             $config = $this->buildConfigFactory->fromProjectRoot(
                 $projectRoot,
                 $includeDrafts,
             );
+            $io->overwrite($formatStageMessage($doneIcon, 'Config', 'Resolving project configuration...'));
 
-            if ($viteBuildConfiguration->enabled && $cleanOutput) {
+            if ($cleanOutput) {
+                $cleanMessage = $formatStageMessage($pendingIcon, 'Clean', 'Cleaning output directory...');
+                $io->out($cleanMessage, 0);
                 $this->removeDirectory($config->outputPath());
                 $cleanOutput = false;
+                $io->overwrite($formatStageMessage($doneIcon, 'Clean', 'Cleaning output directory...'));
+            } else {
+                $cleanMessage = $formatStageMessage($pendingIcon, 'Clean', 'Skipping output cleanup...');
+                $io->out($cleanMessage, 0);
+                $io->overwrite($formatStageMessage($doneIcon, 'Clean', 'Skipping output cleanup...'));
             }
 
             if ($viteBuildConfiguration->enabled) {
+                $viteMessage = $formatStageMessage($pendingIcon, 'Vite', 'Running Vite build...');
+                $io->out($viteMessage, 0);
                 $this->viteBuildService->run($viteBuildConfiguration, $projectRoot);
-                $io->out('Vite build complete.');
+                $io->overwrite($formatStageMessage($doneIcon, 'Vite', 'Running Vite build...'));
+            } else {
+                $viteMessage = $formatStageMessage($pendingIcon, 'Vite', 'Skipping Vite build (disabled)...');
+                $io->out($viteMessage, 0);
+                $io->overwrite($formatStageMessage($doneIcon, 'Vite', 'Skipping Vite build (disabled)...'));
             }
 
+            $buildMessage = $formatStageMessage($pendingIcon, 'Build', 'Building pages...');
+            $buildProgressMessage = $buildMessage;
+            $io->out($buildMessage, 0);
             $writtenFiles = $this->siteBuilder->build(
                 $config,
                 $cleanOutput,
-                function (int $completedPages, int $totalPages) use ($io): void {
-                    $message = sprintf('Building pages... %d/%d', $completedPages, $totalPages);
+                function (int $completedPages, int $totalPages) use ($io, &$buildProgressMessage, $pendingIcon): void {
+                    $message = sprintf(
+                        '%s <info>[Build]</info> Building pages... %d/%d',
+                        $pendingIcon,
+                        $completedPages,
+                        $totalPages,
+                    );
+                    $buildProgressMessage = $message;
                     $io->overwrite($message, 0);
                 },
             );
-            $io->out();
+            $completedBuildMessage = preg_replace(
+                '/^<comment>✓<\/comment>/',
+                $doneIcon,
+                $buildProgressMessage,
+            ) ?: $buildProgressMessage;
+            $io->overwrite($completedBuildMessage);
         } catch (Throwable $throwable) {
             $io->err(sprintf('<error>%s</error>', $throwable->getMessage()));
 
             return self::CODE_ERROR;
         }
 
-        foreach ($writtenFiles as $filePath) {
-            $relativePath = $this->relativeToRoot($filePath, $config->projectRoot);
-            $io->out(sprintf('<success>generated</success> %s', $relativePath));
+        if ((bool)$args->getOption('verbose')) {
+            foreach ($writtenFiles as $filePath) {
+                $relativePath = $this->relativeToRoot($filePath, $config->projectRoot);
+                $io->out(sprintf('<success>generated</success> %s', $relativePath));
+            }
         }
 
         $elapsedTime = max(0.0, microtime(true) - $startedAt);
         $peakMemory = memory_get_peak_usage(true);
+        $io->hr();
         $io->out(sprintf(
             'Build complete: %d page(s) in %s (peak memory: %s).',
             count($writtenFiles),
@@ -195,6 +235,26 @@ final class BuildCommand extends BaseCommand
         }
 
         return false;
+    }
+
+    /**
+     * Resolve clean-output behavior from config with optional no-clean override.
+     *
+     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param array<string, mixed> $buildConfiguration Build configuration map.
+     */
+    protected function resolveCleanOutputOption(Arguments $args, array $buildConfiguration): bool
+    {
+        if ((bool)$args->getOption('noclean')) {
+            return false;
+        }
+
+        $configuredValue = $buildConfiguration['clean'] ?? null;
+        if (is_bool($configuredValue)) {
+            return $configuredValue;
+        }
+
+        return true;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace Glaze\Serve;
 
 use Glaze\Utility\Normalization;
 use InvalidArgumentException;
+use Symfony\Component\Process\Process;
 
 /**
  * Manages PHP built-in web server command creation and execution.
@@ -28,9 +29,60 @@ final class PhpServerService implements ServeProcessInterface
         }
 
         $command = $this->buildCommand($configuration);
-        passthru($command, $exitCode);
+        $process = Process::fromShellCommandline(
+            $command,
+            $workingDirectory,
+            $this->forwardedEnvironmentVariables(),
+        );
+        $process->setTimeout(null);
 
-        return $exitCode;
+        if ($configuration->streamOutput) {
+            $process->run(function (string $type, string $buffer): void {
+                if ($type === Process::ERR) {
+                    fwrite(STDERR, $buffer);
+
+                    return;
+                }
+
+                fwrite(STDOUT, $buffer);
+            });
+        } else {
+            $process->run();
+        }
+
+        return $process->getExitCode() ?? 1;
+    }
+
+    /**
+     * Collect environment variables that must be forwarded to the server process.
+     *
+     * @return array<string, string>
+     */
+    protected function forwardedEnvironmentVariables(): array
+    {
+        $variables = [
+            'GLAZE_PROJECT_ROOT',
+            'GLAZE_INCLUDE_DRAFTS',
+            'GLAZE_VITE_ENABLED',
+            'GLAZE_VITE_URL',
+            'GLAZE_CLI_ROOT',
+        ];
+
+        $environment = [];
+        foreach ($variables as $name) {
+            $value = getenv($name);
+            if (!is_string($value)) {
+                continue;
+            }
+
+            if ($value === '') {
+                continue;
+            }
+
+            $environment[$name] = $value;
+        }
+
+        return $environment;
     }
 
     /**

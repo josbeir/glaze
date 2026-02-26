@@ -16,6 +16,7 @@ final class PhpServerConfig
      * @param string $docRoot Document root path.
      * @param string $projectRoot Project root path.
      * @param bool $staticMode Whether static mode is enabled.
+     * @param bool $streamOutput Whether server process output should be streamed to terminal.
      */
     public function __construct(
         public readonly string $host,
@@ -23,6 +24,7 @@ final class PhpServerConfig
         public readonly string $docRoot,
         public readonly string $projectRoot,
         public readonly bool $staticMode,
+        public readonly bool $streamOutput = false,
     ) {
     }
 

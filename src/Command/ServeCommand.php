@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
-use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
@@ -22,7 +21,7 @@ use RuntimeException;
 /**
  * Serve generated static files using the PHP built-in web server.
  */
-final class ServeCommand extends BaseCommand
+final class ServeCommand extends AbstractGlazeCommand
 {
     /**
      * Constructor.
@@ -115,6 +114,11 @@ final class ServeCommand extends BaseCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
+        $verbose = (bool)$args->getOption('verbose');
+        if ($verbose) {
+            $this->renderVersionHeader($io);
+        }
+
         $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
         if (!is_dir($projectRoot)) {
             $io->err(sprintf('<error>Project root not found: %s</error>', $projectRoot));
@@ -165,6 +169,7 @@ final class ServeCommand extends BaseCommand
                 $projectRoot,
                 $docRoot,
                 $isStaticMode,
+                $verbose,
             );
             $this->phpServerService->assertCanRun($phpServerConfiguration);
         } catch (InvalidArgumentException $invalidArgumentException) {
@@ -174,17 +179,21 @@ final class ServeCommand extends BaseCommand
         }
 
         $address = $phpServerConfiguration->address();
-        if ($isStaticMode) {
-            $io->out(sprintf('Serving static output from %s at http://%s', $docRoot, $address));
+        if ($verbose) {
+            if ($isStaticMode) {
+                $io->out(sprintf('Serving static output from %s at http://%s', $docRoot, $address));
+            } else {
+                $io->out(sprintf('Serving live templates/content from %s at http://%s', $projectRoot, $address));
+            }
+
+            if ($viteConfiguration->enabled) {
+                $io->out(sprintf('Vite integration enabled at %s', $viteConfiguration->url()));
+            }
+
+            $io->out('Press Ctrl+C to stop.');
         } else {
-            $io->out(sprintf('Serving live templates/content from %s at http://%s', $projectRoot, $address));
+            $io->out(sprintf('<info>Glaze development server:</info> http://%s', $address));
         }
-
-        if ($viteConfiguration->enabled) {
-            $io->out(sprintf('Vite integration enabled at %s', $viteConfiguration->url()));
-        }
-
-        $io->out('Press Ctrl+C to stop.');
 
         $previousEnvironment = [];
         if (!$isStaticMode) {
@@ -292,12 +301,14 @@ final class ServeCommand extends BaseCommand
      * @param string $projectRoot Project root directory.
      * @param string $docRoot PHP server document root.
      * @param bool $isStaticMode Whether static mode is enabled.
+     * @param bool $streamOutput Whether process output should be streamed.
      */
     protected function resolvePhpServerConfiguration(
         Arguments $args,
         string $projectRoot,
         string $docRoot,
         bool $isStaticMode,
+        bool $streamOutput = false,
     ): PhpServerConfig {
         $devServerConfig = $this->readDevServerConfiguration($projectRoot);
 
@@ -326,6 +337,7 @@ final class ServeCommand extends BaseCommand
             docRoot: $docRoot,
             projectRoot: $projectRoot,
             staticMode: $isStaticMode,
+            streamOutput: $streamOutput,
         );
     }
 

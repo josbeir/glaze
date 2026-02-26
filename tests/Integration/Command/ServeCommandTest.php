@@ -44,6 +44,20 @@ final class ServeCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure version header is shown when verbose mode is enabled.
+     */
+    public function testServeCommandShowsHeaderInVerboseMode(): void
+    {
+        $projectRoot = $this->createTempDirectory() . '/missing';
+
+        $this->exec(sprintf('serve --root "%s" --verbose', $projectRoot));
+
+        $this->assertExitCode(1);
+        $this->assertOutputContains('Glaze');
+        $this->assertErrorContains('Project root not found');
+    }
+
+    /**
      * Ensure build option is only accepted in static mode.
      */
     public function testServeCommandBuildRequiresStaticMode(): void

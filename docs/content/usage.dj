@@ -124,7 +124,7 @@ glaze build
 
 Useful flags:
 
-- `--clean` -- clear `public/` before writing
+- `--noclean` -- skip cleaning `public/` before writing (cleanup runs by default)
 - `--drafts` -- include draft pages in output
 
 What happens during build:
