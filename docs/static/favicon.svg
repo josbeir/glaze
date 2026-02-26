@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" fill="none" role="img" aria-label="Glaze logo">
+  <defs>
+    <!-- Coordinates are in pixel space, derived from the original logo transform matrix -->
+    <linearGradient id="t" x1="180" y1="28" x2="180" y2="133" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="l" x1="37" y1="111" x2="180" y2="332" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="r" x1="323" y1="111" x2="180" y2="332" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+    <linearGradient id="g" x1="180" y1="91" x2="180" y2="207" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#f1f5f9" stop-opacity="0.58"/>
+    </linearGradient>
+  </defs>
+  <!-- top face -->
+  <path d="M180 28 323 96 180 164 37 96Z" fill="url(#t)"/>
+  <!-- left face -->
+  <path d="M37 96 180 164 180 332 37 264Z" fill="url(#l)"/>
+  <!-- right face -->
+  <path d="M323 96 180 164 180 332 323 264Z" fill="url(#r)"/>
+  <!-- glaze highlight -->
+  <path d="M81 111 C96 97 114 91 153 91 H228 C267 91 294 101 307 119 318 134 316 152 306 168 L296 186 C292 192 284 198 275 199 L217 206 C207 207 196 202 194 194 L187 179 C183 170 173 163 160 163 H139 C109 163 87 155 78 139 70 127 72 117 82 110 Z" fill="url(#g)"/>
+  <!-- highlight stroke -->
+  <path d="M112 134 C121 128 131 124 148 124 H216" stroke="#fff" stroke-opacity="0.55" stroke-width="16" stroke-linecap="round"/>
+  <!-- specular dots -->
+  <circle cx="257" cy="57" r="14" fill="#fff" fill-opacity="0.8"/>
+  <circle cx="97" cy="73" r="11" fill="#fff" fill-opacity="0.65"/>
+</svg>

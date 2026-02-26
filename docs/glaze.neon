@@ -4,6 +4,9 @@ site:
 	description: PHP templating engine documentation
 	basePath: /glaze
 	repository: 'https://github.com/josbeir/glaze'
+	footer: 'Created by Jasper Smet.'
+	license: 'MIT License'
+	licenseLink: 'https://github.com/josbeir/glaze/blob/main/LICENSE.md'
 
 djot:
 	codeHighlighting:

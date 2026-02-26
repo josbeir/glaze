@@ -16,6 +16,9 @@
 		</s-ifblock>
 		<?= $site->title ?? 'Glaze static site generator' ?>
 	</title>
+	<link rel="icon" href="/favicon.ico" sizes="any" />
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 	<link rel="preconnect" href="https://fonts.bunny.net">
 	<link href="https://fonts.bunny.net/css?family=inter:200,300,400,500,600,700" rel="stylesheet" />
 	<s-vite src="[
@@ -53,14 +56,14 @@
 					Released under the
 					<a
 						class="link link-hover"
-						href="https://github.com/josbeir/glaze/blob/main/LICENSE.md"
+						href="<?=  $site->meta('licenseLink', '#') ?>"
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						MIT License
+						<?= $site->meta('license') ?>
 					</a>.
 				</p>
-				<p>Created by Jasper Smet.</p>
+				<p><?= $site->meta('footer') ?></p>
 			</div>
 		</footer>
 	</div>

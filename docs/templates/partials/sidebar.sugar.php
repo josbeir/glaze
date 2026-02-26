@@ -25,43 +25,35 @@ use Glaze\Content\ContentPage;
 			);
 		?>
 		<ul class="menu bg-base-200 rounded-box w-56">
-			<?php foreach ($groupedPages as $groupName => $groupPages): ?>
-				<li>
-					<h2 class="menu-title"><?= $groupName ?></h2>
-					<ul>
-						<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
-						<?php foreach ($groupPages as $menuPage): ?>
-							<li>
-								<a
-									href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
-									s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
-								>
-									<?= $menuPage->title ?>
-								</a>
-							</li>
-						<?php endforeach; ?>
-					</ul>
-				</li>
-			<?php endforeach; ?>
+			<li s:foreach="$groupedPages as $groupName => $groupPages">
+				<h2 class="menu-title"><?= $groupName ?></h2>
+				<ul>
+					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
+					<li s:foreach="$groupPages as $menuPage">
+						<a
+							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
+						>
+							<?= $menuPage->title ?>
+						</a>
+					</li>
+				</ul>
+			</li>
 
-			<?php if (count($ungroupedPages) > 0): ?>
-				<li>
-					<h2 class="menu-title">Other</h2>
-					<ul>
-						<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
-						<?php foreach ($ungroupedPages as $menuPage): ?>
-							<li>
-								<a
-									href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
-									s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
-								>
-									<?= $menuPage->title ?>
-								</a>
-							</li>
-						<?php endforeach; ?>
-					</ul>
-				</li>
-			<?php endif; ?>
+			<li s:if="count($ungroupedPages) > 0">
+				<h2 class="menu-title">Other</h2>
+				<ul>
+					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
+					<li s:foreach="$ungroupedPages as $menuPage">
+						<a
+							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
+						>
+							<?= $menuPage->title ?>
+						</a>
+					</li>
+				</ul>
+			</li>
 		</ul>
 	</nav>
 </div>
