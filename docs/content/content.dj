@@ -1,0 +1,163 @@
+---
+title: Content & Routing
+weight: 45
+---
+# Content & routing
+
+Glaze turns a folder of `.dj` files into a folder of HTML pages. Understanding how files
+map to URLs — and what you can put in them — is the core of working with Glaze.
+
+## How routing works
+
+Every `.dj` file inside `content/` becomes a page. The URL is derived directly from the
+file path, with one rule: nested `index.dj` files collapse to the parent directory URL.
+All generated paths end with a trailing slash.
+
+| File | URL |
+| --- | --- |
+| `content/index.dj` | `/` |
+| `content/about.dj` | `/about/` |
+| `content/blog/index.dj` | `/blog/` |
+| `content/blog/my-post.dj` | `/blog/my-post/` |
+| `content/blog/2026/hello.dj` | `/blog/2026/hello/` |
+
+### Overriding the URL
+
+Use the `slug` frontmatter field to set a custom URL path for a page:
+
+```djot
+---
+title: About me
+slug: about-the-author
+---
+```
+
+The slug is lowercased and slugified automatically.
+
+## Writing a page
+
+A page is a `.dj` file with optional NEON frontmatter at the top, separated from the
+content by `---` (or `+++`) fences:
+
+```djot
+---
+title: Hello world
+date: 2026-02-24T10:00:00+01:00
+draft: false
+tags:
+  - hello
+  - news
+---
+# Hello world
+
+Welcome to my first post. Content goes here.
+```
+
+Frontmatter is parsed as NEON. Everything after the closing fence is Djot content.
+
+Pages without frontmatter are valid. Glaze infers the title from the filename
+(e.g. `my-post` becomes `My Post`) when `title` is not set.
+
+## Frontmatter fields
+
+Reserved fields Glaze acts on:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title` | string | Human-readable page title |
+| `slug` | string | Override the auto-generated URL path |
+| `date` | datetime | Publish date; exposed as a `Chronos` instance in templates |
+| `weight` | int | Sort order in collections (lower values sort first) |
+| `draft` | bool | Excluded from `glaze build` unless `--drafts` is passed |
+| `type` | string | Explicit content type override |
+| `template` | string | Per-page template override (without `.sugar.php`) |
+| `description` | string | Default meta description |
+| taxonomy keys | list | `tags`, `categories`, etc. — configured in `glaze.neon` |
+
+Any other key is preserved as custom metadata. Nested maps and lists are supported and
+accessible in templates via dotted path:
+
+```djot
+---
+hero:
+  title: Build fast static sites
+  primaryAction:
+    label: Read docs
+    href: /installation
+---
+```
+
+```php
+<?= $page->meta('hero.title') ?>
+<?= $page->meta('hero.primaryAction.href') ?>
+```
+
+Full field reference: [Frontmatter](frontmatter.dj).
+
+## Content types
+
+Content types classify pages by path prefix and let you apply shared frontmatter
+defaults automatically. You define them in `glaze.neon`:
+
+```neon
+contentTypes:
+  blog:
+    paths:
+      - match: blog
+        createPattern: blog/{date:Y/m}
+    defaults:
+      template: blog
+      draft: false
+```
+
+Every page whose path starts with `blog/` automatically gets `template: blog` and
+`draft: false` without you having to set them per-page. The `createPattern` controls
+where `glaze new --type blog` places new files.
+
+A page can also declare its type explicitly in frontmatter to bypass path matching:
+
+```djot
+---
+type: blog
+title: A post that lives outside the blog folder
+---
+```
+
+See [Configuration](configuration.dj) for the full `contentTypes` reference.
+
+## Static files
+
+Files in `static/` are copied verbatim to `public/` during `glaze build`, preserving
+their paths:
+
+- `static/robots.txt` → served at `/robots.txt`
+- `static/favicon.ico` → served at `/favicon.ico`
+- `static/styles/app.css` → served at `/styles/app.css`
+
+Glaze's dev server also serves `static/` files directly at their matching paths.
+
+Non-Djot files inside `content/` (images, PDFs, downloads, etc.) are treated the same
+way — copied to `public/` at their matching paths during build and served as-is during
+development. This means you can colocate images with content:
+
+```
+content/
+  blog/
+    my-post.dj
+    my-post-cover.jpg   <- served at /blog/my-post-cover.jpg
+```
+
+## What the Sugar template sees
+
+Once Glaze renders a page, these variables are available in every Sugar template:
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `$title` | `string` | Page title |
+| `$content` | `string` | Rendered Djot HTML |
+| `$url` | `string` | Current URL path |
+| `$page` | `ContentPage` | Full page object |
+| `$meta` | `array` | Merged page metadata |
+| `$site` | `SiteConfig` | Global site config |
+
+See [Templating](templating.dj) for the full variable and directive reference.

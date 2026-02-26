@@ -53,7 +53,7 @@ Raw params and presets can be combined. Raw values take precedence over preset v
 ![Custom hero](images/cover.jpg?p=hero&fm=webp)
 ```
 
-## Using Glide in PHP templates
+## Using Glide in Sugar templates
 
 The same URL patterns work in templates. Use the `basePath` prefix if your site is deployed to a subfolder:
 

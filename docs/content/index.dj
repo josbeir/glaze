@@ -6,21 +6,24 @@ navigation: false
 hero:
   category: "Documentation"
   title: Build fast static sites with PHP.
-  subtitle: "Glaze combines Djot, Sugar templates, and a simple CLI workflow to ship production-ready static sites without frontend framework overhead."
+  subtitle: "Write content in Djot, build layouts with Sugar templates, and ship a folder of plain HTML."
   primaryAction:
-    label: Read the Docs
+    label: Get started
     href: /installation
   secondaryAction:
     label: What is Glaze?
     href: /what-is-glaze
   highlights:
     -
-      title: Djot-native content
-      description: Write predictable markup with frontmatter and strong parsing rules.
+      icon: djot
+      title: Write in Djot
+      description: "Clean, predictable markup with built-in frontmatter. Fully-specified grammar with consistent rendering across all tools."
     -
-      title: Sugar templating
-      description: "Build reusable layouts and components with lightweight, expressive syntax."
+      icon: templating
+      title: Sugar templates
+      description: "A PHP template engine built for composition. Layout inheritance, reusable components with slots, attribute-based directives, and automatic context-aware escaping — all in plain PHP files."
     -
-      title: Vite-ready docs workflow
-      description: "Use modern assets, hot-reload, and production bundling when needed."
+      icon: vite
+      title: Optional Vite
+      description: "Add CSS and JS asset bundling when you need it. Skip it when you don't. One flag: --vite."
 ---

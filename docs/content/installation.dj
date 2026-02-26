@@ -4,13 +4,15 @@ weight: 20
 ---
 # Installation
 
-Glaze is distributed as a Composer package with a CLI binary (`glaze`).
+Getting Glaze running takes less than a minute. Install it globally with Composer
+and the `glaze` binary is available from any directory. No system configuration
+needed — just PHP and Composer, which you likely already have.
 
 ## Requirements
 
 - PHP 8.2 or higher
 - Composer 2 or higher
-- GD or Imagick PHP extension (for image transforms; GD ships with most PHP builds and is the default)
+- GD or Imagick extension (for Glide image transforms; GD ships with most PHP builds)
 
 ## Global install (recommended)
 
@@ -58,13 +60,16 @@ vendor/bin/glaze build
 
 ## Available commands
 
-Once the CLI is working you will see four commands:
+Once the CLI is working, `glaze --help` lists four commands:
 
-- `init` -- scaffold a new project
-- `build` -- generate static output from content and templates
-- `new` -- create a new content page interactively
-- `serve` -- start a local development server
+- `init` — scaffold a new project in an empty directory
+- `serve` — start a local development server
+- `build` — generate static output from `content/` and `templates/`
+- `new` — create a new content page with frontmatter stub
+
+That is the whole CLI surface. You will not need to memorize more than these.
 
 ## Next step
 
-Continue with [Quick start](quick-start.dj) to scaffold and run your first site.
+Continue with [Quick start](quick-start.dj) to scaffold and run your first site in
+under five minutes.

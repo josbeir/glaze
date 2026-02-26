@@ -5,20 +5,156 @@ navigationTitle: What is Glaze?
 ---
 # What is Glaze?
 
-Glaze is a PHP static site generator focused on a clean authoring pipeline:
+Glaze is a static site generator written in PHP. You write content in Djot files,
+build layouts with Sugar templates, and run one command to get a folder of plain HTML
+ready to deploy anywhere.
 
-- **Djot** for predictable content markup
-- **Sugar** for lightweight template composition
-- **NEON** for clear configuration and frontmatter
-- **Simple CLI flow** for build, serve, and content creation
+## The idea behind it
 
-It is designed for teams that want fast static output, readable templates, and minimal operational complexity.
+Glaze is built for PHP developers who want to ship a site without adopting a new
+ecosystem. It uses familiar tools and keeps the project structure simple enough that
+you can understand every part of it:
 
-## Why use it?
+- **Composer** for installation
+- **Sugar** for templates — layout inheritance, components, and directives in plain `.php` files
+- **NEON** for configuration and frontmatter — readable maps and lists
+- **Djot** for content — clean markup with a fully-specified grammar
 
-- Fast local iteration with `glaze serve`
-- Deterministic static output with `glaze build`
-- Friendly content model with metadata-driven routing
-- Optional modern asset workflow with Vite integration
+No unfamiliar build infrastructure. Install it, scaffold a project, and start writing.
 
-Continue with [Installation](installation.dj) to start a new project.
+## What it feels like
+
+Install it once:
+
+```bash
+composer global require josbeir/glaze
+```
+
+Scaffold a new project:
+
+```bash
+glaze init my-site
+cd my-site
+glaze serve
+```
+
+Open `http://127.0.0.1:8080`. Your site is running. Edit a `.dj` file in `content/`,
+refresh the browser, and the change is there. No watch process, no cache to flush, no
+rebuild step.
+
+When you are ready to ship:
+
+```bash
+glaze build
+```
+
+`public/` now contains everything needed to deploy. Upload it, push it to an S3
+bucket, drop it on Netlify — done.
+
+## The moving parts
+
+### Djot for content
+
+[Djot](https://djot.net/) is designed by John MacFarlane, the author of Pandoc and
+CommonMark. Its syntax is familiar if you have written Markdown before, but its grammar
+is fully-specified — parsing is consistent and deterministic across all implementations.
+
+Each content file is a `.dj` file with optional NEON frontmatter at the top:
+
+```djot
+---
+title: Hello world
+date: 2026-02-24
+tags:
+  - hello
+  - news
+---
+# Hello world
+
+Your content here.
+```
+
+See [Why not Markdown?](why-not-markdown.dj) for a full comparison.
+
+### Sugar for templates
+
+[Sugar](https://josbeir.github.io/sugar/) is a PHP template engine with layout
+inheritance, reusable components, and attribute-based directives. Templates are
+`.sugar.php` files — plain PHP with full IDE support.
+
+```php
+<s-template s:extends="layout/base">
+
+<s-template s:block="content">
+    <article>
+        <h1><?= $page->title ?></h1>
+        <?= $content |> raw() ?>
+    </article>
+</s-template>
+```
+
+Sugar handles HTML escaping automatically based on output context, so you do not need
+to call `htmlspecialchars()` by hand on most values.
+
+### NEON for configuration
+
+`glaze.neon` is the project configuration file. [NEON](https://ne-on.org/) is a
+clean, human-readable format — think YAML but tidier. The same format is used for
+frontmatter, so you only have one syntax to learn for both.
+
+```neon
+site:
+  title: My Site
+  baseUrl: https://example.com
+
+taxonomies:
+  - tags
+
+contentTypes:
+  blog:
+    paths:
+      - match: blog
+```
+
+### A CLI that stays small
+
+Four commands. That is it.
+
+- `glaze init` — scaffold a new project
+- `glaze new` — create a content page interactively
+- `glaze serve` — live development server
+- `glaze build` — generate static output
+
+## Who it is for
+
+Glaze is a good fit if you:
+
+- Work in PHP and want your site tooling to match
+- Are building a documentation site, personal blog, project page, or any content-heavy site
+- Want a simple, auditable build pipeline with no hidden moving parts
+- Write structured content that benefits from predictable, well-specified markup parsing
+
+It is less suitable if you need a CMS with an admin UI or user authentication — those
+problems call for a different kind of tool.
+
+## Optional modern asset workflow
+
+If you need it, Glaze has optional [Vite](https://vitejs.dev/) integration. Scaffold
+everything in one command:
+
+```bash
+glaze init my-site --vite
+```
+
+This wires up a Vite config alongside your Glaze project. Start both together:
+
+```bash
+glaze serve --vite
+```
+
+Sugar's `s:vite` directive renders the right tags automatically in both dev and
+production mode. If you do not need Vite, you never have to think about it.
+
+---
+
+Ready to get started? Continue with [Installation](installation.dj).

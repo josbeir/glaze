@@ -64,7 +64,7 @@ use function Sugar\Core\Runtime\raw;
 
 		<div class="grid gap-4 mt-12 sm:grid-cols-2 lg:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
 			<s-template s:foreach="$page->meta('hero.highlights', []) as $heroHighlight">
-				<s-hero-card s:bind="['title' => $heroHighlight['title'] ?? '']">
+				<s-hero-card s:bind="['icon' => $heroHighlight['icon'] ?? '']">
 					<h2 s:slot="header"><?= $heroHighlight['title'] ?></h2>
 					<?= $heroHighlight['description'] ?>
 				</s-hero-card>

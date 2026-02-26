@@ -7,10 +7,10 @@ use function Sugar\Core\Runtime\raw;
  * @var Glaze\Template\SiteContext $this
  */
 
-$icon = match ($title ?? '') {
-	'Djot-native content' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-primary"><path stroke-linecap="round" stroke-linejoin="round" d="M6 4h10l4 4v12H6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 4v4h4M9 13h6M9 17h4"/></svg>',
-	'Sugar templating' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-secondary"><rect x="3" y="4" width="18" height="16" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 9-2.5 3L9 15m6-6 2.5 3L15 15"/></svg>',
-	'Vite-ready docs workflow' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-accent"><path stroke-linecap="round" stroke-linejoin="round" d="M13 3 4 14h6l-1 7 11-13h-7z"/></svg>',
+$icon = match ($icon ?? '') {
+	'djot' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-primary"><path stroke-linecap="round" stroke-linejoin="round" d="M6 4h10l4 4v12H6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 4v4h4M9 13h6M9 17h4"/></svg>',
+	'templating' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-secondary"><rect x="3" y="4" width="18" height="16" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 9-2.5 3L9 15m6-6 2.5 3L15 15"/></svg>',
+	'vite' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-7 text-accent"><path stroke-linecap="round" stroke-linejoin="round" d="M13 3 4 14h6l-1 7 11-13h-7z"/></svg>',
 	default => '',
 };
 ?>

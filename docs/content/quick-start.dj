@@ -4,7 +4,9 @@ weight: 30
 ---
 # Quick start
 
-The fastest path from zero to a running Glaze site.
+This guide walks you through scaffolding a project, running it locally, adding a page,
+and producing your first build. Follow along from top to bottom and you will have a
+working Glaze site by the end.
 
 ## 1. Scaffold a project
 
@@ -149,7 +151,11 @@ During build, Glaze:
 
 ## Next steps
 
-- [Usage](usage.dj) -- project layout, routing, and daily workflow
-- [Frontmatter](frontmatter.dj) -- metadata fields reference
-- [Templating](templating.dj) -- Sugar template system
-- [Commands](commands.dj) -- full CLI reference
+You have a working site. From here:
+
+- [Content & routing](content.dj) — how files become pages, URL rules, frontmatter,
+  content types, and static files
+- [Daily workflow](usage.dj) — dev server, drafts, creating pages, building
+- [Templating](templating.dj) — Sugar layouts, components, variables, and directives
+- [Frontmatter](frontmatter.dj) — full metadata field reference
+- [Commands](commands.dj) — complete CLI option reference
