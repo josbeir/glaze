@@ -142,9 +142,11 @@ final class CacheCommand extends AbstractGlazeCommand
             if ($entry === '.') {
                 continue;
             }
+
             if ($entry === '..') {
                 continue;
             }
+
             $path = $directory . DIRECTORY_SEPARATOR . $entry;
             if (is_dir($path)) {
                 $this->removeDirectory($path);
@@ -176,9 +178,11 @@ final class CacheCommand extends AbstractGlazeCommand
             if ($entry === '.') {
                 continue;
             }
+
             if ($entry === '..') {
                 continue;
             }
+
             $path = $directory . DIRECTORY_SEPARATOR . $entry;
             if (is_dir($path)) {
                 $this->removeDirectory($path);

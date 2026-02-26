@@ -11,6 +11,7 @@
 		<li style="padding-left: <?= max(0, ($entry->level - 2) * 12) ?>px">
 			<a
 				href="#<?= $entry->id ?>"
+				:class="{ 'text-primary bg-base-200': activeToc === '<?= $entry->id ?>' }"
 				class="block py-1 px-2 rounded-md text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors duration-150 leading-snug"
 			>
 				<?= $entry->text ?>

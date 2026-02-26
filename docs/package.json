@@ -7,14 +7,14 @@
     "build": "vite build"
   },
   "devDependencies": {
+    "@alpinejs/intersect": "^3.15.8",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.1",
+    "alpinejs": "^3.15.8",
     "daisyui": "^5.5.19",
     "htmx.org": "^2.0.8",
     "tailwindcss": "^4.2.1",
+    "typed.js": "^2.1.0",
     "vite": "latest"
-  },
-  "dependencies": {
-    "typed.js": "^2.1.0"
   }
 }

@@ -32,8 +32,8 @@
 		<s-template s:include="../partials/header" />
 
 		<main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-			<div class="flex items-start gap-8">
-				<div class="min-w-0 flex-1" s:block="content">
+			<div class="flex items-start gap-8" x-data="tocPage">
+				<div class="min-w-0 flex-1" data-prose s:block="content">
 					Default page content
 				</div>
 				<s-ifblock name="toc">

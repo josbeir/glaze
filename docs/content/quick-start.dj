@@ -9,7 +9,7 @@ This guide walks you through scaffolding a project, running it locally, adding a
 and producing your first build. Follow along from top to bottom and you will have a
 working Glaze site by the end.
 
-## 1. Scaffold a project
+## Scaffold a project
 
 With Glaze installed globally:
 
@@ -49,7 +49,7 @@ my-site/
   package.json
 ```
 
-## 2. Explore the scaffold
+## Explore the scaffold
 
 `glaze.neon` is the site configuration:
 
@@ -82,7 +82,7 @@ This is my site.
 </s-template>
 ```
 
-## 3. Start the development server
+## Start the development server
 
 ```bash
 cd my-site
@@ -104,7 +104,7 @@ Then reference assets in your template using Sugar's Vite directive:
 <s-template s:vite="'assets/css/site.css'" />
 ```
 
-## 4. Add a page
+## Add a page
 
 Create a new content page interactively:
 
@@ -129,7 +129,7 @@ draft: false
 # My first post
 ```
 
-## 5. Build static output
+## Build static output
 
 When you are ready to ship:
 

@@ -27,8 +27,8 @@
 		</div>
 
 		<div class="navbar-end">
-			<label class="btn btn-ghost btn-sm btn-circle swap swap-rotate" aria-label="Toggle color theme" title="Toggle color theme">
-				<input type="checkbox" data-theme-toggle />
+			<label x-data="themeToggle" class="btn btn-ghost btn-sm btn-circle swap swap-rotate" aria-label="Toggle color theme" title="Toggle color theme">
+				<input type="checkbox" x-model="isLight" />
 				<svg class="swap-on h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
 					<path d="M12 4.5v1.5M12 18v1.5M6.75 6.75l1.06 1.06M16.19 16.19l1.06 1.06M4.5 12H6M18 12h1.5M6.75 17.25l1.06-1.06M16.19 7.81l1.06-1.06M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/>
 				</svg>
