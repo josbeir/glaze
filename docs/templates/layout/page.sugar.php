@@ -23,7 +23,8 @@
 		'assets/js/docs.js',
 	]" />
 </head>
-<body class="bg-base-100 min-h-screen" hx-boost="true">
+<body class="bg-base-100 min-h-screen" hx-boost="true" hx-indicator="#page-loader">
+<div id="page-loader" aria-hidden="true"></div>
 <div class="drawer lg:drawer-open">
 	<input id="docs-drawer" type="checkbox" class="drawer-toggle" />
 
