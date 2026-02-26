@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Support;
 
+use Closure;
 use Glaze\Config\BuildConfig;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
@@ -104,6 +105,72 @@ final class BuildGlideHtmlRewriterTest extends TestCase
     }
 
     /**
+     * Ensure srcset splitting handles commas inside quotes and parentheses.
+     */
+    public function testSplitSrcsetCandidatesHandlesQuotesAndParentheses(): void
+    {
+        $rewriter = $this->createRewriter();
+
+        $candidates = $this->callProtected(
+            $rewriter,
+            'splitSrcsetCandidates',
+            '/images/a.png?w=100 1x, "/images,b.png?w=200" 2x, image-set(url("/images,c.png") 1x) 3x',
+        );
+
+        $this->assertIsArray($candidates);
+        $this->assertCount(3, $candidates);
+    }
+
+    /**
+     * Ensure attribute rewriting adds quotes when rewritten values contain whitespace.
+     */
+    public function testRewriteAttributeValueAddsQuotesForWhitespaceValue(): void
+    {
+        $rewriter = $this->createRewriter();
+
+        $tag = $this->callProtected(
+            $rewriter,
+            'rewriteAttributeValue',
+            '<img src=/images/hero.png>',
+            'src',
+            static fn(string $value): string => $value . ' 1x',
+        );
+
+        $this->assertIsString($tag);
+        $this->assertStringContainsString('src="/images/hero.png 1x"', $tag);
+    }
+
+    /**
+     * Ensure publishing keeps extensionless hash names for extensionless source paths.
+     */
+    public function testPublishBuildGlideAssetSupportsExtensionlessSourcePath(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $transformedPath = $projectRoot . '/tmp-image';
+        file_put_contents($transformedPath, 'image-data');
+
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $rewriter = $this->createRewriter();
+
+        $publishedPath = $this->callProtected(
+            $rewriter,
+            'publishBuildGlideAsset',
+            $transformedPath,
+            '/images/raw',
+            'w=100',
+            $config,
+        );
+
+        $expectedHash = hash('xxh3', '/images/raw?w=100');
+        $this->assertSame('/docs/_glide/' . $expectedHash, $publishedPath);
+        $this->assertFileExists($projectRoot . '/public/_glide/' . $expectedHash);
+    }
+
+    /**
      * Create service under test with concrete dependencies.
      */
     protected function createRewriter(): BuildGlideHtmlRewriter
@@ -127,5 +194,25 @@ final class BuildGlideHtmlRewriterTest extends TestCase
         $this->assertIsInt($fillColor);
         imagefill($image, 0, 0, $fillColor);
         imagepng($image, $path);
+    }
+
+    /**
+     * Invoke protected methods for focused branch coverage.
+     *
+     * @param object $object Service instance.
+     * @param string $method Method name.
+     * @param mixed ...$arguments Method arguments.
+     */
+    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
+    {
+        $invoker = Closure::bind(
+            function (string $method, mixed ...$arguments): mixed {
+                return $this->{$method}(...$arguments);
+            },
+            $object,
+            $object::class,
+        );
+
+        return $invoker($method, ...$arguments);
     }
 }

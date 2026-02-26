@@ -44,7 +44,7 @@ jobs:
 
       - name: Build docs site
         working-directory: docs
-        run: ../bin/glaze build --clean
+        run: ../bin/glaze build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

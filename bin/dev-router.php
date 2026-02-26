@@ -26,11 +26,12 @@ $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
 $application = new Application();
 $container = $application->getContainer();
 
-/** @var \Glaze\Config\BuildConfigFactory $buildConfigFactory */
-$buildConfigFactory = $container->get(BuildConfigFactory::class);
-$config = $buildConfigFactory->fromProjectRoot($projectRoot, $includeDrafts);
+$container->addShared(BuildConfig::class, function() use ($container, $projectRoot, $includeDrafts): BuildConfig {
+	/** @var \Glaze\Config\BuildConfigFactory $buildConfigFactory */
+	$buildConfigFactory = $container->get(BuildConfigFactory::class);
+	return $buildConfigFactory->fromProjectRoot($projectRoot, $includeDrafts);
+});
 
-$container->addShared(BuildConfig::class, $config);
 /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
 $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
 /** @var \Glaze\Http\Middleware\StaticAssetMiddleware $staticAssetMiddleware */

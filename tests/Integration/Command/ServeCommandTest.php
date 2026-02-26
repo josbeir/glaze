@@ -140,4 +140,45 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         $this->assertExitCode(1);
         $this->assertErrorContains('Live router script not found');
     }
+
+    /**
+     * Ensure non-verbose mode prints compact server URL line.
+     */
+    public function testServeCommandPrintsCompactServerLineInNonVerboseMode(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
+
+        $this->exec(sprintf(
+            'serve --root "%s" --host invalid_host_name --port 8099',
+            $projectRoot,
+        ));
+
+        $this->assertExitCode(1);
+        $this->assertOutputContains('Glaze development server:');
+        $this->assertOutputContains('http://invalid_host_name:8099');
+    }
+
+    /**
+     * Ensure verbose mode prints detailed serve context and process hints.
+     */
+    public function testServeCommandPrintsDetailedOutputInVerboseMode(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  title: Test\n");
+
+        $this->exec(sprintf(
+            'serve --root "%s" --host invalid_host_name --port 8099 --verbose',
+            $projectRoot,
+        ));
+
+        $this->assertExitCode(1);
+        $this->assertOutputContains('version <success>');
+        $this->assertOutputContains('Serving live templates/content from');
+        $this->assertOutputContains('Press Ctrl+C to stop.');
+    }
 }

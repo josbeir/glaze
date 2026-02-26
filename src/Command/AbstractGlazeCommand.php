@@ -29,8 +29,8 @@ abstract class AbstractGlazeCommand extends BaseCommand
         $successStyle['bold'] = true;
         $io->setStyle('success', $successStyle);
 
-                $io->out(sprintf('<info>Glaze</info> version <success>%s</success>', $this->resolveAppVersion()));
-                $io->hr();
+        $io->out(sprintf('<info>Glaze</info> version <success>%s</success>', $this->resolveAppVersion()));
+        $io->hr();
     }
 
     /**

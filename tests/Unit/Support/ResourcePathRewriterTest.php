@@ -63,4 +63,81 @@ final class ResourcePathRewriterTest extends TestCase
 
         $this->assertSame('/images/photo.jpg', $stripped);
     }
+
+    /**
+     * Ensure root and already-prefixed paths are handled when applying base path.
+     */
+    public function testApplyBasePathToPathHandlesRootAndAlreadyPrefixedValues(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+        $siteConfig = new SiteConfig(basePath: '/docs');
+
+        $rootPath = $rewriter->applyBasePathToPath('/', $siteConfig);
+        $alreadyPrefixed = $rewriter->applyBasePathToPath('/docs/guide', $siteConfig);
+
+        $this->assertSame('/docs/', $rootPath);
+        $this->assertSame('/docs/guide', $alreadyPrefixed);
+    }
+
+    /**
+     * Ensure template rewriting skips non-root-relative paths.
+     */
+    public function testRewriteTemplateResourcePathSkipsRelativeTemplatePaths(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+        $siteConfig = new SiteConfig(basePath: '/docs');
+
+        $rewritten = $rewriter->rewriteTemplateResourcePath('assets/site.css', $siteConfig);
+
+        $this->assertSame('assets/site.css', $rewritten);
+    }
+
+    /**
+     * Ensure content-relative paths normalize dot segments and preserve suffixes.
+     */
+    public function testToContentAbsoluteResourcePathNormalizesSegmentsAndPreservesSuffix(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $absolute = $rewriter->toContentAbsoluteResourcePath('../images/./hero.png?size=2x#top', 'guides/intro.dj');
+
+        $this->assertSame('/images/hero.png?size=2x#top', $absolute);
+    }
+
+    /**
+     * Ensure external-path detection covers anchors, protocol-relative paths, and URI schemes.
+     */
+    public function testIsExternalResourcePathDetectsExternalForms(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $this->assertTrue($rewriter->isExternalResourcePath('#section'));
+        $this->assertTrue($rewriter->isExternalResourcePath('//cdn.example.com/app.css'));
+        $this->assertTrue($rewriter->isExternalResourcePath('mailto:test@example.com'));
+        $this->assertFalse($rewriter->isExternalResourcePath('/images/logo.png'));
+    }
+
+    /**
+     * Ensure absolute-path detection differentiates relative resource values.
+     */
+    public function testIsAbsoluteResourcePathDistinguishesRelativeValues(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $this->assertTrue($rewriter->isAbsoluteResourcePath('/docs/page'));
+        $this->assertTrue($rewriter->isAbsoluteResourcePath('https://example.com/page'));
+        $this->assertFalse($rewriter->isAbsoluteResourcePath('docs/page'));
+    }
+
+    /**
+     * Ensure segment normalization resolves current and parent-directory markers.
+     */
+    public function testNormalizePathSegmentsResolvesDotsAndDotDots(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $normalized = $rewriter->normalizePathSegments('docs/./guides/../images/hero.png');
+
+        $this->assertSame('docs/images/hero.png', $normalized);
+    }
 }
