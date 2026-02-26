@@ -31,8 +31,20 @@
 	<div class="drawer-content min-h-screen flex flex-col">
 		<s-template s:include="../partials/header" />
 
-		<main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8" s:block="content">
-			Default page content
+		<main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+			<div class="flex items-start gap-8">
+				<div class="min-w-0 flex-1" s:block="content">
+					Default page content
+				</div>
+				<s-ifblock name="toc">
+					<aside
+						class="hidden xl:block w-56 shrink-0 sticky top-24 overflow-y-auto max-h-[calc(100vh-7rem)]"
+						aria-label="On this page"
+					>
+						<s-template s:block="toc" />
+					</aside>
+				</s-ifblock>
+			</div>
 		</main>
 
 		<footer class="border-t border-base-300 mt-auto">

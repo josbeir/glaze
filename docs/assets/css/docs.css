@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Offset anchor scroll position to account for the sticky header */
+.prose section[id] {
+	scroll-margin-top: 6rem;
+}
+
 #page-loader {
 	position: fixed;
 	top: 0;

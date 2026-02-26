@@ -7,9 +7,13 @@ use function Sugar\Core\Runtime\raw;
  * @var Glaze\Template\SiteContext $this
  */
 ?>
+<title s:prepend="title"><?= $title ?></title>
+
 <s-template s:extends="layout/page">
 
-<title s:prepend="title"><?= $title ?></title>
+<s-template s:notempty="$page->toc > 0" s:block="toc">
+	<s-template s:include="partials/toc" />
+</s-template>
 
 <s-template s:block="content">
 	<div class="breadcrumbs text-sm mb-4 text-base-content/70">
