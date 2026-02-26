@@ -3,10 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build;
 
-use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\SiteConfig;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -369,174 +367,6 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
-     * Ensure protected resource-path helper branches behave as expected.
-     */
-    public function testResourcePathHelpersHandleEmptyAndDotSegments(): void
-    {
-        $builder = $this->createSiteBuilder();
-
-        $empty = $this->callProtected(
-            $builder,
-            'toContentAbsoluteResourcePath',
-            '',
-            'blog/index.dj',
-        );
-        $normalized = $this->callProtected(
-            $builder,
-            'normalizePathSegments',
-            'blog/./images/../cover.jpg',
-        );
-        $absolute = $this->callProtected($builder, 'isAbsoluteResourcePath', '/a.jpg');
-        $protocolRelative = $this->callProtected($builder, 'isAbsoluteResourcePath', '//cdn/a.jpg');
-        $anchor = $this->callProtected($builder, 'isAbsoluteResourcePath', '#hash');
-        $scheme = $this->callProtected($builder, 'isAbsoluteResourcePath', 'https://example.com/a.jpg');
-
-        $this->assertSame('', $empty);
-        $this->assertSame('blog/cover.jpg', $normalized);
-        $this->assertTrue($absolute);
-        $this->assertTrue($protocolRelative);
-        $this->assertTrue($anchor);
-        $this->assertTrue($scheme);
-    }
-
-    /**
-     * Ensure basePath URL helper handles root, suffixes, pre-prefixed, and no-prefix cases.
-     */
-    public function testApplyBasePathToPathHandlesVariants(): void
-    {
-        $builder = $this->createSiteBuilder();
-
-        $withBasePath = new SiteConfig(basePath: '/docs');
-        $withoutBasePath = new SiteConfig(basePath: null);
-
-        $root = $this->callProtected($builder, 'applyBasePathToPath', '/', $withBasePath);
-        $withSuffix = $this->callProtected($builder, 'applyBasePathToPath', '/about/?q=1#x', $withBasePath);
-        $prefixed = $this->callProtected($builder, 'applyBasePathToPath', '/docs/about/', $withBasePath);
-        $unchanged = $this->callProtected($builder, 'applyBasePathToPath', '/about/', $withoutBasePath);
-        $externalMailto = $this->callProtected($builder, 'isExternalResourcePath', 'mailto:test@example.com');
-
-        $this->assertSame('/docs/', $root);
-        $this->assertSame('/docs/about/?q=1#x', $withSuffix);
-        $this->assertSame('/docs/about/', $prefixed);
-        $this->assertSame('/about/', $unchanged);
-        $this->assertTrue($externalMailto);
-    }
-
-    /**
-     * Ensure basePath stripping helper returns expected internal source paths.
-     */
-    public function testStripBasePathFromPathHandlesVariants(): void
-    {
-        $builder = $this->createSiteBuilder();
-
-        $stripped = $this->callProtected($builder, 'stripBasePathFromPath', '/docs/blog/photo.jpg', new SiteConfig(basePath: '/docs'));
-        $root = $this->callProtected($builder, 'stripBasePathFromPath', '/docs', new SiteConfig(basePath: '/docs'));
-        $unchanged = $this->callProtected($builder, 'stripBasePathFromPath', '/blog/photo.jpg', new SiteConfig(basePath: '/docs'));
-
-        $this->assertSame('/blog/photo.jpg', $stripped);
-        $this->assertSame('/', $root);
-        $this->assertSame('/blog/photo.jpg', $unchanged);
-    }
-
-    /**
-     * Ensure build Glide publisher copies transformed assets into static output.
-     */
-    public function testPublishBuildGlideAssetCopiesFileAndReturnsPublicUrl(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/public', 0755, true);
-        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /docs\n");
-
-        $transformed = $projectRoot . '/tmp-transform.jpg';
-        file_put_contents($transformed, 'transformed-bytes');
-
-        $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $builder = $this->createSiteBuilder();
-
-        $url = $this->callProtected(
-            $builder,
-            'publishBuildGlideAsset',
-            $transformed,
-            '/images/hero.jpg',
-            'w=100&h=50',
-            $config,
-        );
-
-        $hash = hash('xxh3', '/images/hero.jpg?w=100&h=50');
-        $expectedFile = $projectRoot . '/public/_glide/' . $hash . '.jpg';
-
-        $this->assertSame('/docs/_glide/' . $hash . '.jpg', $url);
-        $this->assertFileExists($expectedFile);
-        $this->assertSame('transformed-bytes', file_get_contents($expectedFile));
-    }
-
-    /**
-     * Ensure build Glide publisher keeps hashed filename when source extension is missing.
-     */
-    public function testPublishBuildGlideAssetUsesHashedNameWhenExtensionMissing(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/public', 0755, true);
-
-        $transformed = $projectRoot . '/tmp-transform.bin';
-        file_put_contents($transformed, 'transformed-bytes');
-
-        $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $builder = $this->createSiteBuilder();
-
-        $url = $this->callProtected(
-            $builder,
-            'publishBuildGlideAsset',
-            $transformed,
-            '/images/hero',
-            'w=100&h=50',
-            $config,
-        );
-
-        $hash = hash('xxh3', '/images/hero?w=100&h=50');
-        $expectedFile = $projectRoot . '/public/_glide/' . $hash;
-
-        $this->assertSame('/_glide/' . $hash, $url);
-        $this->assertFileExists($expectedFile);
-        $this->assertSame('transformed-bytes', file_get_contents($expectedFile));
-    }
-
-    /**
-     * Ensure build-time Glide rewriting updates image src and publishes transformed assets.
-     */
-    public function testRewriteBuildGlideImageSourcesRewritesQueryImageUrls(): void
-    {
-        if (!function_exists('imagecreatetruecolor')) {
-            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
-        }
-
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/content/images', 0755, true);
-        mkdir($projectRoot . '/public', 0755, true);
-
-        $image = imagecreatetruecolor(2, 2);
-        $this->assertNotFalse($image);
-        $fillColor = imagecolorallocate($image, 0, 0, 0);
-        $this->assertIsInt($fillColor);
-        imagefill($image, 0, 0, $fillColor);
-        imagepng($image, $projectRoot . '/content/images/hero.png');
-
-        $builder = $this->createSiteBuilder();
-        $config = BuildConfig::fromProjectRoot($projectRoot, true);
-
-        $html = '<img src="/images/hero.png?w=100&h=50"><img src="/images/plain.png"><img src="https://example.com/img.png?w=100">';
-
-        $rewritten = $this->callProtected($builder, 'rewriteBuildGlideImageSources', $html, $config);
-        $this->assertIsString($rewritten);
-
-        $hash = hash('xxh3', '/images/hero.png?w=100&h=50');
-        $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
-        $this->assertStringContainsString('/images/plain.png', $rewritten);
-        $this->assertStringContainsString('https://example.com/img.png?w=100', $rewritten);
-        $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.png');
-    }
-
-    /**
      * Ensure live rendering enables Sugar Vite extension and uses runtime Vite URL.
      */
     public function testRenderRequestRendersViteDevelopmentTagsWhenEnabled(): void
@@ -652,26 +482,6 @@ final class SiteBuilderTest extends TestCase
         $this->assertIsString($output);
         $this->assertStringContainsString('/glaze/assets/assets/app-def456.css', $output);
         $this->assertStringContainsString('/glaze/assets/assets/app-abc123.js', $output);
-    }
-
-    /**
-     * Invoke a protected method using scope-bound closure.
-     *
-     * @param object $object Object to invoke method on.
-     * @param string $method Protected method name.
-     * @param mixed ...$arguments Method arguments.
-     */
-    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
-    {
-        $invoker = Closure::bind(
-            function (string $method, mixed ...$arguments): mixed {
-                return $this->{$method}(...$arguments);
-            },
-            $object,
-            $object::class,
-        );
-
-        return $invoker($method, ...$arguments);
     }
 
     /**

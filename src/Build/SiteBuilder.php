@@ -5,12 +5,12 @@ namespace Glaze\Build;
 
 use ArrayObject;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
-use Glaze\Image\GlideImageTransformer;
 use Glaze\Render\DjotRenderer;
 use Glaze\Render\SugarPageRenderer;
+use Glaze\Support\BuildGlideHtmlRewriter;
+use Glaze\Support\ResourcePathRewriter;
 use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
 use RuntimeException;
@@ -27,14 +27,16 @@ final class SiteBuilder
      * @param \Glaze\Render\DjotRenderer $djotRenderer Djot renderer service.
      * @param \Glaze\Build\ContentAssetPublisher $assetPublisher Asset publishing service.
      * @param \Glaze\Build\PageMetaResolver $pageMetaResolver Page meta resolver.
-     * @param \Glaze\Image\GlideImageTransformer $glideImageTransformer Glide image transformer.
+     * @param \Glaze\Support\BuildGlideHtmlRewriter $buildGlideHtmlRewriter Build-time Glide source rewriter.
+     * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared resource path rewriter.
      */
     public function __construct(
         protected ContentDiscoveryService $discoveryService,
         protected DjotRenderer $djotRenderer,
         protected ContentAssetPublisher $assetPublisher,
         protected PageMetaResolver $pageMetaResolver,
-        protected GlideImageTransformer $glideImageTransformer,
+        protected BuildGlideHtmlRewriter $buildGlideHtmlRewriter,
+        protected ResourcePathRewriter $resourcePathRewriter,
     ) {
     }
 
@@ -86,7 +88,9 @@ final class SiteBuilder
             templatePath: $config->templatePath(),
             cachePath: $config->templateCachePath(),
             template: $config->pageTemplate,
-            viteConfiguration: $this->resolveTemplateViteConfiguration($config, false),
+            siteConfig: $config->site,
+            resourcePathRewriter: $this->resourcePathRewriter,
+            templateVite: $config->templateVite,
         );
         $siteIndex = new SiteIndex($pages);
         $rendererCache = [
@@ -106,7 +110,9 @@ final class SiteBuilder
                 templatePath: $config->templatePath(),
                 cachePath: $config->templateCachePath(),
                 template: $pageTemplate,
-                viteConfiguration: $this->resolveTemplateViteConfiguration($config, false),
+                siteConfig: $config->site,
+                resourcePathRewriter: $this->resourcePathRewriter,
+                templateVite: $config->templateVite,
             );
             $rendererCache[$pageTemplate] = $activeRenderer;
 
@@ -225,8 +231,10 @@ final class SiteBuilder
                 templatePath: $config->templatePath(),
                 cachePath: $config->templateCachePath(),
                 template: $pageTemplate,
+                siteConfig: $config->site,
+                resourcePathRewriter: $this->resourcePathRewriter,
+                templateVite: $config->templateVite,
                 debug: $debug,
-                viteConfiguration: $this->resolveTemplateViteConfiguration($config, $debug),
             );
         }
 
@@ -236,13 +244,17 @@ final class SiteBuilder
             currentPage: $page,
         );
 
-        $htmlContent = $this->djotRenderer->render($page->source, $config->djot);
-        $htmlContent = $this->rewriteInternalResourceSources($htmlContent, $page, $config->site);
+        $htmlContent = $this->djotRenderer->render(
+            source: $page->source,
+            djot: $config->djot,
+            siteConfig: $config->site,
+            relativePagePath: $page->relativePath,
+        );
         if (!$debug) {
-            $htmlContent = $this->rewriteBuildGlideImageSources($htmlContent, $config);
+            $htmlContent = $this->buildGlideHtmlRewriter->rewrite($htmlContent, $config);
         }
 
-        $pageUrl = $this->applyBasePathToPath($page->urlPath, $config->site);
+        $pageUrl = $this->resourcePathRewriter->applyBasePathToPath($page->urlPath, $config->site);
 
         return $activeRenderer->render([
             'title' => $page->title,
@@ -273,364 +285,6 @@ final class SiteBuilder
         $normalized = trim($template);
 
         return $normalized === '' ? $config->pageTemplate : $normalized;
-    }
-
-    /**
-     * Resolve Sugar Vite extension configuration for current render mode.
-     *
-     * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @param bool $debug Whether debug rendering mode is enabled.
-     * @return array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null
-     */
-    protected function resolveTemplateViteConfiguration(BuildConfig $config, bool $debug): ?array
-    {
-        /**
-         * @var array{buildEnabled: bool, devEnabled: bool, assetBaseUrl: string, manifestPath: string, devServerUrl: string, injectClient: bool, defaultEntry: string|null} $viteConfiguration
-         */
-        $viteConfiguration = $config->templateVite;
-        $isEnabled = $debug
-            ? (bool)$viteConfiguration['devEnabled']
-            : (bool)$viteConfiguration['buildEnabled'];
-
-        if ($debug) {
-            $enabledOverride = getenv('GLAZE_VITE_ENABLED');
-            if ($enabledOverride === '1') {
-                $isEnabled = true;
-            } elseif ($enabledOverride === '0') {
-                $isEnabled = false;
-            }
-        }
-
-        if (!$isEnabled) {
-            return null;
-        }
-
-        $devServerUrl = (string)$viteConfiguration['devServerUrl'];
-        if ($debug) {
-            $runtimeViteUrl = getenv('GLAZE_VITE_URL');
-            if (is_string($runtimeViteUrl) && $runtimeViteUrl !== '') {
-                $devServerUrl = $runtimeViteUrl;
-            }
-        }
-
-        $assetBaseUrl = (string)$viteConfiguration['assetBaseUrl'];
-        if (!$this->isExternalResourcePath($assetBaseUrl)) {
-            $assetBaseUrl = $this->applyBasePathToPath($assetBaseUrl, $config->site);
-        }
-
-        return [
-            'mode' => $debug ? 'dev' : 'prod',
-            'assetBaseUrl' => $assetBaseUrl,
-            'manifestPath' => (string)$viteConfiguration['manifestPath'],
-            'devServerUrl' => $devServerUrl,
-            'injectClient' => (bool)$viteConfiguration['injectClient'],
-            'defaultEntry' => is_string($viteConfiguration['defaultEntry'])
-                ? $viteConfiguration['defaultEntry']
-                : null,
-        ];
-    }
-
-    /**
-     * Rewrite relative image sources to content-root absolute paths.
-     *
-     * @param string $html Rendered Djot HTML.
-     * @param \Glaze\Content\ContentPage $page Source page metadata.
-     */
-    protected function rewriteInternalResourceSources(string $html, ContentPage $page, SiteConfig $siteConfig): string
-    {
-        $rewritten = preg_replace_callback(
-            '/<(img|a)\b([^>]*?)\b(src|href)=("|\')(.*?)\4([^>]*)>/i',
-            function (array $matches) use ($page, $siteConfig): string {
-                $source = $matches[5];
-                if ($source === '') {
-                    return $matches[0];
-                }
-
-                if ($this->isExternalResourcePath($source)) {
-                    return $matches[0];
-                }
-
-                $internalPath = str_starts_with($source, '/')
-                    ? $source
-                    : $this->toContentAbsoluteResourcePath($source, $page->relativePath);
-                $rewrittenSource = $this->applyBasePathToPath($internalPath, $siteConfig);
-
-                if ($rewrittenSource === $source) {
-                    return $matches[0];
-                }
-
-                return str_replace($source, $rewrittenSource, $matches[0]);
-            },
-            $html,
-        );
-
-        return is_string($rewritten) ? $rewritten : $html;
-    }
-
-    /**
-     * Rewrite build-time image URLs with query params to static transformed files.
-     *
-     * @param string $html Rendered Djot HTML.
-     * @param \Glaze\Config\BuildConfig $config Build configuration.
-     */
-    protected function rewriteBuildGlideImageSources(string $html, BuildConfig $config): string
-    {
-        $rewritten = preg_replace_callback(
-            '/<img\b([^>]*?)\bsrc=("|\')(.*?)\2([^>]*)>/i',
-            function (array $matches) use ($config): string {
-                $source = $matches[3];
-                if ($source === '' || $this->isExternalResourcePath($source)) {
-                    return $matches[0];
-                }
-
-                $parts = parse_url($source);
-                if (!is_array($parts)) {
-                    return $matches[0];
-                }
-
-                $path = $parts['path'] ?? null;
-                if (!is_string($path) || $path === '') {
-                    return $matches[0];
-                }
-
-                $queryString = $parts['query'] ?? null;
-                if (!is_string($queryString) || trim($queryString) === '') {
-                    return $matches[0];
-                }
-
-                parse_str($queryString, $queryParams);
-                $normalizedQueryParams = [];
-                foreach ($queryParams as $key => $value) {
-                    if (!is_string($key)) {
-                        continue;
-                    }
-
-                    $normalizedQueryParams[$key] = $value;
-                }
-
-                $sourcePath = $this->stripBasePathFromPath($path, $config->site);
-                $transformedPath = $this->glideImageTransformer->createTransformedPath(
-                    rootPath: $config->contentPath(),
-                    requestPath: $sourcePath,
-                    queryParams: $normalizedQueryParams,
-                    presets: $config->imagePresets,
-                    cachePath: $config->glideCachePath(),
-                    options: $config->imageOptions,
-                );
-                if (!is_string($transformedPath)) {
-                    return $matches[0];
-                }
-
-                $rewrittenSource = $this->publishBuildGlideAsset(
-                    transformedPath: $transformedPath,
-                    sourcePath: $sourcePath,
-                    queryString: $queryString,
-                    config: $config,
-                );
-
-                return str_replace($source, $rewrittenSource, $matches[0]);
-            },
-            $html,
-        );
-
-        return is_string($rewritten) ? $rewritten : $html;
-    }
-
-    /**
-     * Publish transformed Glide output to static build directory.
-     *
-     * @param string $transformedPath Absolute transformed image path.
-     * @param string $sourcePath Internal source image path.
-     * @param string $queryString Original query string.
-     * @param \Glaze\Config\BuildConfig $config Build configuration.
-     */
-    protected function publishBuildGlideAsset(
-        string $transformedPath,
-        string $sourcePath,
-        string $queryString,
-        BuildConfig $config,
-    ): string {
-        $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
-        $hashedName = hash('xxh3', $sourcePath . '?' . $queryString);
-        $fileName = $extension === '' ? $hashedName : $hashedName . '.' . $extension;
-        $relativePath = '_glide/' . $fileName;
-
-        $destination = $config->outputPath()
-            . DIRECTORY_SEPARATOR
-            . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
-        $directory = dirname($destination);
-        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
-            throw new RuntimeException(sprintf('Unable to create Glide output directory "%s".', $directory));
-        }
-
-        if (!is_file($destination) && !copy($transformedPath, $destination)) {
-            throw new RuntimeException(sprintf('Unable to copy transformed image to "%s".', $destination));
-        }
-
-        return $this->applyBasePathToPath('/' . $relativePath, $config->site);
-    }
-
-    /**
-     * Strip configured base path prefix from internal request path.
-     *
-     * @param string $path Internal request path.
-     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration.
-     */
-    protected function stripBasePathFromPath(string $path, SiteConfig $siteConfig): string
-    {
-        $basePath = $siteConfig->basePath;
-        $normalizedPath = '/' . ltrim($path, '/');
-
-        if ($basePath === null || $basePath === '') {
-            return $normalizedPath;
-        }
-
-        if ($normalizedPath === $basePath) {
-            return '/';
-        }
-
-        if (str_starts_with($normalizedPath, $basePath . '/')) {
-            return substr($normalizedPath, strlen($basePath)) ?: '/';
-        }
-
-        return $normalizedPath;
-    }
-
-    /**
-     * Convert a relative resource path to an absolute path from content root.
-     *
-     * @param string $resourcePath Resource path from rendered HTML.
-     * @param string $relativePagePath Relative source page path.
-     */
-    protected function toContentAbsoluteResourcePath(string $resourcePath, string $relativePagePath): string
-    {
-        if ($this->isAbsoluteResourcePath($resourcePath)) {
-            return $resourcePath;
-        }
-
-        preg_match('/^([^?#]*)(.*)$/', $resourcePath, $parts);
-        $pathPart = $parts[1];
-        $suffix = $parts[2];
-
-        $baseDirectory = dirname(str_replace('\\', '/', $relativePagePath));
-        $baseDirectory = $baseDirectory === '.' ? '' : trim($baseDirectory, '/');
-
-        $combinedPath = ($baseDirectory !== '' ? $baseDirectory . '/' : '') . ltrim($pathPart, '/');
-        $normalizedPath = $this->normalizePathSegments($combinedPath);
-
-        return '/' . ltrim($normalizedPath, '/') . $suffix;
-    }
-
-    /**
-     * Detect whether a resource path is already absolute or external.
-     *
-     * @param string $resourcePath Resource path from rendered HTML.
-     */
-    protected function isAbsoluteResourcePath(string $resourcePath): bool
-    {
-        if ($resourcePath === '') {
-            return true;
-        }
-
-        if (str_starts_with($resourcePath, '/')) {
-            return true;
-        }
-
-        if (str_starts_with($resourcePath, '#')) {
-            return true;
-        }
-
-        if (str_starts_with($resourcePath, '//')) {
-            return true;
-        }
-
-        return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
-    }
-
-    /**
-     * Detect whether a resource path points to external or non-rewritable targets.
-     *
-     * @param string $resourcePath Resource path from rendered HTML.
-     */
-    protected function isExternalResourcePath(string $resourcePath): bool
-    {
-        if ($resourcePath === '') {
-            return true;
-        }
-
-        if (str_starts_with($resourcePath, '#')) {
-            return true;
-        }
-
-        if (str_starts_with($resourcePath, '//')) {
-            return true;
-        }
-
-        return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
-    }
-
-    /**
-     * Apply configured site base path to an internal URL path.
-     *
-     * @param string $path Internal URL path.
-     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration.
-     */
-    protected function applyBasePathToPath(string $path, SiteConfig $siteConfig): string
-    {
-        $basePath = $siteConfig->basePath;
-        if ($basePath === null || $basePath === '') {
-            return $path;
-        }
-
-        $parts = [];
-        preg_match('/^([^?#]*)(.*)$/', $path, $parts);
-        $pathPart = $parts[1] ?? $path;
-        $suffix = $parts[2] ?? '';
-
-        $normalizedPath = '/' . ltrim($pathPart, '/');
-        if ($normalizedPath === '//') {
-            $normalizedPath = '/';
-        }
-
-        if ($normalizedPath === '/') {
-            return $basePath . '/' . $suffix;
-        }
-
-        if ($normalizedPath === $basePath || str_starts_with($normalizedPath, $basePath . '/')) {
-            return $normalizedPath . $suffix;
-        }
-
-        return rtrim($basePath, '/') . $normalizedPath . $suffix;
-    }
-
-    /**
-     * Normalize dot segments in a path.
-     *
-     * @param string $path Relative path to normalize.
-     */
-    protected function normalizePathSegments(string $path): string
-    {
-        $segments = explode('/', str_replace('\\', '/', $path));
-        $normalized = [];
-
-        foreach ($segments as $segment) {
-            if ($segment === '') {
-                continue;
-            }
-
-            if ($segment === '.') {
-                continue;
-            }
-
-            if ($segment === '..') {
-                array_pop($normalized);
-                continue;
-            }
-
-            $normalized[] = $segment;
-        }
-
-        return implode('/', $normalized);
     }
 
     /**

@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Render;
 
+use Glaze\Config\SiteConfig;
 use Glaze\Render\DjotRenderer;
+use Glaze\Support\ResourcePathRewriter;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -16,7 +18,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderHighlightsCodeBlocksByDefault(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render("```php\necho 1;\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -29,7 +31,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderCanDisableCodeHighlighting(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render(
             "```php\necho 1;\n```\n",
             $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
@@ -44,7 +46,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderFallsBackToTxtGrammarForUnknownLanguage(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render(
             "```unknownlang\nhello\n```\n",
             $this->withCodeHighlighting(['enabled' => true, 'theme' => 'nord', 'withGutter' => true]),
@@ -61,7 +63,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderMapsNeonFenceLanguageToYamlGrammar(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render("```neon\nsite:\n  title: Glaze\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -74,7 +76,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderUsesCustomDjotFenceGrammar(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render("```djot\n# Intro\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -87,7 +89,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderRewritesInternalDjotLinksToExtensionlessPaths(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render('[Quick start](quick-start.dj)');
 
         $this->assertStringContainsString('href="quick-start"', $html);
@@ -99,10 +101,43 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderPreservesSuffixWhenRewritingDjotLinks(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render('[Guide](guide.dj?mode=full#top)');
 
         $this->assertStringContainsString('href="guide?mode=full#top"', $html);
+    }
+
+    /**
+     * Ensure custom internal link extension rewrites page-relative links with site base path.
+     */
+    public function testRenderUsesConfiguredInternalLinkExtensionForPageRelativeLink(): void
+    {
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $html = $renderer->render(
+            '[Logo](../images/logo.png)',
+            $this->defaultDjotOptions(),
+            new SiteConfig(basePath: '/docs'),
+            'guides/intro.dj',
+        );
+
+        $this->assertStringContainsString('href="/docs/images/logo.png"', $html);
+    }
+
+    /**
+     * Ensure custom internal link extension rewrites Djot image sources.
+     */
+    public function testRenderUsesConfiguredInternalLinkExtensionForImageSource(): void
+    {
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $html = $renderer->render(
+            '![Hero](../images/hero.jpg)',
+            $this->defaultDjotOptions(),
+            new SiteConfig(basePath: '/docs'),
+            'guides/intro.dj',
+        );
+
+        $this->assertStringContainsString('src="/docs/images/hero.jpg"', $html);
+        $this->assertStringContainsString('alt="Hero"', $html);
     }
 
     /**
@@ -110,7 +145,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotInjectHeadingAnchorsByDefault(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render("# Intro\n");
 
         $this->assertStringNotContainsString('class="header-anchor"', $html);
@@ -121,7 +156,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderCanInjectHeadingAnchorsWhenEnabled(): void
     {
-        $renderer = new DjotRenderer();
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render(
             "## Setup\n",
             $this->withHeaderAnchors([

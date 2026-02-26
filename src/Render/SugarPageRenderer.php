@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace Glaze\Render;
 
+use Glaze\Config\SiteConfig;
+use Glaze\Render\Sugar\Path\ResourcePathSugarExtension;
+use Glaze\Support\ResourcePathRewriter;
 use Sugar\Core\Cache\FileCache;
 use Sugar\Core\Engine;
 use Sugar\Core\Loader\FileTemplateLoader;
@@ -20,15 +23,19 @@ final class SugarPageRenderer
      * @param string $templatePath Absolute template directory path.
      * @param string $cachePath Absolute template cache path.
      * @param string $template Sugar template name used for pages.
+     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration for static attribute rewriting.
+     * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
+     * @param array<string, mixed> $templateVite Raw Sugar Vite extension configuration.
      * @param bool $debug Whether to enable debug freshness checks.
-     * @param array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null $viteConfiguration Optional Sugar Vite extension configuration.
      */
     public function __construct(
         protected string $templatePath,
         protected string $cachePath,
         protected string $template,
+        protected SiteConfig $siteConfig,
+        protected ResourcePathRewriter $resourcePathRewriter,
+        protected array $templateVite,
         protected bool $debug = false,
-        protected ?array $viteConfiguration = null,
     ) {
     }
 
@@ -77,8 +84,10 @@ final class SugarPageRenderer
             ->withTemplateContext($templateContext)
             ->withExtension(new ComponentExtension(['components']));
 
-        $viteConfiguration = $this->viteConfiguration;
-        if (is_array($viteConfiguration)) {
+        $builder->withExtension(new ResourcePathSugarExtension($this->siteConfig, $this->resourcePathRewriter));
+
+        $viteConfiguration = $this->resolveViteConfiguration();
+        if ($viteConfiguration !== null) {
             $builder->withExtension(new ViteExtension(
                 assetBaseUrl: $viteConfiguration['assetBaseUrl'],
                 mode: $viteConfiguration['mode'],
@@ -92,5 +101,58 @@ final class SugarPageRenderer
         return $builder
             ->withHtmlExceptionRenderer()
             ->build();
+    }
+
+    /**
+     * Resolve Sugar Vite extension configuration for current render mode.
+     *
+     * @return array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null
+     */
+    protected function resolveViteConfiguration(): ?array
+    {
+        /**
+         * @var array{buildEnabled: bool, devEnabled: bool, assetBaseUrl: string, manifestPath: string, devServerUrl: string, injectClient: bool, defaultEntry: string|null} $viteConfiguration
+         */
+        $viteConfiguration = $this->templateVite;
+        $isEnabled = $this->debug
+            ? (bool)$viteConfiguration['devEnabled']
+            : (bool)$viteConfiguration['buildEnabled'];
+
+        if ($this->debug) {
+            $enabledOverride = getenv('GLAZE_VITE_ENABLED');
+            if ($enabledOverride === '1') {
+                $isEnabled = true;
+            } elseif ($enabledOverride === '0') {
+                $isEnabled = false;
+            }
+        }
+
+        if (!$isEnabled) {
+            return null;
+        }
+
+        $devServerUrl = (string)$viteConfiguration['devServerUrl'];
+        if ($this->debug) {
+            $runtimeViteUrl = getenv('GLAZE_VITE_URL');
+            if (is_string($runtimeViteUrl) && $runtimeViteUrl !== '') {
+                $devServerUrl = $runtimeViteUrl;
+            }
+        }
+
+        $assetBaseUrl = (string)$viteConfiguration['assetBaseUrl'];
+        if (!$this->resourcePathRewriter->isExternalResourcePath($assetBaseUrl)) {
+            $assetBaseUrl = $this->resourcePathRewriter->applyBasePathToPath($assetBaseUrl, $this->siteConfig);
+        }
+
+        return [
+            'mode' => $this->debug ? 'dev' : 'prod',
+            'assetBaseUrl' => $assetBaseUrl,
+            'manifestPath' => (string)$viteConfiguration['manifestPath'],
+            'devServerUrl' => $devServerUrl,
+            'injectClient' => (bool)$viteConfiguration['injectClient'],
+            'defaultEntry' => is_string($viteConfiguration['defaultEntry'])
+                ? $viteConfiguration['defaultEntry']
+                : null,
+        ];
     }
 }
