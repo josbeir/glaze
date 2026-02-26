@@ -10,6 +10,7 @@ use Countable;
 use DateTimeInterface;
 use Glaze\Content\ContentPage;
 use Glaze\Utility\Normalization;
+use InvalidArgumentException;
 use IteratorAggregate;
 use Throwable;
 use Traversable;
@@ -21,6 +22,16 @@ use Traversable;
  */
 final class PageCollection implements IteratorAggregate, Countable
 {
+    /**
+     * Ascending sort direction.
+     */
+    protected const SORT_ASC = 'asc';
+
+    /**
+     * Descending sort direction.
+     */
+    protected const SORT_DESC = 'desc';
+
     /**
      * Supported where operators.
      *
@@ -173,7 +184,7 @@ final class PageCollection implements IteratorAggregate, Countable
     public function by(string $key, string $direction = 'asc'): self
     {
         $pages = $this->pages;
-        $descending = strtolower($direction) === 'desc';
+        $descending = strtolower($direction) === self::SORT_DESC;
         usort($pages, function (ContentPage $left, ContentPage $right) use ($key, $descending): int {
             $leftValue = $this->sortableValue($this->resolveValue($left, $key));
             $rightValue = $this->sortableValue($this->resolveValue($right, $key));
@@ -195,7 +206,7 @@ final class PageCollection implements IteratorAggregate, Countable
     public function byDate(string $direction = 'asc', string $dateKey = 'meta.date'): self
     {
         $pages = $this->pages;
-        $descending = strtolower($direction) === 'desc';
+        $descending = strtolower($direction) === self::SORT_DESC;
 
         usort($pages, function (ContentPage $left, ContentPage $right) use ($dateKey, $descending): int {
             $leftValue = $this->toTimestamp($this->resolveValue($left, $dateKey));
@@ -269,9 +280,10 @@ final class PageCollection implements IteratorAggregate, Countable
      * Group pages by key value.
      *
      * @param string $key Field key to group by.
+     * @param string|null $direction Optional group-key sort direction (`asc`, `desc`) or `null` to preserve insertion order.
      * @return array<string, \Glaze\Template\PageCollection>
      */
-    public function groupBy(string $key): array
+    public function groupBy(string $key, ?string $direction = null): array
     {
         $groups = [];
 
@@ -281,7 +293,20 @@ final class PageCollection implements IteratorAggregate, Countable
             $groups[$groupKey][] = $page;
         }
 
-        ksort($groups);
+        if ($direction !== null) {
+            $normalizedDirection = strtolower(trim($direction));
+
+            if ($normalizedDirection === self::SORT_ASC) {
+                ksort($groups);
+            } elseif ($normalizedDirection === self::SORT_DESC) {
+                krsort($groups);
+            } else {
+                throw new InvalidArgumentException(sprintf(
+                    'Invalid group sort direction "%s". Use "asc", "desc", or null.',
+                    $direction,
+                ));
+            }
+        }
 
         $result = [];
         foreach ($groups as $groupKey => $items) {
@@ -313,7 +338,7 @@ final class PageCollection implements IteratorAggregate, Countable
             $groups[$groupKey][] = $page;
         }
 
-        if (strtolower($direction) === 'asc') {
+        if (strtolower($direction) === self::SORT_ASC) {
             ksort($groups);
         } else {
             krsort($groups);
@@ -508,7 +533,19 @@ final class PageCollection implements IteratorAggregate, Countable
         }
 
         if (!str_contains($key, '.')) {
-            return property_exists($page, $key) ? $page->{$key} : null;
+            if (property_exists($page, $key)) {
+                return $page->{$key};
+            }
+
+            if (array_key_exists($key, $page->meta)) {
+                return $page->meta[$key];
+            }
+
+            if (array_key_exists($key, $page->taxonomies)) {
+                return $page->taxonomies[$key];
+            }
+
+            return null;
         }
 
         if (str_starts_with($key, 'meta.')) {

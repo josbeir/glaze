@@ -17,16 +17,9 @@ use Glaze\Content\ContentPage;
 			$menuPages = $this->pages()->by('weight', 'asc')->filter(
 				static fn(ContentPage $menuPage): bool => (bool)($menuPage->meta('navigation') ?? true),
 			);
-			$groupedPages = [];
-			foreach ($menuPages as $menuPage) {
-				$groupName = trim((string)($menuPage->meta('group') ?? ''));
-				if ($groupName === '') {
-					continue;
-				}
-
-				$groupedPages[$groupName] ??= [];
-				$groupedPages[$groupName][] = $menuPage;
-			}
+			$groupedPages = $menuPages->filter(
+				static fn(ContentPage $menuPage): bool => trim((string)($menuPage->meta('group') ?? '')) !== '',
+			)->groupBy('group');
 			$ungroupedPages = $menuPages->filter(
 				static fn(ContentPage $menuPage): bool => trim((string)($menuPage->meta('group') ?? '')) === '',
 			);

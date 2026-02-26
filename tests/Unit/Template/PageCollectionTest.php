@@ -7,6 +7,7 @@ use Closure;
 use DateTimeImmutable;
 use Glaze\Content\ContentPage;
 use Glaze\Template\PageCollection;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -42,14 +43,22 @@ final class PageCollectionTest extends TestCase
 
         $this->assertCount(2, $pages->where('meta.draft', false));
         $this->assertCount(2, $pages->where('meta.tags', 'intersect', ['php']));
+        $this->assertCount(2, $pages->where('draft', false));
+        $this->assertCount(2, $pages->where('tags', 'intersect', ['php']));
         $this->assertSame('Post B', $pages->byDate('desc')->first()?->title);
         $this->assertSame('Intro', $pages->byTitle('asc')->first()?->title);
         $this->assertSame('Post B', $pages->by('meta.weight', 'asc')->first()?->title);
+        $this->assertSame('Post B', $pages->by('weight', 'asc')->first()?->title);
 
         $groups = $pages->groupBy('meta.draft');
         $this->assertArrayHasKey('false', $groups);
         $this->assertArrayHasKey('true', $groups);
         $this->assertCount(2, $groups['false']);
+
+        $shorthandGroups = $pages->groupBy('draft');
+        $this->assertArrayHasKey('false', $shorthandGroups);
+        $this->assertArrayHasKey('true', $shorthandGroups);
+        $this->assertCount(2, $shorthandGroups['false']);
 
         $dateGroups = $pages->groupByDate('Y-m', 'desc');
         $this->assertSame(['2026-03', '2026-02', '2025-12'], array_keys($dateGroups));
@@ -73,6 +82,41 @@ final class PageCollectionTest extends TestCase
         $this->assertCount(2, $pages->take(2));
         $this->assertSame('Beta', $pages->slice(1, 1)->first()?->title);
         $this->assertSame('Gamma', $pages->reverse()->first()?->title);
+    }
+
+    /**
+     * Validate groupBy key ordering with explicit sort direction options.
+     */
+    public function testGroupBySupportsOptionalSortDirection(): void
+    {
+        $pages = new PageCollection([
+            $this->makePage('a', '/a/', ['group' => 'Templating'], 'A'),
+            $this->makePage('b', '/b/', ['group' => 'Getting Started'], 'B'),
+            $this->makePage('c', '/c/', ['group' => 'Reference'], 'C'),
+        ]);
+
+        $insertionGroups = $pages->groupBy('group');
+        $ascendingGroups = $pages->groupBy('group', 'asc');
+        $descendingGroups = $pages->groupBy('group', 'desc');
+
+        $this->assertSame(['Templating', 'Getting Started', 'Reference'], array_keys($insertionGroups));
+        $this->assertSame(['Getting Started', 'Reference', 'Templating'], array_keys($ascendingGroups));
+        $this->assertSame(['Templating', 'Reference', 'Getting Started'], array_keys($descendingGroups));
+    }
+
+    /**
+     * Validate groupBy rejects unsupported direction values.
+     */
+    public function testGroupByRejectsInvalidSortDirection(): void
+    {
+        $pages = new PageCollection([
+            $this->makePage('a', '/a/', ['group' => 'Docs'], 'A'),
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid group sort direction');
+
+        $pages->groupBy('group', 'sideways');
     }
 
     /**
@@ -194,6 +238,19 @@ final class PageCollectionTest extends TestCase
         $pageArray = $this->callProtected($collection, 'pageToArray', $this->makePage('z', '/z/', [], 'Z'));
         $weightPage = $this->makePage('w', '/w/', ['weight' => 7], 'Weight');
         $resolvedWeight = $this->callProtected($collection, 'resolveValue', $weightPage, 'weight');
+        $taxonomyPage = new ContentPage(
+            sourcePath: '/tmp/t.dj',
+            relativePath: 't.dj',
+            slug: 't',
+            urlPath: '/t/',
+            outputRelativePath: 't/index.html',
+            title: 'Taxonomy',
+            source: '# Taxonomy',
+            draft: false,
+            meta: [],
+            taxonomies: ['tags' => ['php']],
+        );
+        $resolvedTaxonomyTags = $this->callProtected($collection, 'resolveValue', $taxonomyPage, 'tags');
         $resolvedMetaWeight = $this->callProtected($collection, 'resolveValue', $weightPage, 'meta.weight');
         $notEqual = $this->callProtected($collection, 'matchesWhere', 'a', 'ne', 'b');
         $nullCompared = $this->callProtected($collection, 'compareValues', null, 1);
@@ -238,7 +295,8 @@ final class PageCollectionTest extends TestCase
         $this->assertCount(1, $normalizedPages);
         $this->assertIsArray($pageArray);
         $this->assertSame('z', $pageArray['slug']);
-        $this->assertNull($resolvedWeight);
+        $this->assertSame(7, $resolvedWeight);
+        $this->assertSame(['php'], $resolvedTaxonomyTags);
         $this->assertSame(7, $resolvedMetaWeight);
         $this->assertTrue($notEqual);
         $this->assertSame(1, $nullCompared);

@@ -118,6 +118,8 @@ $this->type('blog')->byDate('desc')->take(5)
 ```php
 // group by an arbitrary key
 $this->pages()->groupBy('meta.category')
+$this->pages()->groupBy('meta.category', 'asc')   // optional: sort group keys ascending
+$this->pages()->groupBy('meta.category', 'desc')  // optional: sort group keys descending
 
 // group by date period
 $this->section('blog')->groupByDate('Y-m', 'desc')                    // uses meta.date
@@ -135,6 +137,62 @@ A grouped collection is a plain array where keys are group names and values are 
         </li>
     </ul>
 </section>
+```
+
+### Navigation recipe (grouped menu)
+
+For docs sidebars, combine `weight`, `group`, `navigation`, and `navigationTitle` frontmatter values:
+
+```php
+<?php
+$pages = $this->pages()->by('weight', 'asc')->filter(
+    static fn(\Glaze\Content\ContentPage $p): bool => (bool)($p->meta('navigation') ?? true),
+);
+
+$grouped = $pages->filter(
+    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) !== '',
+)->groupBy('group');
+
+$other = $pages->filter(
+    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) === '',
+);
+?>
+
+<ul class="menu bg-base-200 rounded-box w-56">
+    <?php foreach ($grouped as $groupName => $groupPages): ?>
+        <li>
+            <h2 class="menu-title"><?= $groupName ?></h2>
+            <ul>
+                <?php foreach ($groupPages as $item): ?>
+                    <li>
+                        <a href="<?= $item->urlPath ?>">
+                            <?= $item->meta('navigationTitle', $item->title) ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </li>
+    <?php endforeach; ?>
+
+    <?php if (count($other) > 0): ?>
+        <li>
+            <h2 class="menu-title">Other</h2>
+            <ul>
+                <?php foreach ($other as $item): ?>
+                    <li><a href="<?= $item->urlPath ?>"><?= $item->title ?></a></li>
+                <?php endforeach; ?>
+            </ul>
+        </li>
+    <?php endif; ?>
+</ul>
+```
+
+Because shorthand metadata keys are supported in collection queries, this is valid too:
+
+```php
+$pages->groupBy('group');
+$pages->groupBy('group', 'desc');
+$pages->by('weight', 'asc');
 ```
 
 ## Pagination

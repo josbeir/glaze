@@ -45,6 +45,12 @@ Reserved keys are interpreted by Glaze runtime features:
 - `meta` (page metadata override map used for generated `<meta>` defaults)
 - taxonomy keys configured in `glaze.neon` (`tags`, `categories`, ...)
 
+Common convention keys (used by templates/themes, not reserved by core):
+
+- `group` (group label for navigation sections)
+- `navigation` (include/exclude page from navigation)
+- `navigationTitle` (alternate title for menus)
+
 All other keys are treated as custom frontmatter data and are preserved as-is, including nested maps and lists.
 
 ### `title`
@@ -116,6 +122,8 @@ In templates, sort a collection by weight:
     <a href="<?= $p->urlPath ?>"><?= $p->title ?></a>
 </li>
 ```
+
+Navigation-focused usage of `weight`, `group`, `navigation`, and `navigationTitle` is covered in [Templating](templating.dj) and [Page Collections](page-collections.dj).
 
 ### `draft`
 
