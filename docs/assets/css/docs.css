@@ -303,7 +303,7 @@
 		@apply border-b border-base-300 pb-2;
 	}
 
-	.prose :where(.header-anchor) {
+	.prose :where(.permalink-wrapper) {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -316,18 +316,18 @@
 		@apply text-base-content/35 no-underline transition-all duration-200 ease-out;
 	}
 
-	.prose :where(h1, h2, h3, h4, h5, h6):hover > .header-anchor,
-	.prose :where(h1, h2, h3, h4, h5, h6):focus-within > .header-anchor {
+	.prose :where(h1, h2, h3, h4, h5, h6):hover > .permalink-wrapper,
+	.prose :where(h1, h2, h3, h4, h5, h6):focus-within > .permalink-wrapper {
 		opacity: 1;
 		transform: translateY(-0.04em) scale(1);
 	}
 
-	.prose :where(.header-anchor:hover) {
+	.prose :where(.permalink-wrapper:hover) {
 		text-decoration: none;
 		@apply text-primary/80;
 	}
 
-	.prose :where(.header-anchor:focus, .header-anchor:focus-visible) {
+	.prose :where(.permalink-wrapper:focus, .permalink-wrapper:focus-visible) {
 		text-decoration: none;
 	}
 

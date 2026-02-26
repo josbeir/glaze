@@ -54,7 +54,7 @@ use function Sugar\Core\Runtime\raw;
 					<div class="hero-logo-glow">
 						<img
 							class="w-72 xl:w-80 2xl:w-88 h-auto"
-							src="<?= ($site->basePath ?? '') . '/images/glaze-logo.svg' ?>"
+							src="<?= ($site->basePath ?? '') . '/glaze-logo.svg' ?>"
 							alt="<?= $site->title ?>"
 						/>
 					</div>

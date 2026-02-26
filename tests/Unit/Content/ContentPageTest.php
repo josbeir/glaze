@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Content;
 
 use Glaze\Content\ContentPage;
+use Glaze\Render\Djot\TocEntry;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -52,6 +53,55 @@ final class ContentPageTest extends TestCase
 
         $emptyPage = $this->createPage([]);
         $this->assertFalse($emptyPage->hasMeta(''));
+    }
+
+    /**
+     * Ensure toc defaults to an empty list when not provided.
+     */
+    public function testTocDefaultsToEmptyList(): void
+    {
+        $page = $this->createPage([]);
+
+        $this->assertSame([], $page->toc);
+    }
+
+    /**
+     * Ensure withToc() returns a new instance with the supplied entries, leaving the original unchanged.
+     */
+    public function testWithTocReturnsNewInstanceWithEntries(): void
+    {
+        $page = $this->createPage([]);
+        $entries = [
+            new TocEntry(level: 1, id: 'intro', text: 'Introduction'),
+            new TocEntry(level: 2, id: 'setup', text: 'Setup'),
+        ];
+
+        $enriched = $page->withToc($entries);
+
+        $this->assertNotSame($page, $enriched);
+        $this->assertSame([], $page->toc);
+        $this->assertSame($entries, $enriched->toc);
+        $this->assertSame(1, $enriched->toc[0]->level);
+        $this->assertSame('intro', $enriched->toc[0]->id);
+        $this->assertSame('Introduction', $enriched->toc[0]->text);
+    }
+
+    /**
+     * Ensure withToc() preserves all other page properties unchanged.
+     */
+    public function testWithTocPreservesAllOtherProperties(): void
+    {
+        $page = $this->createPage(['weight' => 5]);
+        $enriched = $page->withToc([new TocEntry(level: 2, id: 'setup', text: 'Setup')]);
+
+        $this->assertSame($page->sourcePath, $enriched->sourcePath);
+        $this->assertSame($page->relativePath, $enriched->relativePath);
+        $this->assertSame($page->slug, $enriched->slug);
+        $this->assertSame($page->urlPath, $enriched->urlPath);
+        $this->assertSame($page->title, $enriched->title);
+        $this->assertSame($page->source, $enriched->source);
+        $this->assertSame($page->draft, $enriched->draft);
+        $this->assertSame($page->meta, $enriched->meta);
     }
 
     /**

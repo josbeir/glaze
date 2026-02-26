@@ -64,9 +64,30 @@ djot:
     enabled: false
     symbol: "#"
     position: after
-    cssClass: header-anchor
+    cssClass: permalink-wrapper
     ariaLabel: Anchor link
     levels: [1, 2, 3, 4, 5, 6]
+  autolink:
+    enabled: false
+    allowedSchemes: [https, http, mailto]
+  externalLinks:
+    enabled: false
+    internalHosts: []
+    target: _blank
+    rel: noopener noreferrer
+    nofollow: false
+  smartQuotes:
+    enabled: false
+    locale: null
+  mentions:
+    enabled: false
+    urlTemplate: '/users/view/{username}'
+    cssClass: mention
+  semanticSpan:
+    enabled: false
+  defaultAttributes:
+    enabled: false
+    defaults: {}
 
 build:
   clean: false
@@ -245,7 +266,7 @@ djot:
 
 ### `djot.headerAnchors`
 
-Injects anchor links into headings during Djot rendering.
+Injects anchor permalink links into headings during Djot rendering, powered by the vendor `HeadingPermalinksExtension`.
 
 ```neon
 djot:
@@ -253,7 +274,7 @@ djot:
     enabled: true
     symbol: "#"
     position: after
-    cssClass: header-anchor
+    cssClass: permalink-wrapper
     ariaLabel: Anchor link
     levels: [2, 3, 4]
 ```
@@ -261,9 +282,141 @@ djot:
 - `enabled` -- enable or disable heading anchor injection (default `false`)
 - `symbol` -- anchor text shown inside the heading link (default `#`)
 - `position` -- link placement, either `before` or `after` heading text (default `after`)
-- `cssClass` -- CSS class added to each anchor link (default `header-anchor`)
+- `cssClass` -- CSS class added to each anchor link (default `permalink-wrapper`)
 - `ariaLabel` -- accessibility label for anchor links (default `Anchor link`)
 - `levels` -- heading levels that get anchors (defaults to `[1, 2, 3, 4, 5, 6]`)
+
+### `djot.autolink`
+
+Automatically converts bare URLs in the document into anchor links.
+
+```neon
+djot:
+  autolink:
+    enabled: true
+    allowedSchemes: [https, http, mailto]
+```
+
+- `enabled` -- enable or disable autolinking (default `false`)
+- `allowedSchemes` -- URL schemes to linkify (default `[https, http, mailto]`)
+
+### `djot.externalLinks`
+
+Adds configurable attributes to external links. Internal hosts are excluded.
+
+```neon
+djot:
+  externalLinks:
+    enabled: true
+    internalHosts: [example.com]
+    target: _blank
+    rel: noopener noreferrer
+    nofollow: false
+```
+
+- `enabled` -- enable or disable external link enrichment (default `false`)
+- `internalHosts` -- list of hostnames treated as internal; matching links are left unchanged
+- `target` -- `target` attribute added to external links (default `_blank`)
+- `rel` -- `rel` attribute added to external links (default `noopener noreferrer`)
+- `nofollow` -- append `nofollow` to the `rel` attribute (default `false`)
+
+### `djot.smartQuotes`
+
+Replaces straight quotation marks with typographic curly quotes. Locale-based defaults are applied when no explicit characters are given.
+
+```neon
+djot:
+  smartQuotes:
+    enabled: true
+    locale: en
+```
+
+- `enabled` -- enable or disable smart quote conversion (default `false`)
+- `locale` -- locale used for quote character defaults, e.g. `en`, `de`, `fr` (default `null`)
+- `openDouble` -- explicit opening double-quote character; overrides locale default (default `null`)
+- `closeDouble` -- explicit closing double-quote character; overrides locale default (default `null`)
+- `openSingle` -- explicit opening single-quote character; overrides locale default (default `null`)
+- `closeSingle` -- explicit closing single-quote character; overrides locale default (default `null`)
+
+### `djot.mentions`
+
+Converts `@username` references into links using a configurable URL template.
+
+```neon
+djot:
+  mentions:
+    enabled: true
+    urlTemplate: '/users/view/{username}'
+    cssClass: mention
+```
+
+- `enabled` -- enable or disable mention expansion (default `false`)
+- `urlTemplate` -- URL template for mention links; `{username}` is replaced with the matched username (default `/users/view/{username}`)
+- `cssClass` -- CSS class added to rendered mention links (default `mention`)
+
+### `djot.semanticSpan`
+
+Promotes spans with special class attributes to their semantic HTML equivalents.
+
+Supported mappings: `{mark=...}` → `<mark>`, `{ins=...}` → `<ins>`, `{del=...}` → `<del>`, `{kbd=...}` → `<kbd>`.
+
+```neon
+djot:
+  semanticSpan:
+    enabled: true
+```
+
+- `enabled` -- enable or disable semantic span promotion (default `false`)
+
+### `djot.defaultAttributes`
+
+Injects default HTML attributes onto Djot elements at render time.
+
+```neon
+djot:
+  defaultAttributes:
+    enabled: true
+    defaults:
+      heading:
+        class: my-heading
+      paragraph:
+        class: prose
+```
+
+- `enabled` -- enable or disable default attribute injection (default `false`)
+- `defaults` -- map of element type names to attribute maps; keys are Djot node type names (e.g. `heading`, `paragraph`, `code_block`), values are attribute name → value maps
+
+### `djot` Table of Contents
+
+Glaze can generate a table of contents from Djot headings in a single render pass.
+
+**Inline TOC directive**
+
+Place `[[toc]]` as a standalone paragraph in your Djot source to inject the table of contents at that position:
+
+```djot
+[[toc]]
+
+## Introduction
+
+## Installation
+```
+
+**Template access**
+
+The `$page->toc` property holds the collected `TocEntry` list in document order:
+
+```php
+<?php foreach ($page->toc as $entry): ?>
+<a href="#<?= $entry->id ?>"><?= $entry->text ?></a>
+<?php endforeach; ?>
+```
+
+Each `TocEntry` exposes:
+
+- `$entry->level` -- heading level (1–6)
+- `$entry->id` -- anchor id matching the rendered heading element
+- `$entry->text` -- plain-text heading label
 
 ## `extensionsDir`
 

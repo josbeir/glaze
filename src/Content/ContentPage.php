@@ -26,6 +26,7 @@ final class ContentPage
      * @param array<string, mixed> $meta Parsed frontmatter metadata.
      * @param array<string, array<string>> $taxonomies Parsed taxonomy terms by taxonomy key.
      * @param string|null $type Resolved content type name.
+     * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries collected during the render pass.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -39,7 +40,34 @@ final class ContentPage
         public readonly array $meta,
         public readonly array $taxonomies = [],
         public readonly ?string $type = null,
+        public readonly array $toc = [],
     ) {
+    }
+
+    /**
+     * Return a copy of this page with the given table-of-contents entries attached.
+     *
+     * Used by `SiteBuilder` after the Djot render pass to attach the collected
+     * `TocEntry[]` list to the page value object before it is passed to templates.
+     *
+     * @param list<\Glaze\Render\Djot\TocEntry> $toc TOC entries in document order.
+     */
+    public function withToc(array $toc): self
+    {
+        return new self(
+            sourcePath: $this->sourcePath,
+            relativePath: $this->relativePath,
+            slug: $this->slug,
+            urlPath: $this->urlPath,
+            outputRelativePath: $this->outputRelativePath,
+            title: $this->title,
+            source: $this->source,
+            draft: $this->draft,
+            meta: $this->meta,
+            taxonomies: $this->taxonomies,
+            type: $this->type,
+            toc: $toc,
+        );
     }
 
     /**

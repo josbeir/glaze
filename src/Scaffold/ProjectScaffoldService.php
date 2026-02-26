@@ -339,9 +339,30 @@ JS;
 #     enabled: false
 #     symbol: "#"
 #     position: after
-#     cssClass: header-anchor
+#     cssClass: permalink-wrapper
 #     ariaLabel: Anchor link
 #     levels: [1, 2, 3, 4, 5, 6]
+#   autolink:
+#     enabled: false
+#     allowedSchemes: [https, http, mailto]
+#   externalLinks:
+#     enabled: false
+#     internalHosts: []
+#     target: _blank
+#     rel: noopener noreferrer
+#     nofollow: false
+#   smartQuotes:
+#     enabled: false
+#     locale: null
+#   mentions:
+#     enabled: false
+#     urlTemplate: '/users/view/{username}'
+#     cssClass: mention
+#   semanticSpan:
+#     enabled: false
+#   defaultAttributes:
+#     enabled: false
+#     defaults: {}
 #
 # build:
 #   clean: false

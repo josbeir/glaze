@@ -13,10 +13,10 @@ $resolvedLabel = $isPrevious ? 'Previous' : 'Next';
 			<?= $resolvedLabel ?>
 		</span>
 		<span class="font-medium text-sm sm:text-base" s:if="$isPrevious">
-			&larr; <span s:slot="title">Untitled</span>
+			&larr; <span s:slot="title"><?= $slot ?></span>
 		</span>
 		<span class="font-medium text-sm sm:text-base" s:if="!$isPrevious">
-			<span s:slot="title">Untitled</span> &rarr;
+			<span s:slot="title"><?= $slot ?></span> &rarr;
 		</span>
 	</div>
 </a>

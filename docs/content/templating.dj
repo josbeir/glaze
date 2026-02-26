@@ -87,6 +87,7 @@ $page->draft            // bool
 $page->type             // ?string -- resolved content type name
 $page->meta             // array<string, mixed> -- all frontmatter metadata (keys lowercased)
 $page->taxonomies       // array<string, array<string>>
+$page->toc              // list<TocEntry> -- TOC entries collected during rendering (empty until rendered)
 
 $page->meta('hero.title')                  // dotted access to nested frontmatter
 $page->meta('hero.primaryAction.href', '/') // dotted access with default fallback

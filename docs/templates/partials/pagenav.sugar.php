@@ -8,6 +8,7 @@
 $prevPage = $this->previousInSection();
 $nextPage = $this->nextInSection();
 $basePath = $site->basePath ?? '';
+$hasPrev = $prevPage && $prevPage->meta('navigation', true);
 ?>
 <nav
 	class="grid gap-3 grid-cols-2"
@@ -15,7 +16,7 @@ $basePath = $site->basePath ?? '';
 	s:if="$prevPage || $nextPage"
 	aria-label="Page navigation"
 >
-	<s-doc-nav-card s:if="$prevPage" href="<?= $basePath . $prevPage->urlPath ?>" s:bind="['direction' => 'prev']">
+	<s-doc-nav-card s:if="$hasPrev" href="<?= $basePath . $prevPage->urlPath ?>" s:bind="['direction' => 'prev']">
 		<?= $prevPage->title ?>
 	</s-doc-nav-card>
 

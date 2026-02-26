@@ -25,7 +25,7 @@ final class BuildConfig
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
-     * @param array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}} $djot Djot rendering configuration.
+     * @param array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}, autolink: array{enabled: bool, allowedSchemes: array<string>}, externalLinks: array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool}, smartQuotes: array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null}, mentions: array{enabled: bool, urlTemplate: string, cssClass: string}, semanticSpan: array{enabled: bool}, defaultAttributes: array{enabled: bool, defaults: array<string, array<string, string>>}} $djot Djot rendering configuration.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @param array<string> $taxonomies Enabled taxonomy keys.
      * @param array<string, mixed> $templateVite Sugar Vite extension configuration.
@@ -57,6 +57,37 @@ final class BuildConfig
                 'cssClass' => 'header-anchor',
                 'ariaLabel' => 'Anchor link',
                 'levels' => [1, 2, 3, 4, 5, 6],
+            ],
+            'autolink' => [
+                'enabled' => false,
+                'allowedSchemes' => ['https', 'http', 'mailto'],
+            ],
+            'externalLinks' => [
+                'enabled' => false,
+                'internalHosts' => [],
+                'target' => '_blank',
+                'rel' => 'noopener noreferrer',
+                'nofollow' => false,
+            ],
+            'smartQuotes' => [
+                'enabled' => false,
+                'locale' => null,
+                'openDouble' => null,
+                'closeDouble' => null,
+                'openSingle' => null,
+                'closeSingle' => null,
+            ],
+            'mentions' => [
+                'enabled' => false,
+                'urlTemplate' => '/users/view/{username}',
+                'cssClass' => 'mention',
+            ],
+            'semanticSpan' => [
+                'enabled' => false,
+            ],
+            'defaultAttributes' => [
+                'enabled' => false,
+                'defaults' => [],
             ],
         ],
         public readonly array $contentTypes = [],
@@ -219,7 +250,7 @@ final class BuildConfig
      *
      * @param array<string, mixed> $projectConfiguration Raw project configuration map.
      * @param mixed $legacyCodeHighlightingConfiguration Legacy root-level code highlighting map.
-     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}}
+     * @return array{codeHighlighting: array{enabled: bool, theme: string, withGutter: bool}, headerAnchors: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>}, autolink: array{enabled: bool, allowedSchemes: array<string>}, externalLinks: array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool}, smartQuotes: array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null}, mentions: array{enabled: bool, urlTemplate: string, cssClass: string}, semanticSpan: array{enabled: bool}, defaultAttributes: array{enabled: bool, defaults: array<string, array<string, string>>}}
      */
     protected static function normalizeDjotConfiguration(
         array $projectConfiguration,
@@ -228,15 +259,33 @@ final class BuildConfig
         $djotConfiguration = $projectConfiguration['djot'] ?? null;
         $rawCodeHighlighting = $legacyCodeHighlightingConfiguration;
         $rawHeaderAnchors = null;
+        $rawAutolink = null;
+        $rawExternalLinks = null;
+        $rawSmartQuotes = null;
+        $rawMentions = null;
+        $rawSemanticSpan = null;
+        $rawDefaultAttributes = null;
 
         if (is_array($djotConfiguration)) {
             $rawCodeHighlighting = $djotConfiguration['codeHighlighting'] ?? $rawCodeHighlighting;
             $rawHeaderAnchors = $djotConfiguration['headerAnchors'] ?? null;
+            $rawAutolink = $djotConfiguration['autolink'] ?? null;
+            $rawExternalLinks = $djotConfiguration['externalLinks'] ?? null;
+            $rawSmartQuotes = $djotConfiguration['smartQuotes'] ?? null;
+            $rawMentions = $djotConfiguration['mentions'] ?? null;
+            $rawSemanticSpan = $djotConfiguration['semanticSpan'] ?? null;
+            $rawDefaultAttributes = $djotConfiguration['defaultAttributes'] ?? null;
         }
 
         return [
             'codeHighlighting' => self::normalizeCodeHighlighting($rawCodeHighlighting),
             'headerAnchors' => self::normalizeHeaderAnchors($rawHeaderAnchors),
+            'autolink' => self::normalizeAutolink($rawAutolink),
+            'externalLinks' => self::normalizeExternalLinks($rawExternalLinks),
+            'smartQuotes' => self::normalizeSmartQuotes($rawSmartQuotes),
+            'mentions' => self::normalizeMentions($rawMentions),
+            'semanticSpan' => self::normalizeSemanticSpan($rawSemanticSpan),
+            'defaultAttributes' => self::normalizeDefaultAttributes($rawDefaultAttributes),
         ];
     }
 
@@ -331,6 +380,281 @@ final class BuildConfig
             'cssClass' => $cssClass,
             'ariaLabel' => $ariaLabel,
             'levels' => $levels,
+        ];
+    }
+
+    /**
+     * Normalize autolink settings for Djot rendering.
+     *
+     * When enabled, bare URLs in the document are automatically converted to anchor links.
+     * The `allowedSchemes` list controls which URL schemes are linkified.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   autolink:
+     *     enabled: true
+     *     allowedSchemes: [https, http, mailto]
+     * ```
+     *
+     * @param mixed $autolink Raw autolink configuration map.
+     * @return array{enabled: bool, allowedSchemes: array<string>}
+     */
+    protected static function normalizeAutolink(mixed $autolink): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'allowedSchemes' => ['https', 'http', 'mailto'],
+        ];
+
+        if (!is_array($autolink)) {
+            return $defaults;
+        }
+
+        $enabled = $autolink['enabled'] ?? $defaults['enabled'];
+        $rawSchemes = $autolink['allowedSchemes'] ?? null;
+        $allowedSchemes = is_array($rawSchemes)
+            ? array_values(array_filter(array_map(
+                static fn(mixed $s): string => is_scalar($s) ? strtolower(trim((string)$s)) : '',
+                $rawSchemes,
+            ), static fn(string $s): bool => $s !== ''))
+            : $defaults['allowedSchemes'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'allowedSchemes' => $allowedSchemes !== [] ? $allowedSchemes : $defaults['allowedSchemes'],
+        ];
+    }
+
+    /**
+     * Normalize external links settings for Djot rendering.
+     *
+     * When enabled, external links are rendered with configurable attributes such as
+     * `target`, `rel`, and optionally `nofollow`. Hosts matching `internalHosts` are
+     * excluded from this treatment.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   externalLinks:
+     *     enabled: true
+     *     internalHosts: [example.com]
+     *     target: _blank
+     *     rel: noopener noreferrer
+     *     nofollow: false
+     * ```
+     *
+     * @param mixed $externalLinks Raw external links configuration map.
+     * @return array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool}
+     */
+    protected static function normalizeExternalLinks(mixed $externalLinks): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'internalHosts' => [],
+            'target' => '_blank',
+            'rel' => 'noopener noreferrer',
+            'nofollow' => false,
+        ];
+
+        if (!is_array($externalLinks)) {
+            return $defaults;
+        }
+
+        $enabled = $externalLinks['enabled'] ?? $defaults['enabled'];
+        $rawHosts = $externalLinks['internalHosts'] ?? null;
+        $internalHosts = is_array($rawHosts)
+            ? array_values(array_filter(array_map(
+                static fn(mixed $h): string => is_scalar($h) ? strtolower(trim((string)$h)) : '',
+                $rawHosts,
+            ), static fn(string $h): bool => $h !== ''))
+            : $defaults['internalHosts'];
+
+        $target = Normalization::optionalString($externalLinks['target'] ?? null) ?? $defaults['target'];
+        $rel = Normalization::optionalString($externalLinks['rel'] ?? null) ?? $defaults['rel'];
+        $nofollow = $externalLinks['nofollow'] ?? $defaults['nofollow'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'internalHosts' => $internalHosts,
+            'target' => $target,
+            'rel' => $rel,
+            'nofollow' => is_bool($nofollow) ? $nofollow : $defaults['nofollow'],
+        ];
+    }
+
+    /**
+     * Normalize smart quotes settings for Djot rendering.
+     *
+     * When enabled, straight quotes in the document are replaced with typographic curly quotes.
+     * Locale-based defaults are applied when no explicit quote characters are given.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   smartQuotes:
+     *     enabled: true
+     *     locale: en
+     * ```
+     *
+     * @param mixed $smartQuotes Raw smart quotes configuration map.
+     * @return array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null}
+     */
+    protected static function normalizeSmartQuotes(mixed $smartQuotes): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'locale' => null,
+            'openDouble' => null,
+            'closeDouble' => null,
+            'openSingle' => null,
+            'closeSingle' => null,
+        ];
+
+        if (!is_array($smartQuotes)) {
+            return $defaults;
+        }
+
+        $enabled = $smartQuotes['enabled'] ?? $defaults['enabled'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'locale' => Normalization::optionalString($smartQuotes['locale'] ?? null),
+            'openDouble' => Normalization::optionalString($smartQuotes['openDouble'] ?? null),
+            'closeDouble' => Normalization::optionalString($smartQuotes['closeDouble'] ?? null),
+            'openSingle' => Normalization::optionalString($smartQuotes['openSingle'] ?? null),
+            'closeSingle' => Normalization::optionalString($smartQuotes['closeSingle'] ?? null),
+        ];
+    }
+
+    /**
+     * Normalize mentions settings for Djot rendering.
+     *
+     * When enabled, `@username` references in the document are rendered as links using
+     * the configured URL template and CSS class.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   mentions:
+     *     enabled: true
+     *     urlTemplate: /users/view/{username}
+     *     cssClass: mention
+     * ```
+     *
+     * @param mixed $mentions Raw mentions configuration map.
+     * @return array{enabled: bool, urlTemplate: string, cssClass: string}
+     */
+    protected static function normalizeMentions(mixed $mentions): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'urlTemplate' => '/users/view/{username}',
+            'cssClass' => 'mention',
+        ];
+
+        if (!is_array($mentions)) {
+            return $defaults;
+        }
+
+        $enabled = $mentions['enabled'] ?? $defaults['enabled'];
+        $urlTemplate = Normalization::optionalString($mentions['urlTemplate'] ?? null) ?? $defaults['urlTemplate'];
+        $cssClass = Normalization::optionalString($mentions['cssClass'] ?? null) ?? $defaults['cssClass'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'urlTemplate' => $urlTemplate,
+            'cssClass' => $cssClass,
+        ];
+    }
+
+    /**
+     * Normalize semantic span settings for Djot rendering.
+     *
+     * When enabled, spans carrying a class of `mark`, `ins`, or `del` are promoted to
+     * their semantic HTML equivalents.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   semanticSpan:
+     *     enabled: true
+     * ```
+     *
+     * @param mixed $semanticSpan Raw semantic span configuration map.
+     * @return array{enabled: bool}
+     */
+    protected static function normalizeSemanticSpan(mixed $semanticSpan): array
+    {
+        $defaults = ['enabled' => false];
+
+        if (!is_array($semanticSpan)) {
+            return $defaults;
+        }
+
+        $enabled = $semanticSpan['enabled'] ?? $defaults['enabled'];
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+        ];
+    }
+
+    /**
+     * Normalize default attributes settings for Djot rendering.
+     *
+     * When enabled, the provided `defaults` map is applied to matching Djot elements at
+     * render time, e.g. automatically adding a CSS class to every heading.
+     *
+     * Example:
+     * ```yaml
+     * djot:
+     *   defaultAttributes:
+     *     enabled: true
+     *     defaults:
+     *       heading:
+     *         class: heading
+     * ```
+     *
+     * @param mixed $defaultAttributes Raw default attributes configuration map.
+     * @return array{enabled: bool, defaults: array<string, array<string, string>>}
+     */
+    protected static function normalizeDefaultAttributes(mixed $defaultAttributes): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'defaults' => [],
+        ];
+
+        if (!is_array($defaultAttributes)) {
+            return $defaults;
+        }
+
+        $enabled = $defaultAttributes['enabled'] ?? $defaults['enabled'];
+        $rawDefaults = $defaultAttributes['defaults'] ?? null;
+        $normalizedDefaults = [];
+
+        if (is_array($rawDefaults)) {
+            foreach ($rawDefaults as $elementType => $attributes) {
+                if (!is_string($elementType)) {
+                    continue;
+                }
+
+                if (!is_array($attributes)) {
+                    continue;
+                }
+
+                $normalizedType = strtolower(trim($elementType));
+                if ($normalizedType === '') {
+                    continue;
+                }
+
+                $normalizedDefaults[$normalizedType] = Normalization::stringMap($attributes);
+            }
+        }
+
+        return [
+            'enabled' => is_bool($enabled) ? $enabled : $defaults['enabled'],
+            'defaults' => $normalizedDefaults,
         ];
     }
 

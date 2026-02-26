@@ -42,6 +42,37 @@ final class BuildConfigTest extends TestCase
                 'ariaLabel' => 'Anchor link',
                 'levels' => [1, 2, 3, 4, 5, 6],
             ],
+            'autolink' => [
+                'enabled' => false,
+                'allowedSchemes' => ['https', 'http', 'mailto'],
+            ],
+            'externalLinks' => [
+                'enabled' => false,
+                'internalHosts' => [],
+                'target' => '_blank',
+                'rel' => 'noopener noreferrer',
+                'nofollow' => false,
+            ],
+            'smartQuotes' => [
+                'enabled' => false,
+                'locale' => null,
+                'openDouble' => null,
+                'closeDouble' => null,
+                'openSingle' => null,
+                'closeSingle' => null,
+            ],
+            'mentions' => [
+                'enabled' => false,
+                'urlTemplate' => '/users/view/{username}',
+                'cssClass' => 'mention',
+            ],
+            'semanticSpan' => [
+                'enabled' => false,
+            ],
+            'defaultAttributes' => [
+                'enabled' => false,
+                'defaults' => [],
+            ],
         ], $config->djot);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
@@ -308,6 +339,251 @@ final class BuildConfigTest extends TestCase
             'theme' => 'github-dark',
             'withGutter' => true,
         ], $config->djot['codeHighlighting']);
+    }
+
+    /**
+     * Ensure autolink settings are normalized from Djot configuration.
+     */
+    public function testAutolinkCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  autolink:\n    enabled: true\n    allowedSchemes: [https, ftp]\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'allowedSchemes' => ['https', 'ftp'],
+        ], $config->djot['autolink']);
+    }
+
+    /**
+     * Ensure autolink settings fall back to safe defaults when not configured.
+     */
+    public function testAutolinkFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  autolink: true\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'allowedSchemes' => ['https', 'http', 'mailto'],
+        ], $config->djot['autolink']);
+    }
+
+    /**
+     * Ensure external links settings are normalized from Djot configuration.
+     */
+    public function testExternalLinksCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  externalLinks:\n    enabled: true\n    internalHosts: [example.com, cdn.example.com]\n    target: _blank\n    rel: noopener\n    nofollow: true\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'internalHosts' => ['example.com', 'cdn.example.com'],
+            'target' => '_blank',
+            'rel' => 'noopener',
+            'nofollow' => true,
+        ], $config->djot['externalLinks']);
+    }
+
+    /**
+     * Ensure external links settings fall back to defaults when not configured.
+     */
+    public function testExternalLinksFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  externalLinks: invalid\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'internalHosts' => [],
+            'target' => '_blank',
+            'rel' => 'noopener noreferrer',
+            'nofollow' => false,
+        ], $config->djot['externalLinks']);
+    }
+
+    /**
+     * Ensure smart quotes settings are normalized from Djot configuration.
+     */
+    public function testSmartQuotesCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  smartQuotes:\n    enabled: true\n    locale: de\n    openDouble: \"\u{201E}\"\n    closeDouble: \"\u{201C}\"\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertTrue($config->djot['smartQuotes']['enabled']);
+        $this->assertSame('de', $config->djot['smartQuotes']['locale']);
+        $this->assertSame("\u{201E}", $config->djot['smartQuotes']['openDouble']);
+        $this->assertSame("\u{201C}", $config->djot['smartQuotes']['closeDouble']);
+        $this->assertNull($config->djot['smartQuotes']['openSingle']);
+        $this->assertNull($config->djot['smartQuotes']['closeSingle']);
+    }
+
+    /**
+     * Ensure smart quotes settings fall back to defaults when not configured.
+     */
+    public function testSmartQuotesFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  smartQuotes: 1\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'locale' => null,
+            'openDouble' => null,
+            'closeDouble' => null,
+            'openSingle' => null,
+            'closeSingle' => null,
+        ], $config->djot['smartQuotes']);
+    }
+
+    /**
+     * Ensure mentions settings are normalized from Djot configuration.
+     */
+    public function testMentionsCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  mentions:\n    enabled: true\n    urlTemplate: '/profiles/{username}'\n    cssClass: user-mention\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'urlTemplate' => '/profiles/{username}',
+            'cssClass' => 'user-mention',
+        ], $config->djot['mentions']);
+    }
+
+    /**
+     * Ensure mentions settings fall back to defaults when not configured.
+     */
+    public function testMentionsFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  mentions: true\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'urlTemplate' => '/users/view/{username}',
+            'cssClass' => 'mention',
+        ], $config->djot['mentions']);
+    }
+
+    /**
+     * Ensure semantic span settings are normalized from Djot configuration.
+     */
+    public function testSemanticSpanCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  semanticSpan:\n    enabled: true\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame(['enabled' => true], $config->djot['semanticSpan']);
+    }
+
+    /**
+     * Ensure semantic span settings fall back to defaults when not configured.
+     */
+    public function testSemanticSpanFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  semanticSpan: invalid\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame(['enabled' => false], $config->djot['semanticSpan']);
+    }
+
+    /**
+     * Ensure default attributes settings are normalized from Djot configuration.
+     */
+    public function testDefaultAttributesCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  defaultAttributes:\n    enabled: true\n    defaults:\n      heading:\n        class: heading\n      paragraph:\n        class: prose\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => true,
+            'defaults' => [
+                'heading' => ['class' => 'heading'],
+                'paragraph' => ['class' => 'prose'],
+            ],
+        ], $config->djot['defaultAttributes']);
+    }
+
+    /**
+     * Ensure default attributes settings fall back to defaults when not configured.
+     */
+    public function testDefaultAttributesFallsBackToDefaultsForInvalidConfig(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "djot:\n  defaultAttributes: invalid\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'enabled' => false,
+            'defaults' => [],
+        ], $config->djot['defaultAttributes']);
     }
 
     /**

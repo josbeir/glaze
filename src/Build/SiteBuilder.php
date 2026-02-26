@@ -246,18 +246,23 @@ final class SiteBuilder
         }
 
         $siteIndex ??= new SiteIndex([$page]);
+
+        $renderResult = $this->djotRenderer->renderWithToc(
+            source: $page->source,
+            djot: $config->djot,
+            siteConfig: $config->site,
+            relativePagePath: $page->relativePath,
+        );
+
+        $page = $page->withToc($renderResult->toc);
+
         $templateContext = new SiteContext(
             siteIndex: $siteIndex,
             currentPage: $page,
             extensions: $extensionRegistry ?? new ExtensionRegistry(),
         );
 
-        $htmlContent = $this->djotRenderer->render(
-            source: $page->source,
-            djot: $config->djot,
-            siteConfig: $config->site,
-            relativePagePath: $page->relativePath,
-        );
+        $htmlContent = $renderResult->html;
         if (!$debug) {
             $htmlContent = $this->buildGlideHtmlRewriter->rewrite($htmlContent, $config);
         }
