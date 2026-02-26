@@ -148,6 +148,28 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
+     * Validate computed index collections are memoized and reused.
+     */
+    public function testSiteIndexMemoizesComputedCollections(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', ['weight' => 1], 'Home', ['tags' => ['home']]),
+            $this->makePage('blog/post', '/blog/post/', 'blog/post.dj', ['weight' => 2], 'Post', ['tags' => ['php']]),
+        ]);
+
+        $regularPages = $index->regularPages();
+        $regularPagesAgain = $index->regularPages();
+        $blogSection = $index->section('blog');
+        $blogSectionAgain = $index->section('blog');
+        $tags = $index->taxonomy('tags');
+        $tagsAgain = $index->taxonomy('tags');
+
+        $this->assertSame($regularPages, $regularPagesAgain);
+        $this->assertSame($blogSection, $blogSectionAgain);
+        $this->assertSame($tags, $tagsAgain);
+    }
+
+    /**
      * Call a protected method for branch-targeted unit coverage.
      *
      * @param object $object Target object.

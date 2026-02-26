@@ -89,6 +89,9 @@ final class SiteBuilder
             viteConfiguration: $this->resolveTemplateViteConfiguration($config, false),
         );
         $siteIndex = new SiteIndex($pages);
+        $rendererCache = [
+            $config->pageTemplate => $pageRenderer,
+        ];
 
         $writtenFiles = [];
         $totalPages = count($pages);
@@ -98,11 +101,20 @@ final class SiteBuilder
         }
 
         foreach ($pages as $page) {
+            $pageTemplate = $this->resolvePageTemplate($page, $config);
+            $activeRenderer = $rendererCache[$pageTemplate] ?? new SugarPageRenderer(
+                templatePath: $config->templatePath(),
+                cachePath: $config->templateCachePath(),
+                template: $pageTemplate,
+                viteConfiguration: $this->resolveTemplateViteConfiguration($config, false),
+            );
+            $rendererCache[$pageTemplate] = $activeRenderer;
+
             $html = $this->renderPage(
                 config: $config,
                 page: $page,
                 debug: false,
-                pageRenderer: $pageRenderer,
+                pageRenderer: $activeRenderer,
                 siteIndex: $siteIndex,
             );
 
@@ -204,7 +216,11 @@ final class SiteBuilder
         $pageTemplate = $this->resolvePageTemplate($page, $config);
         $activeRenderer = $pageRenderer;
 
-        if (!$activeRenderer instanceof SugarPageRenderer || $pageTemplate !== $config->pageTemplate) {
+        if (
+            !$activeRenderer instanceof SugarPageRenderer
+            || $activeRenderer->templateName() !== $pageTemplate
+            || $activeRenderer->isDebugEnabled() !== $debug
+        ) {
             $activeRenderer = new SugarPageRenderer(
                 templatePath: $config->templatePath(),
                 cachePath: $config->templateCachePath(),

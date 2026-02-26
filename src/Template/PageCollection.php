@@ -503,6 +503,26 @@ final class PageCollection implements IteratorAggregate, Countable
      */
     protected function resolveValue(ContentPage $page, string $key): mixed
     {
+        if ($key === '') {
+            return null;
+        }
+
+        if (!str_contains($key, '.')) {
+            return property_exists($page, $key) ? $page->{$key} : null;
+        }
+
+        if (str_starts_with($key, 'meta.')) {
+            $metaPath = substr($key, 5);
+
+            return $metaPath === '' ? $page->meta : Hash::get($page->meta, $metaPath);
+        }
+
+        if (str_starts_with($key, 'taxonomies.')) {
+            $taxonomyPath = substr($key, 11);
+
+            return $taxonomyPath === '' ? $page->taxonomies : Hash::get($page->taxonomies, $taxonomyPath);
+        }
+
         return Hash::get($this->pageToArray($page), $key);
     }
 

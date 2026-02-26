@@ -36,24 +36,19 @@ final class DevPageRequestHandler implements RequestHandlerInterface
         $requestPath = $requestPath !== '' ? $requestPath : '/';
 
         $lookupPath = $this->stripBasePathFromRequestPath($requestPath);
-
-        $canonicalPath = $this->canonicalDirectoryPath($requestPath);
-        if (is_string($canonicalPath)) {
-            $canonicalLookupPath = $this->stripBasePathFromRequestPath($canonicalPath);
-            $canonicalHtml = $this->siteBuilder->renderRequest($this->config, $canonicalLookupPath);
-            if (is_string($canonicalHtml)) {
-                return (new Response(['charset' => 'UTF-8']))
-                    ->withStatus(301)
-                    ->withHeader('Location', $this->redirectLocation($canonicalPath, $request->getUri()->getQuery()));
-            }
-        }
-
         $html = $this->siteBuilder->renderRequest($this->config, $lookupPath);
         if (!is_string($html)) {
             return (new Response(['charset' => 'UTF-8']))
                 ->withStatus(404)
                 ->withHeader('Content-Type', 'text/html; charset=UTF-8')
                 ->withStringBody('<h1>404 Not Found</h1>');
+        }
+
+        $canonicalPath = $this->canonicalDirectoryPath($requestPath);
+        if (is_string($canonicalPath)) {
+            return (new Response(['charset' => 'UTF-8']))
+                ->withStatus(301)
+                ->withHeader('Location', $this->redirectLocation($canonicalPath, $request->getUri()->getQuery()));
         }
 
         return (new Response(['charset' => 'UTF-8']))

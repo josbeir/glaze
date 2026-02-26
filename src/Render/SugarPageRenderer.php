@@ -44,6 +44,22 @@ final class SugarPageRenderer
     }
 
     /**
+     * Return renderer template name.
+     */
+    public function templateName(): string
+    {
+        return $this->template;
+    }
+
+    /**
+     * Return debug mode state.
+     */
+    public function isDebugEnabled(): bool
+    {
+        return $this->debug;
+    }
+
+    /**
      * Create a configured Sugar engine.
      *
      * @param object|null $templateContext Template context available as `$this`.

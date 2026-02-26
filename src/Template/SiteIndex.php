@@ -14,6 +14,25 @@ use Throwable;
 final class SiteIndex
 {
     /**
+     * Memoized regular pages collection.
+     */
+    protected ?PageCollection $regularPagesCache = null;
+
+    /**
+     * Memoized section collections by normalized section key.
+     *
+     * @var array<string, \Glaze\Template\PageCollection>
+     */
+    protected array $sectionCache = [];
+
+    /**
+     * Memoized taxonomy collections by normalized taxonomy key.
+     *
+     * @var array<string, \Glaze\Template\TaxonomyCollection>
+     */
+    protected array $taxonomyCache = [];
+
+    /**
      * Constructor.
      *
      * @param array<\Glaze\Content\ContentPage> $pages All discoverable pages.
@@ -38,6 +57,10 @@ final class SiteIndex
      */
     public function regularPages(): PageCollection
     {
+        if ($this->regularPagesCache instanceof PageCollection) {
+            return $this->regularPagesCache;
+        }
+
         $pages = $this->pages;
 
         usort($pages, function (ContentPage $left, ContentPage $right): int {
@@ -59,7 +82,9 @@ final class SiteIndex
             return strcmp($left->relativePath, $right->relativePath);
         });
 
-        return new PageCollection($pages);
+        $this->regularPagesCache = new PageCollection($pages);
+
+        return $this->regularPagesCache;
     }
 
     /**
@@ -110,9 +135,17 @@ final class SiteIndex
     {
         $normalizedSection = strtolower(trim($section, '/'));
 
-        return $this->regularPages()->filter(function (ContentPage $page) use ($normalizedSection): bool {
-            return $this->resolveSection($page) === $normalizedSection;
-        });
+        if (isset($this->sectionCache[$normalizedSection])) {
+            return $this->sectionCache[$normalizedSection];
+        }
+
+        $this->sectionCache[$normalizedSection] = $this->regularPages()->filter(
+            function (ContentPage $page) use ($normalizedSection): bool {
+                return $this->resolveSection($page) === $normalizedSection;
+            },
+        );
+
+        return $this->sectionCache[$normalizedSection];
     }
 
     /**
@@ -123,6 +156,11 @@ final class SiteIndex
     public function taxonomy(string $taxonomy): TaxonomyCollection
     {
         $taxonomyKey = strtolower(trim($taxonomy));
+
+        if (isset($this->taxonomyCache[$taxonomyKey])) {
+            return $this->taxonomyCache[$taxonomyKey];
+        }
+
         $terms = [];
 
         foreach ($this->regularPages() as $page) {
@@ -139,7 +177,9 @@ final class SiteIndex
             $collections[$term] = new PageCollection($pages);
         }
 
-        return new TaxonomyCollection($collections);
+        $this->taxonomyCache[$taxonomyKey] = new TaxonomyCollection($collections);
+
+        return $this->taxonomyCache[$taxonomyKey];
     }
 
     /**
