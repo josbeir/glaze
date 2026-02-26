@@ -10,7 +10,7 @@
         "cakephp/chronos": "^3.3",
         "cakephp/console": "^5.3",
         "cakephp/http": "^5.3",
-		"josbeir/sugar": "^0.5.2",
+		"josbeir/sugar": "^0.6",
         "league/glide": "^3.0",
         "nette/neon": "^3.4",
         "php-collective/djot": "^0.1.13",

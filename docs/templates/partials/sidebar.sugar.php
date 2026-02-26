@@ -8,7 +8,7 @@
 <div class="w-72 h-full min-h-screen border-r border-base-300 bg-base-200 text-base-content">
 	<nav class="h-full overflow-y-auto p-4 lg:p-5">
 		<a class="btn btn-ghost justify-start normal-case text-base sm:text-lg w-full mb-3" href="<?= ($site->basePath ?? '') . '/' ?>">
-			<s-template s:include="site-brand" />
+			<s-site-brand s:bind="['site' => $site]" />
 		</a>
 
 		<ul class="menu menu-md gap-1">

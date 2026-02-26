@@ -16,11 +16,11 @@
 			</label>
 
 			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg lg:hidden" s:if="!$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>" aria-label="Go to homepage">
-				<s-template s:include="site-brand" />
+				<s-site-brand s:bind="['site' => $site]" />
 			</a>
 
 			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg" s:if="$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>">
-				<s-template s:include="site-brand" />
+				<s-site-brand s:bind="['site' => $site]" />
 			</a>
 
 			<span class="font-semibold text-sm sm:text-base text-base-content/80 hidden md:inline" s:if="!$isHomeTemplate">Documentation</span>
