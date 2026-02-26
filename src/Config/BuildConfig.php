@@ -31,6 +31,7 @@ final class BuildConfig
      * @param array<string, mixed> $templateVite Sugar Vite extension configuration.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
+     * @param string $extensionsDir Relative directory scanned for auto-discoverable extension classes.
      */
     public function __construct(
         public readonly string $projectRoot,
@@ -40,6 +41,7 @@ final class BuildConfig
         public readonly string $outputDir = 'public',
         public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
         public readonly string $pageTemplate = 'page',
+        public readonly string $extensionsDir = 'extensions',
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
         public readonly array $djot = [
@@ -106,6 +108,7 @@ final class BuildConfig
         return new self(
             projectRoot: $normalizedRoot,
             pageTemplate: self::normalizePageTemplate($projectConfiguration['pageTemplate'] ?? null),
+            extensionsDir: self::normalizeExtensionsDir($projectConfiguration['extensionsDir'] ?? null),
             imagePresets: $imagePresets,
             imageOptions: $imageOptions,
             djot: $djotConfiguration,
@@ -115,6 +118,20 @@ final class BuildConfig
             site: SiteConfig::fromProjectConfig($projectConfiguration['site'] ?? null),
             includeDrafts: $includeDrafts,
         );
+    }
+
+    /**
+     * Normalise the extensions directory name from project configuration.
+     *
+     * Returns the default `'extensions'` when the value is absent or blank.
+     *
+     * @param mixed $value Raw config value.
+     */
+    protected static function normalizeExtensionsDir(mixed $value): string
+    {
+        $normalized = Normalization::optionalString($value);
+
+        return $normalized !== null && $normalized !== '' ? $normalized : 'extensions';
     }
 
     /**

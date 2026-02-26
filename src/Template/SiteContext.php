@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Template;
 
 use Glaze\Content\ContentPage;
+use Glaze\Template\Extension\ExtensionRegistry;
 
 /**
  * Template context facade exposed to Sugar templates as `$this`.
@@ -15,10 +16,12 @@ final class SiteContext
      *
      * @param \Glaze\Template\SiteIndex $siteIndex Site-wide page index.
      * @param \Glaze\Content\ContentPage $currentPage Current page being rendered.
+     * @param \Glaze\Template\Extension\ExtensionRegistry $extensions Registered project extensions.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
         protected ContentPage $currentPage,
+        protected ExtensionRegistry $extensions = new ExtensionRegistry(),
     ) {
     }
 
@@ -190,6 +193,22 @@ final class SiteContext
     public function isCurrent(string $urlPath): bool
     {
         return $this->normalizeUrlPath($this->currentPage->urlPath) === $this->normalizeUrlPath($urlPath);
+    }
+
+    /**
+     * Invoke a named project extension and return its result.
+     *
+     * Extension results are memoized for the lifetime of the current build or request,
+     * so expensive operations (HTTP fetches, file reads, etc.) run at most once
+     * regardless of how many templates call the same extension.
+     *
+     * @param string $name Extension name as registered in `glaze.php`.
+     * @param mixed ...$args Arguments forwarded to the extension on first invocation.
+     * @throws \RuntimeException When the named extension is not registered.
+     */
+    public function extension(string $name, mixed ...$args): mixed
+    {
+        return $this->extensions->call($name, ...$args);
     }
 
     /**

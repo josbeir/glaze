@@ -45,6 +45,7 @@ final class BuildConfigTest extends TestCase
         ], $config->djot);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
+        $this->assertSame('extensions', $config->extensionsDir);
         $this->assertSame([
             'buildEnabled' => false,
             'devEnabled' => false,
@@ -55,6 +56,38 @@ final class BuildConfigTest extends TestCase
             'defaultEntry' => null,
         ], $this->normalizeTemplateVitePaths($config->templateVite));
         $this->assertFalse($config->includeDrafts);
+    }
+
+    /**
+     * Ensure extensions directory can be configured from project file.
+     */
+    public function testExtensionsDirCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "extensionsDir: src/Extensions\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame('src/Extensions', $config->extensionsDir);
+
+        rmdir($projectRoot);
+    }
+
+    /**
+     * Ensure extensions directory defaults to 'extensions' when config value is empty or absent.
+     */
+    public function testExtensionsDirFallsBackToDefault(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "extensionsDir: \n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame('extensions', $config->extensionsDir);
+
+        rmdir($projectRoot);
     }
 
     /**

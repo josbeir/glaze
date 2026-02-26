@@ -4,9 +4,11 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Template;
 
 use Glaze\Content\ContentPage;
+use Glaze\Template\Extension\ExtensionRegistry;
 use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * Tests for template context facade behavior.
@@ -79,6 +81,46 @@ final class SiteContextTest extends TestCase
         $homeContext = new SiteContext($index, $index->findBySlug('index') ?? $this->fail('Missing home page'));
         $this->assertTrue($homeContext->isCurrent('/index'));
         $this->assertTrue($homeContext->isCurrent('   '));
+    }
+
+    /**
+     * Validate that the extension() method delegates to the injected ExtensionRegistry.
+     */
+    public function testExtensionMethodDelegatesToRegistry(): void
+    {
+        $registry = new ExtensionRegistry();
+        $registry->register('greet', fn(string $who) => "Hello, {$who}!");
+
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', []),
+        ]);
+
+        $context = new SiteContext(
+            $index,
+            $index->findBySlug('index') ?? $this->fail('Missing index page'),
+            $registry,
+        );
+
+        $this->assertSame('Hello, World!', $context->extension('greet', 'World'));
+    }
+
+    /**
+     * Validate that extension() throws RuntimeException for unknown names.
+     */
+    public function testExtensionMethodThrowsForUnknownName(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', []),
+        ]);
+
+        $context = new SiteContext(
+            $index,
+            $index->findBySlug('index') ?? $this->fail('Missing index page'),
+        );
+
+        $this->expectException(RuntimeException::class);
+
+        $context->extension('nonexistent');
     }
 
     /**

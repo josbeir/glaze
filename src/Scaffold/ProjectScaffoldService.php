@@ -328,6 +328,8 @@ JS;
 #
 # staticDir: static
 #
+# extensionsDir: extensions
+#
 # djot:
 #   codeHighlighting:
 #     enabled: true

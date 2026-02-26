@@ -11,6 +11,8 @@ use Glaze\Render\DjotRenderer;
 use Glaze\Render\SugarPageRenderer;
 use Glaze\Support\BuildGlideHtmlRewriter;
 use Glaze\Support\ResourcePathRewriter;
+use Glaze\Template\Extension\ExtensionLoader;
+use Glaze\Template\Extension\ExtensionRegistry;
 use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
 use RuntimeException;
@@ -59,8 +61,9 @@ final class SiteBuilder
         }
 
         $siteIndex = new SiteIndex($pages);
+        $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
 
-        return $this->renderPage($config, $page, true, null, $siteIndex);
+        return $this->renderPage($config, $page, true, null, $siteIndex, $extensionRegistry);
     }
 
     /**
@@ -93,6 +96,7 @@ final class SiteBuilder
             templateVite: $config->templateVite,
         );
         $siteIndex = new SiteIndex($pages);
+        $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
         $rendererCache = [
             $config->pageTemplate => $pageRenderer,
         ];
@@ -122,6 +126,7 @@ final class SiteBuilder
                 debug: false,
                 pageRenderer: $activeRenderer,
                 siteIndex: $siteIndex,
+                extensionRegistry: $extensionRegistry,
             );
 
             $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
@@ -211,6 +216,7 @@ final class SiteBuilder
      * @param bool $debug Whether to enable template debug freshness checks.
      * @param \Glaze\Render\SugarPageRenderer|null $pageRenderer Optional pre-built renderer.
      * @param \Glaze\Template\SiteIndex|null $siteIndex Optional pre-built site index.
+     * @param \Glaze\Template\Extension\ExtensionRegistry|null $extensionRegistry Optional pre-built extension registry.
      */
     protected function renderPage(
         BuildConfig $config,
@@ -218,6 +224,7 @@ final class SiteBuilder
         bool $debug,
         ?SugarPageRenderer $pageRenderer = null,
         ?SiteIndex $siteIndex = null,
+        ?ExtensionRegistry $extensionRegistry = null,
     ): string {
         $pageTemplate = $this->resolvePageTemplate($page, $config);
         $activeRenderer = $pageRenderer;
@@ -242,6 +249,7 @@ final class SiteBuilder
         $templateContext = new SiteContext(
             siteIndex: $siteIndex,
             currentPage: $page,
+            extensions: $extensionRegistry ?? new ExtensionRegistry(),
         );
 
         $htmlContent = $this->djotRenderer->render(

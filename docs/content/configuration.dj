@@ -52,6 +52,8 @@ contentTypes:
     defaults:
       template: docs
 
+extensionsDir: extensions
+
 djot:
   codeHighlighting:
     enabled: true
@@ -261,6 +263,16 @@ djot:
 - `cssClass` -- CSS class added to each anchor link (default `header-anchor`)
 - `ariaLabel` -- accessibility label for anchor links (default `Anchor link`)
 - `levels` -- heading levels that get anchors (defaults to `[1, 2, 3, 4, 5, 6]`)
+
+## `extensionsDir`
+
+Directory Glaze scans for classes decorated with `#[GlazeExtension]`. Relative to the project root. Defaults to `extensions`.
+
+```neon
+extensionsDir: extensions
+```
+
+Any invokable class carrying the `#[GlazeExtension('name')]` attribute found in this directory is auto-registered and callable from templates as `$this->extension('name')`. See [Extensions](extensions) for full details.
 
 ## `devServer.php`
 

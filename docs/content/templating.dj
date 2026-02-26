@@ -118,9 +118,10 @@ $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
 $this->isCurrent('/blog/')              // bool
 $this->previousInSection()             // ?ContentPage
 $this->nextInSection()                 // ?ContentPage
+$this->extension('name')               // call a project extension (see Extensions)
 ```
 
-See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination.
+See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
 ## Sugar directives
 

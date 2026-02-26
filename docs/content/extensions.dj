@@ -1,0 +1,121 @@
+---
+title: Extensions
+weight: 85
+---
+# Extensions
+
+Extensions let you attach custom PHP logic to your templates and call it as `$this->extension('name')` from anywhere in a Sugar template.
+
+Common uses include reading a `VERSION` file, fetching the latest release tag from an API, injecting build metadata, or computing any value that should run once per build.
+
+Extension results are **memoized per build** -- however many templates call the same extension, the underlying PHP runs exactly once.
+
+There are two independent registration mechanisms. Use one or both:
+
+| Mechanism | Good for |
+| --- | --- |
+| `extensions/` directory | Invokable classes auto-discovered by convention (directory name is configurable) |
+| `glaze.php` bootstrap file | Inline callables, or registering classes from outside `extensions/` |
+
+## Auto-discovery (the `extensions/` directory)
+
+Create an `extensions/` directory at your project root. Any invokable class decorated with `#[GlazeExtension('name')]` placed there is registered automatically -- no `glaze.php` required.
+
+`extensions/LatestRelease.php`:
+
+```php
+<?php
+
+use Glaze\Template\Extension\GlazeExtension;
+
+#[GlazeExtension('version')]
+final class LatestRelease
+{
+    public function __invoke(): string
+    {
+        return trim((string)file_get_contents(__DIR__ . '/../VERSION'));
+    }
+}
+```
+
+Classes in the discovery directory that do **not** have the `#[GlazeExtension]` attribute are silently skipped, so helper files can live alongside extension classes without issue.
+
+The directory is called `extensions/` by default. Override it in `glaze.neon`:
+
+```neon
+extensionsDir: src/Extensions
+```
+
+## Bootstrap file (`glaze.php`)
+
+For inline callables, or when your extension classes live outside `extensions/`, create a `glaze.php` file at the project root that returns an array of definitions:
+
+```php
+<?php
+// glaze.php
+
+use App\Extensions\SiteStats;
+
+return [
+    SiteStats::class,               // class with #[GlazeExtension] attribute
+    'buildDate' => fn() => date('Y-m-d'),  // inline named callable
+];
+```
+
+Each entry is one of:
+
+- **A class name string** — an invokable class decorated with `#[GlazeExtension('name')]`
+- **A named callable** — a `string => callable` pair
+
+`glaze.php` is optional. If absent, only auto-discovered extensions are available.
+
+## Using both
+
+The `extensions/` directory and `glaze.php` are independent and additive. Extensions from both sources are merged into the same registry:
+
+```
+extensions/
+    Version.php          → auto-discovered as 'version'
+glaze.php                → registers 'buildDate' inline callable
+```
+
+Templates call both the same way.
+
+## Calling extensions in templates
+
+Use `$this->extension('name')` inside any Sugar template:
+
+```php
+<footer>
+    Version <?= $this->extension('version') ?> &mdash; built <?= $this->extension('buildDate') ?>
+</footer>
+```
+
+Arguments are forwarded to the callable on its first invocation:
+
+```php
+#[GlazeExtension('asset')]
+final class AssetExtension
+{
+    public function __invoke(string $path): string
+    {
+        return '/assets/' . ltrim($path, '/') . '?v=' . filemtime('/public/assets/' . $path);
+    }
+}
+```
+
+```php
+<link rel="stylesheet" href="<?= $this->extension('asset', 'css/site.css') ?>">
+```
+
+> **Note:** Because results are cached after the first call, passing different arguments on subsequent calls returns the result from the first invocation. Design extensions that take arguments as single-invocation helpers.
+
+## Error handling
+
+Calling an unregistered extension name from a template throws a `RuntimeException` with the list of available names:
+
+```
+Glaze extension "versin" is not registered. Available: version, buildDate
+```
+
+If neither `extensions/` nor `glaze.php` exist, the project runs without extensions and no error is raised.
