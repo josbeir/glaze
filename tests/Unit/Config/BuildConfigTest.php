@@ -4,17 +4,19 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Config;
 
 use Glaze\Config\BuildConfig;
+use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
+use Glaze\Config\TemplateViteOptions;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 /**
- * Tests for build configuration path resolution.
+ * Tests for build configuration path resolution and option extraction.
  */
 final class BuildConfigTest extends TestCase
 {
     /**
-     * Ensure default directories resolve from project root.
+     * Ensure default directories resolve from project root and typed option objects carry defaults.
      */
     public function testDefaultPathsResolveFromRoot(): void
     {
@@ -28,65 +30,41 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $this->normalizePath($config->glideCachePath()));
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
-        $this->assertSame([
-            'codeHighlighting' => [
-                'enabled' => true,
-                'theme' => 'nord',
-                'withGutter' => false,
-            ],
-            'headerAnchors' => [
-                'enabled' => false,
-                'symbol' => '#',
-                'position' => 'after',
-                'cssClass' => 'header-anchor',
-                'ariaLabel' => 'Anchor link',
-                'levels' => [1, 2, 3, 4, 5, 6],
-            ],
-            'autolink' => [
-                'enabled' => false,
-                'allowedSchemes' => ['https', 'http', 'mailto'],
-            ],
-            'externalLinks' => [
-                'enabled' => false,
-                'internalHosts' => [],
-                'target' => '_blank',
-                'rel' => 'noopener noreferrer',
-                'nofollow' => false,
-            ],
-            'smartQuotes' => [
-                'enabled' => false,
-                'locale' => null,
-                'openDouble' => null,
-                'closeDouble' => null,
-                'openSingle' => null,
-                'closeSingle' => null,
-            ],
-            'mentions' => [
-                'enabled' => false,
-                'urlTemplate' => '/users/view/{username}',
-                'cssClass' => 'mention',
-            ],
-            'semanticSpan' => [
-                'enabled' => false,
-            ],
-            'defaultAttributes' => [
-                'enabled' => false,
-                'defaults' => [],
-            ],
-        ], $config->djot);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertSame('extensions', $config->extensionsDir);
-        $this->assertSame([
-            'buildEnabled' => false,
-            'devEnabled' => false,
-            'assetBaseUrl' => '/assets/',
-            'manifestPath' => '/tmp/glaze-project/public/assets/.vite/manifest.json',
-            'devServerUrl' => 'http://127.0.0.1:5173',
-            'injectClient' => true,
-            'defaultEntry' => null,
-        ], $this->normalizeTemplateVitePaths($config->templateVite));
         $this->assertFalse($config->includeDrafts);
+
+        // DjotOptions defaults
+        $this->assertInstanceOf(DjotOptions::class, $config->djotOptions);
+        $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
+        $this->assertSame('nord', $config->djotOptions->codeHighlightingTheme);
+        $this->assertFalse($config->djotOptions->headerAnchorsEnabled);
+
+        // TemplateViteOptions defaults
+        $this->assertInstanceOf(TemplateViteOptions::class, $config->templateViteOptions);
+        $this->assertFalse($config->templateViteOptions->buildEnabled);
+        $this->assertFalse($config->templateViteOptions->devEnabled);
+        $this->assertSame('/assets/', $config->templateViteOptions->assetBaseUrl);
+        $this->assertSame(
+            $this->normalizePath('/tmp/glaze-project/public/assets/.vite/manifest.json'),
+            $this->normalizePath($config->templateViteOptions->manifestPath),
+        );
+        $this->assertSame('http://127.0.0.1:5173', $config->templateViteOptions->devServerUrl);
+        $this->assertTrue($config->templateViteOptions->injectClient);
+        $this->assertNull($config->templateViteOptions->defaultEntry);
+    }
+
+    /**
+     * Ensure djotOptions is a typed DjotOptions value object with correct defaults.
+     */
+    public function testDjotOptionsIsTypedValueObject(): void
+    {
+        $config = BuildConfig::fromProjectRoot('/tmp/glaze-project');
+
+        $this->assertInstanceOf(DjotOptions::class, $config->djotOptions);
+        $this->assertSame('permalink-wrapper', $config->djotOptions->headerAnchorsCssClass);
+        $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
     }
 
     /**
@@ -118,7 +96,7 @@ final class BuildConfigTest extends TestCase
     }
 
     /**
-     * Ensure Sugar Vite extension settings can be normalized from build and devServer sections.
+     * Ensure Sugar Vite extension settings resolve correctly from build and devServer sections.
      */
     public function testTemplateViteSettingsCanBeConfiguredFromProjectFile(): void
     {
@@ -130,16 +108,46 @@ final class BuildConfigTest extends TestCase
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
+        $vite = $config->templateViteOptions;
 
-        $this->assertSame([
-            'buildEnabled' => true,
-            'devEnabled' => true,
-            'assetBaseUrl' => '/build/',
-            'manifestPath' => $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
-            'devServerUrl' => 'http://0.0.0.0:5179',
-            'injectClient' => false,
-            'defaultEntry' => 'resources/js/app.ts',
-        ], $this->normalizeTemplateVitePaths($config->templateVite));
+        $this->assertTrue($vite->buildEnabled);
+        $this->assertTrue($vite->devEnabled);
+        $this->assertSame('/build/', $vite->assetBaseUrl);
+        $this->assertSame(
+            $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
+            $this->normalizePath($vite->manifestPath),
+        );
+        $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
+        $this->assertFalse($vite->injectClient);
+        $this->assertSame('resources/js/app.ts', $vite->defaultEntry);
+    }
+
+    /**
+     * Ensure templateViteOptions is a typed TemplateViteOptions value object with correct values.
+     */
+    public function testTemplateViteOptionsIsTypedValueObject(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "build:\n  vite:\n    enabled: true\n    assetBaseUrl: /build\n    manifestPath: public/custom-manifest.json\ndevServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5179\n    injectClient: false\n    defaultEntry: resources/js/app.ts\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $vite = $config->templateViteOptions;
+
+        $this->assertInstanceOf(TemplateViteOptions::class, $vite);
+        $this->assertTrue($vite->buildEnabled);
+        $this->assertTrue($vite->devEnabled);
+        $this->assertSame('/build/', $vite->assetBaseUrl);
+        $this->assertSame(
+            $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
+            $this->normalizePath($vite->manifestPath),
+        );
+        $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
+        $this->assertFalse($vite->injectClient);
+        $this->assertSame('resources/js/app.ts', $vite->defaultEntry);
     }
 
     /**
@@ -251,7 +259,7 @@ final class BuildConfigTest extends TestCase
     }
 
     /**
-     * Ensure code highlighting settings are normalized safely from config.
+     * Ensure code highlighting settings are resolved in djotOptions.
      */
     public function testCodeHighlightingCanBeConfiguredFromProjectFile(): void
     {
@@ -265,11 +273,9 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'theme' => 'dark-plus',
-            'withGutter' => true,
-        ], $config->djot['codeHighlighting']);
+        $this->assertFalse($config->djotOptions->codeHighlightingEnabled);
+        $this->assertSame('dark-plus', $config->djotOptions->codeHighlightingTheme);
+        $this->assertTrue($config->djotOptions->codeHighlightingWithGutter);
     }
 
     /**
@@ -287,15 +293,13 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => true,
-            'theme' => 'nord',
-            'withGutter' => false,
-        ], $config->djot['codeHighlighting']);
+        $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
+        $this->assertSame('nord', $config->djotOptions->codeHighlightingTheme);
+        $this->assertFalse($config->djotOptions->codeHighlightingWithGutter);
     }
 
     /**
-     * Ensure heading anchor settings are normalized from Djot configuration.
+     * Ensure heading anchor settings are resolved in djotOptions.
      */
     public function testHeaderAnchorsCanBeConfiguredFromProjectFile(): void
     {
@@ -304,25 +308,23 @@ final class BuildConfigTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "djot:\n  headerAnchors:\n    enabled: true\n    symbol: '¶'\n    position: before\n    cssClass: docs-anchor\n    ariaLabel: Copy section link\n    levels: [2, '3', 9]\n",
+            "djot:\n  headerAnchors:\n    enabled: true\n    symbol: '¶'\n    position: before\n    cssClass: docs-anchor\n    ariaLabel: Copy section link\n    levels: [2, 3]\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => true,
-            'symbol' => '¶',
-            'position' => 'before',
-            'cssClass' => 'docs-anchor',
-            'ariaLabel' => 'Copy section link',
-            'levels' => [2, 3],
-        ], $config->djot['headerAnchors']);
+        $this->assertTrue($config->djotOptions->headerAnchorsEnabled);
+        $this->assertSame('¶', $config->djotOptions->headerAnchorsSymbol);
+        $this->assertSame('before', $config->djotOptions->headerAnchorsPosition);
+        $this->assertSame('docs-anchor', $config->djotOptions->headerAnchorsCssClass);
+        $this->assertSame('Copy section link', $config->djotOptions->headerAnchorsAriaLabel);
+        $this->assertSame([2, 3], $config->djotOptions->headerAnchorsLevels);
     }
 
     /**
-     * Ensure legacy root codeHighlighting remains supported for compatibility.
+     * Ensure root-level codeHighlighting is ignored in favour of djot-scoped settings.
      */
-    public function testLegacyRootCodeHighlightingRemainsSupported(): void
+    public function testRootCodeHighlightingIsIgnoredInFavorOfDjotScopedSettings(): void
     {
         $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
         mkdir($projectRoot, 0755, true);
@@ -334,15 +336,13 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'theme' => 'github-dark',
-            'withGutter' => true,
-        ], $config->djot['codeHighlighting']);
+        $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
+        $this->assertSame('nord', $config->djotOptions->codeHighlightingTheme);
+        $this->assertFalse($config->djotOptions->codeHighlightingWithGutter);
     }
 
     /**
-     * Ensure autolink settings are normalized from Djot configuration.
+     * Ensure autolink settings are resolved in djotOptions.
      */
     public function testAutolinkCanBeConfiguredFromProjectFile(): void
     {
@@ -356,10 +356,8 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => true,
-            'allowedSchemes' => ['https', 'ftp'],
-        ], $config->djot['autolink']);
+        $this->assertTrue($config->djotOptions->autolinkEnabled);
+        $this->assertSame(['https', 'ftp'], $config->djotOptions->autolinkAllowedSchemes);
     }
 
     /**
@@ -374,14 +372,12 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'allowedSchemes' => ['https', 'http', 'mailto'],
-        ], $config->djot['autolink']);
+        $this->assertFalse($config->djotOptions->autolinkEnabled);
+        $this->assertSame(['https', 'http', 'mailto'], $config->djotOptions->autolinkAllowedSchemes);
     }
 
     /**
-     * Ensure external links settings are normalized from Djot configuration.
+     * Ensure external links settings are resolved in djotOptions.
      */
     public function testExternalLinksCanBeConfiguredFromProjectFile(): void
     {
@@ -395,13 +391,11 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => true,
-            'internalHosts' => ['example.com', 'cdn.example.com'],
-            'target' => '_blank',
-            'rel' => 'noopener',
-            'nofollow' => true,
-        ], $config->djot['externalLinks']);
+        $this->assertTrue($config->djotOptions->externalLinksEnabled);
+        $this->assertSame(['example.com', 'cdn.example.com'], $config->djotOptions->externalLinksInternalHosts);
+        $this->assertSame('_blank', $config->djotOptions->externalLinksTarget);
+        $this->assertSame('noopener', $config->djotOptions->externalLinksRel);
+        $this->assertTrue($config->djotOptions->externalLinksNofollow);
     }
 
     /**
@@ -416,17 +410,15 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'internalHosts' => [],
-            'target' => '_blank',
-            'rel' => 'noopener noreferrer',
-            'nofollow' => false,
-        ], $config->djot['externalLinks']);
+        $this->assertFalse($config->djotOptions->externalLinksEnabled);
+        $this->assertSame([], $config->djotOptions->externalLinksInternalHosts);
+        $this->assertSame('_blank', $config->djotOptions->externalLinksTarget);
+        $this->assertSame('noopener noreferrer', $config->djotOptions->externalLinksRel);
+        $this->assertFalse($config->djotOptions->externalLinksNofollow);
     }
 
     /**
-     * Ensure smart quotes settings are normalized from Djot configuration.
+     * Ensure smart quotes settings are resolved in djotOptions.
      */
     public function testSmartQuotesCanBeConfiguredFromProjectFile(): void
     {
@@ -440,12 +432,12 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertTrue($config->djot['smartQuotes']['enabled']);
-        $this->assertSame('de', $config->djot['smartQuotes']['locale']);
-        $this->assertSame("\u{201E}", $config->djot['smartQuotes']['openDouble']);
-        $this->assertSame("\u{201C}", $config->djot['smartQuotes']['closeDouble']);
-        $this->assertNull($config->djot['smartQuotes']['openSingle']);
-        $this->assertNull($config->djot['smartQuotes']['closeSingle']);
+        $this->assertTrue($config->djotOptions->smartQuotesEnabled);
+        $this->assertSame('de', $config->djotOptions->smartQuotesLocale);
+        $this->assertSame("\u{201E}", $config->djotOptions->smartQuotesOpenDouble);
+        $this->assertSame("\u{201C}", $config->djotOptions->smartQuotesCloseDouble);
+        $this->assertNull($config->djotOptions->smartQuotesOpenSingle);
+        $this->assertNull($config->djotOptions->smartQuotesCloseSingle);
     }
 
     /**
@@ -460,18 +452,16 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'locale' => null,
-            'openDouble' => null,
-            'closeDouble' => null,
-            'openSingle' => null,
-            'closeSingle' => null,
-        ], $config->djot['smartQuotes']);
+        $this->assertFalse($config->djotOptions->smartQuotesEnabled);
+        $this->assertNull($config->djotOptions->smartQuotesLocale);
+        $this->assertNull($config->djotOptions->smartQuotesOpenDouble);
+        $this->assertNull($config->djotOptions->smartQuotesCloseDouble);
+        $this->assertNull($config->djotOptions->smartQuotesOpenSingle);
+        $this->assertNull($config->djotOptions->smartQuotesCloseSingle);
     }
 
     /**
-     * Ensure mentions settings are normalized from Djot configuration.
+     * Ensure mentions settings are resolved in djotOptions.
      */
     public function testMentionsCanBeConfiguredFromProjectFile(): void
     {
@@ -485,11 +475,9 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => true,
-            'urlTemplate' => '/profiles/{username}',
-            'cssClass' => 'user-mention',
-        ], $config->djot['mentions']);
+        $this->assertTrue($config->djotOptions->mentionsEnabled);
+        $this->assertSame('/profiles/{username}', $config->djotOptions->mentionsUrlTemplate);
+        $this->assertSame('user-mention', $config->djotOptions->mentionsCssClass);
     }
 
     /**
@@ -504,15 +492,13 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'urlTemplate' => '/users/view/{username}',
-            'cssClass' => 'mention',
-        ], $config->djot['mentions']);
+        $this->assertFalse($config->djotOptions->mentionsEnabled);
+        $this->assertSame('/users/view/{username}', $config->djotOptions->mentionsUrlTemplate);
+        $this->assertSame('mention', $config->djotOptions->mentionsCssClass);
     }
 
     /**
-     * Ensure semantic span settings are normalized from Djot configuration.
+     * Ensure semantic span settings are resolved in djotOptions.
      */
     public function testSemanticSpanCanBeConfiguredFromProjectFile(): void
     {
@@ -526,7 +512,7 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame(['enabled' => true], $config->djot['semanticSpan']);
+        $this->assertTrue($config->djotOptions->semanticSpanEnabled);
     }
 
     /**
@@ -541,11 +527,11 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame(['enabled' => false], $config->djot['semanticSpan']);
+        $this->assertFalse($config->djotOptions->semanticSpanEnabled);
     }
 
     /**
-     * Ensure default attributes settings are normalized from Djot configuration.
+     * Ensure default attributes settings are resolved in djotOptions.
      */
     public function testDefaultAttributesCanBeConfiguredFromProjectFile(): void
     {
@@ -559,13 +545,11 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
+        $this->assertTrue($config->djotOptions->defaultAttributesEnabled);
         $this->assertSame([
-            'enabled' => true,
-            'defaults' => [
-                'heading' => ['class' => 'heading'],
-                'paragraph' => ['class' => 'prose'],
-            ],
-        ], $config->djot['defaultAttributes']);
+            'heading' => ['class' => 'heading'],
+            'paragraph' => ['class' => 'prose'],
+        ], $config->djotOptions->defaultAttributesDefaults);
     }
 
     /**
@@ -580,10 +564,8 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame([
-            'enabled' => false,
-            'defaults' => [],
-        ], $config->djot['defaultAttributes']);
+        $this->assertFalse($config->djotOptions->defaultAttributesEnabled);
+        $this->assertSame([], $config->djotOptions->defaultAttributesDefaults);
     }
 
     /**
@@ -798,20 +780,5 @@ final class BuildConfigTest extends TestCase
     protected function normalizePath(string $path): string
     {
         return str_replace('\\', '/', $path);
-    }
-
-    /**
-     * Normalize template Vite manifest path for assertions.
-     *
-     * @param array<string, mixed> $configuration Template Vite configuration.
-     * @return array<string, mixed>
-     */
-    protected function normalizeTemplateVitePaths(array $configuration): array
-    {
-        if (is_string($configuration['manifestPath'] ?? null)) {
-            $configuration['manifestPath'] = $this->normalizePath($configuration['manifestPath']);
-        }
-
-        return $configuration;
     }
 }

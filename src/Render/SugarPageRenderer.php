@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 use Glaze\Config\SiteConfig;
+use Glaze\Config\TemplateViteOptions;
 use Glaze\Render\Sugar\Path\ResourcePathSugarExtension;
 use Glaze\Support\ResourcePathRewriter;
 use Sugar\Core\Cache\FileCache;
@@ -25,7 +26,7 @@ final class SugarPageRenderer
      * @param string $template Sugar template name used for pages.
      * @param \Glaze\Config\SiteConfig $siteConfig Site configuration for static attribute rewriting.
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
-     * @param array<string, mixed> $templateVite Raw Sugar Vite extension configuration.
+     * @param \Glaze\Config\TemplateViteOptions $templateVite Sugar Vite extension configuration.
      * @param bool $debug Whether to enable debug freshness checks.
      */
     public function __construct(
@@ -34,7 +35,7 @@ final class SugarPageRenderer
         protected string $template,
         protected SiteConfig $siteConfig,
         protected ResourcePathRewriter $resourcePathRewriter,
-        protected array $templateVite,
+        protected TemplateViteOptions $templateVite,
         protected bool $debug = false,
     ) {
     }
@@ -110,13 +111,10 @@ final class SugarPageRenderer
      */
     protected function resolveViteConfiguration(): ?array
     {
-        /**
-         * @var array{buildEnabled: bool, devEnabled: bool, assetBaseUrl: string, manifestPath: string, devServerUrl: string, injectClient: bool, defaultEntry: string|null} $viteConfiguration
-         */
         $viteConfiguration = $this->templateVite;
         $isEnabled = $this->debug
-            ? (bool)$viteConfiguration['devEnabled']
-            : (bool)$viteConfiguration['buildEnabled'];
+            ? $viteConfiguration->devEnabled
+            : $viteConfiguration->buildEnabled;
 
         if ($this->debug) {
             $enabledOverride = getenv('GLAZE_VITE_ENABLED');
@@ -131,7 +129,7 @@ final class SugarPageRenderer
             return null;
         }
 
-        $devServerUrl = (string)$viteConfiguration['devServerUrl'];
+        $devServerUrl = $viteConfiguration->devServerUrl;
         if ($this->debug) {
             $runtimeViteUrl = getenv('GLAZE_VITE_URL');
             if (is_string($runtimeViteUrl) && $runtimeViteUrl !== '') {
@@ -139,7 +137,7 @@ final class SugarPageRenderer
             }
         }
 
-        $assetBaseUrl = (string)$viteConfiguration['assetBaseUrl'];
+        $assetBaseUrl = $viteConfiguration->assetBaseUrl;
         if (!$this->resourcePathRewriter->isExternalResourcePath($assetBaseUrl)) {
             $assetBaseUrl = $this->resourcePathRewriter->applyBasePathToPath($assetBaseUrl, $this->siteConfig);
         }
@@ -147,12 +145,10 @@ final class SugarPageRenderer
         return [
             'mode' => $this->debug ? 'dev' : 'prod',
             'assetBaseUrl' => $assetBaseUrl,
-            'manifestPath' => (string)$viteConfiguration['manifestPath'],
+            'manifestPath' => $viteConfiguration->manifestPath,
             'devServerUrl' => $devServerUrl,
-            'injectClient' => (bool)$viteConfiguration['injectClient'],
-            'defaultEntry' => is_string($viteConfiguration['defaultEntry'])
-                ? $viteConfiguration['defaultEntry']
-                : null,
+            'injectClient' => $viteConfiguration->injectClient,
+            'defaultEntry' => $viteConfiguration->defaultEntry,
         ];
     }
 }

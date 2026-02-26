@@ -472,18 +472,7 @@ final class ContentDiscoveryService
         }
 
         if (is_array($value)) {
-            return Normalization::normalizeNestedArray(
-                value: $value,
-                normalizeListItem: fn(mixed $item): mixed => $this->normalizeMetaValue($item),
-                normalizeMapItem: fn(string $key, mixed $item): mixed => $this->normalizeMetaEntry(
-                    strtolower($key),
-                    $item,
-                ),
-                isAcceptedValue: static fn(mixed $item): bool => is_scalar($item)
-                    || $item === null
-                    || $item instanceof DateTimeInterface
-                    || is_array($item),
-            );
+            return $this->normalizeMetaArray($value);
         }
 
         if (is_object($value) && method_exists($value, '__toString')) {
@@ -491,6 +480,44 @@ final class ContentDiscoveryService
         }
 
         return null;
+    }
+
+    /**
+     * Normalize a metadata array, distinguishing sequential lists from associative maps.
+     *
+     * Items that resolve to neither scalar, null, DateTimeInterface, nor array are discarded.
+     *
+     * @param array<mixed> $value Input array.
+     * @return array<mixed>
+     */
+    protected function normalizeMetaArray(array $value): array
+    {
+        $isAccepted = static fn(mixed $item): bool => is_scalar($item)
+            || $item === null
+            || $item instanceof DateTimeInterface
+            || is_array($item);
+
+        if (array_is_list($value)) {
+            $result = [];
+            foreach ($value as $item) {
+                $normalized = $this->normalizeMetaValue($item);
+                if ($isAccepted($normalized)) {
+                    $result[] = $normalized;
+                }
+            }
+
+            return $result;
+        }
+
+        $result = [];
+        foreach ($value as $key => $item) {
+            $normalized = $this->normalizeMetaEntry(strtolower((string)$key), $item);
+            if ($isAccepted($normalized)) {
+                $result[$key] = $normalized;
+            }
+        }
+
+        return $result;
     }
 
     /**

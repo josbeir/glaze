@@ -11,6 +11,7 @@ use Djot\Extension\HeadingPermalinksExtension;
 use Djot\Extension\MentionsExtension;
 use Djot\Extension\SemanticSpanExtension;
 use Djot\Extension\SmartQuotesExtension;
+use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
 use Glaze\Render\Djot\InternalDjotLinkExtension;
 use Glaze\Render\Djot\PhikiCodeBlockRenderer;
@@ -21,17 +22,6 @@ use Phiki\Theme\Theme;
 
 /**
  * Converts Djot source documents to HTML.
- *
- * @phpstan-type DjotOptions array{
- *     codeHighlighting?: array{enabled: bool, theme: string, withGutter: bool},
- *     headerAnchors?: array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>},
- *     autolink?: array{enabled: bool, allowedSchemes: array<string>},
- *     externalLinks?: array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool},
- *     smartQuotes?: array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null},
- *     mentions?: array{enabled: bool, urlTemplate: string, cssClass: string},
- *     semanticSpan?: array{enabled: bool},
- *     defaultAttributes?: array{enabled: bool, defaults: array<string, array<string, string>>},
- * }
  */
 final class DjotRenderer
 {
@@ -54,18 +44,18 @@ final class DjotRenderer
      * Render Djot source to HTML.
      *
      * @param string $source Djot source content.
-     * @param array<string, mixed> $djot Djot renderer options.
+     * @param \Glaze\Config\DjotOptions|array<string, mixed> $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
-     * @phpstan-param DjotOptions $djot
      */
     public function render(
         string $source,
-        array $djot = [],
+        array|DjotOptions $djot = [],
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
     ): string {
-        $converter = $this->converter ?? $this->createConverter($djot, $siteConfig, $relativePagePath);
+        $options = $this->normalizeOptions($djot);
+        $converter = $this->converter ?? $this->createConverter($options, $siteConfig, $relativePagePath);
 
         return $converter->convert($source);
     }
@@ -79,19 +69,19 @@ final class DjotRenderer
      * - the returned `RenderResult` carries `TocEntry[]` for template access.
      *
      * @param string $source Djot source content.
-     * @param array<string, mixed> $djot Djot renderer options.
+     * @param \Glaze\Config\DjotOptions|array<string, mixed> $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
-     * @phpstan-param DjotOptions $djot
      */
     public function renderWithToc(
         string $source,
-        array $djot = [],
+        array|DjotOptions $djot = [],
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
     ): RenderResult {
         $toc = new TocExtension();
-        $converter = $this->converter ?? $this->createConverter($djot, $siteConfig, $relativePagePath);
+        $options = $this->normalizeOptions($djot);
+        $converter = $this->converter ?? $this->createConverter($options, $siteConfig, $relativePagePath);
         $converter->addExtension($toc);
 
         $html = $toc->injectToc($converter->convert($source));
@@ -102,13 +92,12 @@ final class DjotRenderer
     /**
      * Create a converter instance with configured extensions.
      *
-     * @param array<string, mixed> $djot Djot renderer options.
+     * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
-     * @phpstan-param DjotOptions $djot
      */
     protected function createConverter(
-        array $djot,
+        DjotOptions $djot,
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
     ): DjotConverter {
@@ -119,76 +108,67 @@ final class DjotRenderer
             relativePagePath: $relativePagePath,
         ));
 
-        $headerAnchors = $djot['headerAnchors'] ?? null;
-        if ($headerAnchors !== null && $headerAnchors['enabled']) {
+        if ($djot->headerAnchorsEnabled && class_exists(HeadingPermalinksExtension::class)) {
             $converter->addExtension(new HeadingPermalinksExtension(
-                symbol: $headerAnchors['symbol'],
-                position: $headerAnchors['position'],
-                cssClass: $headerAnchors['cssClass'],
-                ariaLabel: $headerAnchors['ariaLabel'],
-                levels: $headerAnchors['levels'],
+                symbol: $djot->headerAnchorsSymbol,
+                position: $djot->headerAnchorsPosition,
+                cssClass: $djot->headerAnchorsCssClass,
+                ariaLabel: $djot->headerAnchorsAriaLabel,
+                levels: $djot->headerAnchorsLevels,
             ));
         }
 
-        $autolink = $djot['autolink'] ?? null;
-        if ($autolink !== null && $autolink['enabled']) {
+        if ($djot->autolinkEnabled && class_exists(AutolinkExtension::class)) {
             $converter->addExtension(new AutolinkExtension(
-                allowedSchemes: $autolink['allowedSchemes'],
+                allowedSchemes: $djot->autolinkAllowedSchemes,
             ));
         }
 
-        $externalLinks = $djot['externalLinks'] ?? null;
-        if ($externalLinks !== null && $externalLinks['enabled']) {
+        if ($djot->externalLinksEnabled && class_exists(ExternalLinksExtension::class)) {
             $converter->addExtension(new ExternalLinksExtension(
-                internalHosts: $externalLinks['internalHosts'],
-                target: $externalLinks['target'],
-                rel: $externalLinks['rel'],
-                nofollow: $externalLinks['nofollow'],
+                internalHosts: $djot->externalLinksInternalHosts,
+                target: $djot->externalLinksTarget,
+                rel: $djot->externalLinksRel,
+                nofollow: $djot->externalLinksNofollow,
             ));
         }
 
-        $smartQuotes = $djot['smartQuotes'] ?? null;
-        if ($smartQuotes !== null && $smartQuotes['enabled']) {
+        if ($djot->smartQuotesEnabled && class_exists(SmartQuotesExtension::class)) {
             $converter->addExtension(new SmartQuotesExtension(
-                locale: $smartQuotes['locale'],
-                openDoubleQuote: $smartQuotes['openDouble'],
-                closeDoubleQuote: $smartQuotes['closeDouble'],
-                openSingleQuote: $smartQuotes['openSingle'],
-                closeSingleQuote: $smartQuotes['closeSingle'],
+                locale: $djot->smartQuotesLocale,
+                openDoubleQuote: $djot->smartQuotesOpenDouble,
+                closeDoubleQuote: $djot->smartQuotesCloseDouble,
+                openSingleQuote: $djot->smartQuotesOpenSingle,
+                closeSingleQuote: $djot->smartQuotesCloseSingle,
             ));
         }
 
-        $mentions = $djot['mentions'] ?? null;
-        if ($mentions !== null && $mentions['enabled']) {
+        if ($djot->mentionsEnabled && class_exists(MentionsExtension::class)) {
             $converter->addExtension(new MentionsExtension(
-                urlTemplate: $mentions['urlTemplate'],
-                cssClass: $mentions['cssClass'],
+                urlTemplate: $djot->mentionsUrlTemplate,
+                cssClass: $djot->mentionsCssClass,
             ));
         }
 
-        $semanticSpan = $djot['semanticSpan'] ?? null;
-        if ($semanticSpan !== null && $semanticSpan['enabled']) {
+        if ($djot->semanticSpanEnabled && class_exists(SemanticSpanExtension::class)) {
             $converter->addExtension(new SemanticSpanExtension());
         }
 
-        $defaultAttributes = $djot['defaultAttributes'] ?? null;
-        if ($defaultAttributes !== null && $defaultAttributes['enabled']) {
+        if ($djot->defaultAttributesEnabled && class_exists(DefaultAttributesExtension::class)) {
             $converter->addExtension(new DefaultAttributesExtension(
-                defaults: $defaultAttributes['defaults'],
+                defaults: $djot->defaultAttributesDefaults,
             ));
         }
 
-        $codeHighlighting = $djot['codeHighlighting'] ?? null;
-
-        if ($codeHighlighting !== null && !$codeHighlighting['enabled']) {
+        if (!$djot->codeHighlightingEnabled) {
             return $converter;
         }
 
         $converter->addExtension(
             new PhikiExtension(
                 new PhikiCodeBlockRenderer(
-                    theme: $this->resolveTheme($codeHighlighting['theme'] ?? 'nord'),
-                    withGutter: $codeHighlighting['withGutter'] ?? false,
+                    theme: $this->resolveTheme($djot->codeHighlightingTheme),
+                    withGutter: $djot->codeHighlightingWithGutter,
                 ),
             ),
         );
@@ -215,5 +195,19 @@ final class DjotRenderer
         }
 
         return $normalizedTheme;
+    }
+
+    /**
+     * Normalize a raw Djot options map into a typed value object.
+     *
+     * @param \Glaze\Config\DjotOptions|array<string, mixed> $djot Raw or typed options.
+     */
+    protected function normalizeOptions(array|DjotOptions $djot): DjotOptions
+    {
+        if ($djot instanceof DjotOptions) {
+            return $djot;
+        }
+
+        return DjotOptions::fromProjectConfig($djot);
     }
 }

@@ -93,7 +93,7 @@ final class SiteBuilder
             template: $config->pageTemplate,
             siteConfig: $config->site,
             resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: $config->templateVite,
+            templateVite: $config->templateViteOptions,
         );
         $siteIndex = new SiteIndex($pages);
         $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
@@ -116,7 +116,7 @@ final class SiteBuilder
                 template: $pageTemplate,
                 siteConfig: $config->site,
                 resourcePathRewriter: $this->resourcePathRewriter,
-                templateVite: $config->templateVite,
+                templateVite: $config->templateViteOptions,
             );
             $rendererCache[$pageTemplate] = $activeRenderer;
 
@@ -240,7 +240,7 @@ final class SiteBuilder
                 template: $pageTemplate,
                 siteConfig: $config->site,
                 resourcePathRewriter: $this->resourcePathRewriter,
-                templateVite: $config->templateVite,
+                templateVite: $config->templateViteOptions,
                 debug: $debug,
             );
         }
@@ -249,7 +249,7 @@ final class SiteBuilder
 
         $renderResult = $this->djotRenderer->renderWithToc(
             source: $page->source,
-            djot: $config->djot,
+            djot: $config->djotOptions,
             siteConfig: $config->site,
             relativePagePath: $page->relativePath,
         );

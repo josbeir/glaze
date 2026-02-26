@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Render;
 
+use Djot\Extension\SemanticSpanExtension;
 use Glaze\Config\SiteConfig;
 use Glaze\Render\DjotRenderer;
 use Glaze\Render\RenderResult;
@@ -11,8 +12,6 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests for Djot rendering with optional Phiki highlighting.
- *
- * @phpstan-import-type DjotOptions from \Glaze\Render\DjotRenderer
  */
 final class DjotRendererTest extends TestCase
 {
@@ -397,6 +396,10 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderAppliesSemanticSpansWhenEnabled(): void
     {
+        if (!class_exists(SemanticSpanExtension::class)) {
+            $this->markTestSkipped('SemanticSpanExtension is not available in this Djot version.');
+        }
+
         $renderer = new DjotRenderer(new ResourcePathRewriter());
         $html = $renderer->render(
             "[text]{kbd=Enter}\n",
@@ -438,7 +441,7 @@ final class DjotRendererTest extends TestCase
      * Merge code highlighting overrides into default Djot options.
      *
      * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withCodeHighlighting(array $codeHighlighting): array
     {
@@ -452,7 +455,7 @@ final class DjotRendererTest extends TestCase
      * Merge heading anchor overrides into default Djot options.
      *
      * @param array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>} $headerAnchors
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withHeaderAnchors(array $headerAnchors): array
     {
@@ -466,7 +469,7 @@ final class DjotRendererTest extends TestCase
      * Merge autolink overrides into default Djot options.
      *
      * @param array{enabled: bool, allowedSchemes: array<string>} $autolink
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withAutolink(array $autolink): array
     {
@@ -480,7 +483,7 @@ final class DjotRendererTest extends TestCase
      * Merge external links overrides into default Djot options.
      *
      * @param array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool} $externalLinks
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withExternalLinks(array $externalLinks): array
     {
@@ -494,7 +497,7 @@ final class DjotRendererTest extends TestCase
      * Merge smart quotes overrides into default Djot options.
      *
      * @param array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null} $smartQuotes
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withSmartQuotes(array $smartQuotes): array
     {
@@ -508,7 +511,7 @@ final class DjotRendererTest extends TestCase
      * Merge mentions overrides into default Djot options.
      *
      * @param array{enabled: bool, urlTemplate: string, cssClass: string} $mentions
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withMentions(array $mentions): array
     {
@@ -522,7 +525,7 @@ final class DjotRendererTest extends TestCase
      * Merge semantic span overrides into default Djot options.
      *
      * @param array{enabled: bool} $semanticSpan
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withSemanticSpan(array $semanticSpan): array
     {
@@ -536,7 +539,7 @@ final class DjotRendererTest extends TestCase
      * Merge default attributes overrides into default Djot options.
      *
      * @param array{enabled: bool, defaults: array<string, array<string, string>>} $defaultAttributes
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function withDefaultAttributes(array $defaultAttributes): array
     {
@@ -549,7 +552,7 @@ final class DjotRendererTest extends TestCase
     /**
      * Get default Djot renderer options used in tests.
      *
-     * @phpstan-return DjotOptions
+     * @return array<string, mixed>
      */
     protected function defaultDjotOptions(): array
     {

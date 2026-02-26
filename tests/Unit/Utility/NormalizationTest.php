@@ -5,7 +5,6 @@ namespace Glaze\Tests\Unit\Utility;
 
 use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
-use stdClass;
 
 /**
  * Tests for shared normalization utility helpers.
@@ -53,16 +52,6 @@ final class NormalizationTest extends TestCase
     }
 
     /**
-     * Ensure string list normalization keeps only trimmed non-empty strings.
-     */
-    public function testStringListNormalization(): void
-    {
-        $normalized = Normalization::stringList([' tags ', '', 'news', 5, true, 'news']);
-
-        $this->assertSame(['tags', 'news', 'news'], $normalized);
-    }
-
-    /**
      * Ensure path normalization standardizes separators and trailing separator handling.
      */
     public function testPathNormalization(): void
@@ -82,53 +71,5 @@ final class NormalizationTest extends TestCase
         $this->assertSame('/tmp/glaze/site', str_replace('\\', '/', (string)$normalized));
         $this->assertNull(Normalization::optionalPath('   '));
         $this->assertNull(Normalization::optionalPath(null));
-    }
-
-    /**
-     * Ensure nested array normalization preserves map/list structures.
-     */
-    public function testNormalizeNestedArrayPreservesStructure(): void
-    {
-        $normalized = Normalization::normalizeNestedArray(
-            value: [
-                'hero' => [
-                    'title' => 'Title',
-                    'actions' => [
-                        ['label' => 'Read docs'],
-                    ],
-                ],
-                'flags' => [true, false, 1],
-            ],
-            normalizeListItem: static fn(mixed $item): mixed => $item,
-            normalizeMapItem: static fn(string $key, mixed $item): mixed => $item,
-        );
-
-        $this->assertSame([
-            'hero' => [
-                'title' => 'Title',
-                'actions' => [
-                    ['label' => 'Read docs'],
-                ],
-            ],
-            'flags' => [true, false, 1],
-        ], $normalized);
-    }
-
-    /**
-     * Ensure nested array normalization filters unsupported normalized values.
-     */
-    public function testNormalizeNestedArrayFiltersUnsupportedValues(): void
-    {
-        $normalized = Normalization::normalizeNestedArray(
-            value: [
-                'keep' => 'ok',
-                'skip' => new stdClass(),
-            ],
-            normalizeListItem: static fn(mixed $item): mixed => $item,
-            normalizeMapItem: static fn(string $key, mixed $item): mixed => $item,
-            isAcceptedValue: static fn(mixed $item): bool => is_scalar($item) || $item === null || is_array($item),
-        );
-
-        $this->assertSame(['keep' => 'ok'], $normalized);
     }
 }

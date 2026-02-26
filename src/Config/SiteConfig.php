@@ -9,6 +9,11 @@ use Glaze\Utility\Normalization;
 
 /**
  * Immutable site-wide configuration loaded from project config.
+ *
+ * Typed fields (title, description, baseUrl, basePath) are extracted from the
+ * `site` block in glaze.neon. All remaining non-reserved keys are collected
+ * into `$meta` together with any explicit `meta` sub-map, providing flexible
+ * arbitrary metadata access via dotted-path helpers.
  */
 final class SiteConfig
 {
@@ -48,6 +53,10 @@ final class SiteConfig
     /**
      * Create site config from decoded project config input.
      *
+     * Non-reserved root-level keys are merged into `$meta` alongside any
+     * values from the explicit `meta` sub-map (which takes precedence).
+     * String values in the `meta` sub-map are trimmed via {@see Normalization::stringMap()}.
+     *
      * @param mixed $value Decoded `site` config value.
      */
     public static function fromProjectConfig(mixed $value): self
@@ -57,11 +66,17 @@ final class SiteConfig
         }
 
         return new self(
-            title: Normalization::optionalString($value['title'] ?? null),
-            description: Normalization::optionalString($value['description'] ?? null),
-            baseUrl: Normalization::optionalString($value['baseUrl'] ?? null),
+            title: is_string($value['title'] ?? null) && trim($value['title']) !== ''
+                ? trim($value['title'])
+                : null,
+            description: is_string($value['description'] ?? null) && trim($value['description']) !== ''
+                ? trim($value['description'])
+                : null,
+            baseUrl: is_string($value['baseUrl'] ?? null) && trim($value['baseUrl']) !== ''
+                ? trim($value['baseUrl'])
+                : null,
             basePath: self::normalizeBasePath($value['basePath'] ?? null),
-            meta: self::normalizeSiteMetadata($value),
+            meta: self::extractMeta($value),
         );
     }
 
@@ -121,11 +136,43 @@ final class SiteConfig
     }
 
     /**
+     * Extract the site metadata payload from a raw site config map.
+     *
+     * Non-reserved root-level string keys are collected first; the explicit
+     * `meta` sub-map (filtered to scalar string values via stringMap) is
+     * merged on top so it takes precedence.
+     *
+     * @param array<mixed> $value Raw decoded site configuration map.
+     * @return array<string, mixed>
+     */
+    private static function extractMeta(array $value): array
+    {
+        $meta = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+            if ($key === '') {
+                continue;
+            }
+            if (in_array($key, self::RESERVED_SITE_KEYS, true)) {
+                continue;
+            }
+            $meta[$key] = $item;
+        }
+
+        return array_replace($meta, Normalization::stringMap($value['meta'] ?? null));
+    }
+
+    /**
      * Normalize optional base path values.
+     *
+     * Ensures a leading slash, strips trailing slashes, and returns null for
+     * blank, root-only, or non-string input.
      *
      * @param mixed $value Raw input value.
      */
-    protected static function normalizeBasePath(mixed $value): ?string
+    private static function normalizeBasePath(mixed $value): ?string
     {
         if (!is_string($value)) {
             return null;
@@ -142,84 +189,5 @@ final class SiteConfig
         }
 
         return $normalized;
-    }
-
-    /**
-     * Normalize non-reserved custom site metadata.
-     *
-     * @param array<mixed> $value Raw decoded site configuration map.
-     * @return array<string, mixed>
-     */
-    protected static function normalizeSiteMetadata(array $value): array
-    {
-        $normalized = self::normalizeRootSiteMetadata($value);
-        $metaMap = Normalization::stringMap($value['meta'] ?? null);
-
-        return array_replace($normalized, $metaMap);
-    }
-
-    /**
-     * Normalize non-reserved root site metadata.
-     *
-     * @param array<mixed> $value Raw decoded site configuration map.
-     * @return array<string, mixed>
-     */
-    protected static function normalizeRootSiteMetadata(array $value): array
-    {
-        $normalized = [];
-
-        foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $normalizedKey = trim($key);
-            if ($normalizedKey === '') {
-                continue;
-            }
-
-            if (in_array($normalizedKey, self::RESERVED_SITE_KEYS, true)) {
-                continue;
-            }
-
-            $normalizedValue = self::normalizeSiteMetadataValue($item);
-            if (
-                !is_scalar($normalizedValue)
-                && $normalizedValue !== null
-                && !is_array($normalizedValue)
-            ) {
-                continue;
-            }
-
-            $normalized[$normalizedKey] = $normalizedValue;
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Normalize custom site metadata value recursively.
-     *
-     * @param mixed $value Raw custom site value.
-     */
-    protected static function normalizeSiteMetadataValue(mixed $value): mixed
-    {
-        if (is_scalar($value) || $value === null) {
-            return $value;
-        }
-
-        if (is_array($value)) {
-            return Normalization::normalizeNestedArray(
-                value: $value,
-                normalizeListItem: static fn(mixed $item): mixed => self::normalizeSiteMetadataValue($item),
-                normalizeMapItem: static fn(string $key, mixed $item): mixed => self::normalizeSiteMetadataValue($item),
-            );
-        }
-
-        if (is_object($value) && method_exists($value, '__toString')) {
-            return (string)$value;
-        }
-
-        return null;
     }
 }
