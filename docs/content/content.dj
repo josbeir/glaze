@@ -157,8 +157,9 @@ Once Glaze renders a page, these variables are available in every Sugar template
 | `$title` | `string` | Page title |
 | `$content` | `string` | Rendered Djot HTML |
 | `$url` | `string` | Current URL path |
-| `$page` | `ContentPage` | Full page object |
 | `$meta` | `array` | Merged page metadata |
-| `$site` | `SiteConfig` | Global site config |
+| `$page` | `ContentPage` 🔷 | Full page object |
+| `$site` | `SiteConfig` 🔷 | Global site config |
+| `$this` | `SiteContext` 🔷 | Collections, pagination, taxonomy helpers |
 
 See [Templating](templating.dj) for the full variable and directive reference.
