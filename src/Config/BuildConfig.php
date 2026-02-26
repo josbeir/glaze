@@ -244,12 +244,15 @@ final class BuildConfig
             if (!is_string($name)) {
                 continue;
             }
+
             if (trim($name) === '') {
                 continue;
             }
+
             if (!is_array($values)) {
                 continue;
             }
+
             $normalizedValues = Normalization::stringMap($values);
             if ($normalizedValues === []) {
                 continue;

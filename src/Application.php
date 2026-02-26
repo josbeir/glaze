@@ -9,6 +9,7 @@ use Cake\Core\Container;
 use Cake\Core\ContainerApplicationInterface;
 use Cake\Core\ContainerInterface;
 use Glaze\Command\BuildCommand;
+use Glaze\Command\CacheCommand;
 use Glaze\Command\InitCommand;
 use Glaze\Command\NewCommand;
 use Glaze\Command\ServeCommand;
@@ -39,6 +40,7 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
     public function console(CommandCollection $commands): CommandCollection
     {
         $commands->add('build', BuildCommand::class);
+        $commands->add('cc', CacheCommand::class);
         $commands->add('init', InitCommand::class);
         $commands->add('new', NewCommand::class);
         $commands->add('serve', ServeCommand::class);

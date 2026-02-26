@@ -222,8 +222,39 @@ Notes:
 - `{host}` and `{port}` placeholders in `vite.command` are replaced at runtime.
 - If your configured command cannot start (missing script/config/dependencies), `glaze serve` exits with an error.
 
+## `cc`
+
+Clear the compiled Sugar template cache and/or the Glide image transformation cache.
+
+By default both caches are cleared. Run this whenever you change Vite or template configuration
+and the rendered output does not reflect your changes.
+
+```bash
+glaze cc
+```
+
+Options:
+
+- `--root <path>` project root
+- `--templates` clear only the compiled Sugar template cache (`tmp/cache/sugar`)
+- `--images` clear only the Glide image cache (`tmp/cache/glide`)
+
+Examples:
+
+```bash
+# clear everything
+glaze cc
+
+# clear template cache only
+glaze cc --templates
+
+# clear image cache only
+glaze cc --images
+```
+
 ## Typical workflow
 
 1. `init` (once)
 2. `serve` during development
-3. `build` for deployment artifacts
+3. `cc` to clear caches when changing configuration
+4. `build` for deployment artifacts

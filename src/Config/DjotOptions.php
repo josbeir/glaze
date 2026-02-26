@@ -256,9 +256,11 @@ final readonly class DjotOptions
             if (!is_string($elementType)) {
                 continue;
             }
+
             if (!is_array($attributes)) {
                 continue;
             }
+
             $normalizedType = strtolower(trim($elementType));
             if ($normalizedType === '') {
                 continue;

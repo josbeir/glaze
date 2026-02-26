@@ -152,12 +152,15 @@ final class SiteConfig
             if (!is_string($key)) {
                 continue;
             }
+
             if ($key === '') {
                 continue;
             }
+
             if (in_array($key, self::RESERVED_SITE_KEYS, true)) {
                 continue;
             }
+
             $meta[$key] = $item;
         }
 
