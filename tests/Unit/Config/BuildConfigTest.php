@@ -45,9 +45,9 @@ final class BuildConfigTest extends TestCase
         $this->assertInstanceOf(TemplateViteOptions::class, $config->templateViteOptions);
         $this->assertFalse($config->templateViteOptions->buildEnabled);
         $this->assertFalse($config->templateViteOptions->devEnabled);
-        $this->assertSame('/assets/', $config->templateViteOptions->assetBaseUrl);
+        $this->assertSame('/', $config->templateViteOptions->assetBaseUrl);
         $this->assertSame(
-            $this->normalizePath('/tmp/glaze-project/public/assets/.vite/manifest.json'),
+            $this->normalizePath('/tmp/glaze-project/public/.vite/manifest.json'),
             $this->normalizePath($config->templateViteOptions->manifestPath),
         );
         $this->assertSame('http://127.0.0.1:5173', $config->templateViteOptions->devServerUrl);

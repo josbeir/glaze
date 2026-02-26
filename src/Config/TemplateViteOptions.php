@@ -26,7 +26,9 @@ final readonly class TemplateViteOptions
      *
      * @param bool $buildEnabled Whether Vite is enabled in build mode.
      * @param bool $devEnabled Whether Vite is enabled in dev mode.
-     * @param string $assetBaseUrl Public base URL for emitted assets.
+     * @param string $assetBaseUrl Public base URL for emitted assets. Defaults to '/' — Sugar Vite appends the full
+     *                              manifest file path (e.g. 'assets/app.js') to this URL, so the directory segment
+     *                              should not be included here.
      * @param string $manifestPath Absolute path to the Vite manifest.
      * @param string $devServerUrl Dev server origin URL.
      * @param bool $injectClient Whether `@vite/client` is auto-injected in dev mode.
@@ -35,7 +37,7 @@ final readonly class TemplateViteOptions
     public function __construct(
         public bool $buildEnabled = false,
         public bool $devEnabled = false,
-        public string $assetBaseUrl = '/assets/',
+        public string $assetBaseUrl = '/',
         public string $manifestPath = '',
         public string $devServerUrl = 'http://127.0.0.1:5173',
         public bool $injectClient = true,
@@ -57,14 +59,14 @@ final readonly class TemplateViteOptions
     {
         $assetBaseUrl = is_string($buildVite['assetBaseUrl'] ?? null) && trim($buildVite['assetBaseUrl']) !== ''
             ? $buildVite['assetBaseUrl']
-            : '/assets/';
+            : '/';
 
         $manifestPath = is_string($buildVite['manifestPath'] ?? null) && trim($buildVite['manifestPath']) !== ''
             ? trim($buildVite['manifestPath'])
-            : 'public/assets/.vite/manifest.json';
+            : 'public/.vite/manifest.json';
 
-        if (!str_starts_with($manifestPath, DIRECTORY_SEPARATOR)) {
-            $manifestPath = $projectRoot . DIRECTORY_SEPARATOR . ltrim($manifestPath, DIRECTORY_SEPARATOR);
+        if (!str_starts_with($manifestPath, '/') && !str_starts_with($manifestPath, DIRECTORY_SEPARATOR)) {
+            $manifestPath = $projectRoot . DIRECTORY_SEPARATOR . ltrim($manifestPath, '/\\');
         }
 
         $devServerUrl = is_string($devVite['url'] ?? null) && trim($devVite['url']) !== ''

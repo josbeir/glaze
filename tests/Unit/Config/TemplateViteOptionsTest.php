@@ -20,7 +20,7 @@ final class TemplateViteOptionsTest extends TestCase
 
         $this->assertFalse($options->buildEnabled);
         $this->assertFalse($options->devEnabled);
-        $this->assertSame('/assets/', $options->assetBaseUrl);
+        $this->assertSame('/', $options->assetBaseUrl);
         $this->assertSame('', $options->manifestPath);
         $this->assertSame('http://127.0.0.1:5173', $options->devServerUrl);
         $this->assertTrue($options->injectClient);
@@ -36,7 +36,7 @@ final class TemplateViteOptionsTest extends TestCase
 
         $this->assertFalse($options->buildEnabled);
         $this->assertFalse($options->devEnabled);
-        $this->assertSame('/assets/', $options->assetBaseUrl);
+        $this->assertSame('/', $options->assetBaseUrl);
         $this->assertSame('http://127.0.0.1:5173', $options->devServerUrl);
         $this->assertTrue($options->injectClient);
         $this->assertNull($options->defaultEntry);
@@ -111,7 +111,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/project',
         );
 
-        $this->assertSame('/assets/', $options->assetBaseUrl);
+        $this->assertSame('/', $options->assetBaseUrl);
     }
 
     /**
@@ -120,12 +120,12 @@ final class TemplateViteOptionsTest extends TestCase
     public function testRelativeManifestPathIsResolvedAgainstProjectRoot(): void
     {
         $options = TemplateViteOptions::fromProjectConfig(
-            ['manifestPath' => 'public/assets/.vite/manifest.json'],
+            ['manifestPath' => 'public/.vite/manifest.json'],
             [],
             '/my/project',
         );
 
-        $this->assertSame('/my/project/public/assets/.vite/manifest.json', $options->manifestPath);
+        $this->assertSame('/my/project/public/.vite/manifest.json', $this->normalizePath($options->manifestPath));
     }
 
     /**
@@ -139,7 +139,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/my/project',
         );
 
-        $this->assertSame('/absolute/path/manifest.json', $options->manifestPath);
+        $this->assertSame('/absolute/path/manifest.json', $this->normalizePath($options->manifestPath));
     }
 
     /**
@@ -149,7 +149,17 @@ final class TemplateViteOptionsTest extends TestCase
     {
         $options = TemplateViteOptions::fromProjectConfig([], [], '/my/project');
 
-        $this->assertSame('/my/project/public/assets/.vite/manifest.json', $options->manifestPath);
+        $this->assertSame('/my/project/public/.vite/manifest.json', $this->normalizePath($options->manifestPath));
+    }
+
+    /**
+     * Normalize directory separators to forward slashes for cross-platform path comparison.
+     *
+     * @param string $path Path value to normalize.
+     */
+    protected function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 
     /**

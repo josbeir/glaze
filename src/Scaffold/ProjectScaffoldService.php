@@ -244,7 +244,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
-    outDir: 'public/assets',
+    outDir: 'public',
         manifest: true,
     	emptyOutDir: false,
         rollupOptions: {
@@ -370,8 +370,8 @@ JS;
 #   vite:
 #     enabled: false
 #     command: "npm run build"
-#     assetBaseUrl: /assets/
-#     manifestPath: public/assets/.vite/manifest.json
+#     assetBaseUrl: /
+#     manifestPath: public/.vite/manifest.json
 #     defaultEntry: assets/css/site.css
 #
 # devServer:

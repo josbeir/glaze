@@ -452,7 +452,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         );
         file_put_contents(
             $viteScriptPath,
-            "<?php\ndeclare(strict_types=1);\nif (!is_dir('public/assets/.vite')) {\n    mkdir('public/assets/.vite', 0755, true);\n}\nfile_put_contents(\n    'public/assets/.vite/manifest.json',\n    json_encode([\n        'resources/js/app.ts' => [\n            'file' => 'assets/app-abc123.js',\n            'isEntry' => true,\n        ],\n    ], JSON_THROW_ON_ERROR),\n);\n",
+            "<?php\ndeclare(strict_types=1);\nif (!is_dir('public/.vite')) {\n    mkdir('public/.vite', 0755, true);\n}\nfile_put_contents(\n    'public/.vite/manifest.json',\n    json_encode([\n        'resources/js/app.ts' => [\n            'file' => 'assets/app-abc123.js',\n            'isEntry' => true,\n        ],\n    ], JSON_THROW_ON_ERROR),\n);\n",
         );
 
         $this->exec(sprintf('build --root "%s"', $projectRoot));
@@ -461,6 +461,6 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('<success>✓ done</success> <info>[Vite]</info> Running Vite build...');
         $output = file_get_contents($projectRoot . '/public/index.html');
         $this->assertIsString($output);
-        $this->assertStringContainsString('/assets/assets/app-abc123.js', $output);
+        $this->assertStringContainsString('/assets/app-abc123.js', $output);
     }
 }

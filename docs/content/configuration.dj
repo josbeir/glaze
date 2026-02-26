@@ -95,8 +95,8 @@ build:
   vite:
     enabled: false
     command: "npm run build"
-    assetBaseUrl: /assets/
-    manifestPath: public/assets/.vite/manifest.json
+    assetBaseUrl: /
+    manifestPath: public/.vite/manifest.json
     defaultEntry: assets/css/site.css
 
 devServer:
@@ -484,8 +484,8 @@ build:
   vite:
     enabled: false
     command: "npm run build"
-    assetBaseUrl: /assets/
-    manifestPath: public/assets/.vite/manifest.json
+    assetBaseUrl: /
+    manifestPath: public/.vite/manifest.json
     defaultEntry: assets/css/site.css
 ```
 

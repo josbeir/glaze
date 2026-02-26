@@ -1,7 +1,7 @@
 <h1 align="center">🍬 Glaze — static site generator for modern PHP</h1>
 
 <div align="center" style="margin-bottom: 2rem;">
-	<img src="docs/static/images/glaze-logo.svg" alt="Sugar cube" width="200" />
+	<img src="docs/static/glaze-logo.svg" alt="Sugar cube" width="200" />
 </div>
 
 <div align="center">

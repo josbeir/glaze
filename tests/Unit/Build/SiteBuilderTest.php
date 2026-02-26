@@ -414,7 +414,7 @@ final class SiteBuilderTest extends TestCase
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/content', 0755, true);
         mkdir($projectRoot . '/templates', 0755, true);
-        mkdir($projectRoot . '/public/assets/.vite', 0755, true);
+        mkdir($projectRoot . '/public/.vite', 0755, true);
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
@@ -426,7 +426,7 @@ final class SiteBuilderTest extends TestCase
             '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
         );
         file_put_contents(
-            $projectRoot . '/public/assets/.vite/manifest.json',
+            $projectRoot . '/public/.vite/manifest.json',
             json_encode([
                 'resources/js/app.ts' => [
                     'file' => 'assets/app-abc123.js',
@@ -441,8 +441,8 @@ final class SiteBuilderTest extends TestCase
 
         $output = file_get_contents($projectRoot . '/public/index.html');
         $this->assertIsString($output);
-        $this->assertStringContainsString('/assets/assets/app-def456.css', $output);
-        $this->assertStringContainsString('/assets/assets/app-abc123.js', $output);
+        $this->assertStringContainsString('/assets/app-def456.css', $output);
+        $this->assertStringContainsString('/assets/app-abc123.js', $output);
     }
 
     /**
@@ -453,7 +453,7 @@ final class SiteBuilderTest extends TestCase
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/content', 0755, true);
         mkdir($projectRoot . '/templates', 0755, true);
-        mkdir($projectRoot . '/public/assets/.vite', 0755, true);
+        mkdir($projectRoot . '/public/.vite', 0755, true);
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
@@ -465,7 +465,7 @@ final class SiteBuilderTest extends TestCase
             '<s-template s:vite="\'resources/js/app.ts\'" /><?= $content |> raw() ?>',
         );
         file_put_contents(
-            $projectRoot . '/public/assets/.vite/manifest.json',
+            $projectRoot . '/public/.vite/manifest.json',
             json_encode([
                 'resources/js/app.ts' => [
                     'file' => 'assets/app-abc123.js',
@@ -480,8 +480,8 @@ final class SiteBuilderTest extends TestCase
 
         $output = file_get_contents($projectRoot . '/public/index.html');
         $this->assertIsString($output);
-        $this->assertStringContainsString('/glaze/assets/assets/app-def456.css', $output);
-        $this->assertStringContainsString('/glaze/assets/assets/app-abc123.js', $output);
+        $this->assertStringContainsString('/glaze/assets/app-def456.css', $output);
+        $this->assertStringContainsString('/glaze/assets/app-abc123.js', $output);
     }
 
     /**

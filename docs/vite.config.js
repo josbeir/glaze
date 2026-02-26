@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [tailwindcss()],
   build: {
-    outDir: 'public/assets',
+    outDir: 'public/',
     manifest: true,
     emptyOutDir: false,
     rollupOptions: {
