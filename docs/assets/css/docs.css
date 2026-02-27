@@ -288,11 +288,33 @@
 	}
 
 	.prose :where(table) {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
 		@apply table w-full;
 	}
 
 	.prose :where(thead) {
 		@apply bg-base-200;
+	}
+
+	.prose :where(th, td) {
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+
+	.prose :where(th code, td code) {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+
+	.prose :where(th pre, td pre) {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		word-break: break-word;
 	}
 
 	.prose :where(a) {
