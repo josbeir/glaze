@@ -13,7 +13,7 @@
 		"josbeir/sugar": "^0.6",
         "league/glide": "^3.0",
         "nette/neon": "^3.4",
-        "php-collective/djot": "dev-master",
+        "php-collective/djot": "^0.1.15",
         "phiki/phiki": "^2.1",
         "symfony/process": "^7.3"
     },
