@@ -34,6 +34,16 @@ final class GlazeExtensionTest extends TestCase
     }
 
     /**
+     * Validate the attribute allows a null name for pure event-subscriber extensions.
+     */
+    public function testAttributeAllowsNullName(): void
+    {
+        $attribute = new GlazeExtension();
+
+        $this->assertNull($attribute->name);
+    }
+
+    /**
      * Validate the attribute is readable via reflection on a decorated class.
      */
     public function testAttributeIsReadableViaReflection(): void

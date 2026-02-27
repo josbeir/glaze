@@ -5,22 +5,30 @@ group: Templating
 ---
 # Extensions
 
-Extensions let you attach custom PHP logic to your templates and call it as `$this->extension('name')` from anywhere in a Sugar template.
+Extensions let you attach custom PHP logic to your Glaze project. There are two independent mechanisms, both activated by the `#[GlazeExtension]` attribute:
 
-Common uses include reading a `VERSION` file, fetching the latest release tag from an API, injecting build metadata, or computing any value that should run once per build.
+- **Template helpers** — invokable classes callable as `$this->extension('name')` from any Sugar template.
+- **Build event subscribers** — classes with methods decorated with `#[ListensTo]` that react to specific moments in the build pipeline.
 
-Extension results are **memoized per build** -- however many templates call the same extension, the underlying PHP runs exactly once.
+A single class can do both at the same time.
 
-There are two independent registration mechanisms. Use one or both:
+## Auto-discovery
 
-| Mechanism | Good for |
-| --- | --- |
-| `extensions/` directory | Invokable classes auto-discovered by convention (directory name is configurable) |
-| `glaze.php` bootstrap file | Inline callables, or registering classes from outside `extensions/` |
+Create an `extensions/` directory at your project root. Any class decorated with `#[GlazeExtension]` placed there is discovered and registered automatically.
 
-## Auto-discovery (the `extensions/` directory)
+The directory is `extensions/` by default. Override it in `glaze.neon`:
 
-Create an `extensions/` directory at your project root. Any invokable class decorated with `#[GlazeExtension('name')]` placed there is registered automatically -- no `glaze.php` required.
+```neon
+extensionsDir: src/Extensions
+```
+
+Classes that do **not** carry `#[GlazeExtension]` are silently skipped, so helper files can live alongside extension classes without issue.
+
+---
+
+## Template helpers
+
+A template helper is a named, invokable class. Provide a non-empty name in the attribute and implement `__invoke()`.
 
 `extensions/LatestRelease.php`:
 
@@ -39,60 +47,15 @@ final class LatestRelease
 }
 ```
 
-Classes in the discovery directory that do **not** have the `#[GlazeExtension]` attribute are silently skipped, so helper files can live alongside extension classes without issue.
-
-The directory is called `extensions/` by default. Override it in `glaze.neon`:
-
-```neon
-extensionsDir: src/Extensions
-```
-
-## Bootstrap file (`glaze.php`)
-
-For inline callables, or when your extension classes live outside `extensions/`, create a `glaze.php` file at the project root that returns an array of definitions:
+Call it from any Sugar template:
 
 ```php
-<?php
-// glaze.php
-
-use App\Extensions\SiteStats;
-
-return [
-    SiteStats::class,               // class with #[GlazeExtension] attribute
-    'buildDate' => fn() => date('Y-m-d'),  // inline named callable
-];
+<footer>Version <?= $this->extension('version') ?></footer>
 ```
 
-Each entry is one of:
+Extension results are **memoized per build** -- however many templates call the same extension, the underlying PHP runs exactly once.
 
-- **A class name string** — an invokable class decorated with `#[GlazeExtension('name')]`
-- **A named callable** — a `string => callable` pair
-
-`glaze.php` is optional. If absent, only auto-discovered extensions are available.
-
-## Using both
-
-The `extensions/` directory and `glaze.php` are independent and additive. Extensions from both sources are merged into the same registry:
-
-```
-extensions/
-    Version.php          → auto-discovered as 'version'
-glaze.php                → registers 'buildDate' inline callable
-```
-
-Templates call both the same way.
-
-## Calling extensions in templates
-
-Use `$this->extension('name')` inside any Sugar template:
-
-```php
-<footer>
-    Version <?= $this->extension('version') ?> &mdash; built <?= $this->extension('buildDate') ?>
-</footer>
-```
-
-Arguments are forwarded to the callable on its first invocation:
+Arguments are forwarded to `__invoke()` on its first invocation:
 
 ```php
 #[GlazeExtension('asset')]
@@ -100,7 +63,7 @@ final class AssetExtension
 {
     public function __invoke(string $path): string
     {
-        return '/assets/' . ltrim($path, '/') . '?v=' . filemtime('/public/assets/' . $path);
+        return '/assets/' . ltrim($path, '/');
     }
 }
 ```
@@ -111,12 +74,125 @@ final class AssetExtension
 
 > **Note:** Because results are cached after the first call, passing different arguments on subsequent calls returns the result from the first invocation. Design extensions that take arguments as single-invocation helpers.
 
-## Error handling
-
-Calling an unregistered extension name from a template throws a `RuntimeException` with the list of available names:
+Calling an unregistered name throws a `RuntimeException`:
 
 ```
-Glaze extension "versin" is not registered. Available: version, buildDate
+Glaze extension "versin" is not registered. Available: version, asset
 ```
 
-If neither `extensions/` nor `glaze.php` exist, the project runs without extensions and no error is raised.
+---
+
+## Build event subscribers
+
+Extensions can also listen to events fired during the static build. Add one or more public methods decorated with `#[ListensTo(BuildEvent::X)]`.
+
+A class that only subscribes to events does not need a name or `__invoke()` -- omit the name argument entirely:
+
+```php
+<?php
+
+use Glaze\Build\Event\BuildCompletedEvent;
+use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Event\PageWrittenEvent;
+use Glaze\Template\Extension\GlazeExtension;
+use Glaze\Template\Extension\ListensTo;
+
+#[GlazeExtension]
+final class SitemapGenerator
+{
+    private array $urls = [];
+
+    #[ListensTo(BuildEvent::PageWritten)]
+    public function collect(PageWrittenEvent $event): void
+    {
+        $this->urls[] = $event->page->urlPath;
+    }
+
+    #[ListensTo(BuildEvent::BuildCompleted)]
+    public function write(BuildCompletedEvent $event): void
+    {
+        $sitemap = $this->buildSitemap($this->urls, $event->config->site->baseUrl);
+        file_put_contents($event->config->outputPath() . '/sitemap.xml', $sitemap);
+    }
+}
+```
+
+A class with both a name and event listeners is valid -- it registers as both a template helper and a subscriber:
+
+```php
+#[GlazeExtension('stats')]
+final class StatsExtension
+{
+    private int $pageCount = 0;
+
+    #[ListensTo(BuildEvent::PageWritten)]
+    public function count(PageWrittenEvent $event): void
+    {
+        $this->pageCount++;
+    }
+
+    public function __invoke(): int
+    {
+        return $this->pageCount;
+    }
+}
+```
+
+### Build events reference
+
+| Event | Payload | Mutable fields | When |
+| --- | --- | --- | --- |
+| `BuildEvent::BuildStarted` | `BuildStartedEvent` | — | Before content discovery |
+| `BuildEvent::ContentDiscovered` | `ContentDiscoveredEvent` | `$pages` | After discovery, before rendering |
+| `BuildEvent::PageRendered` | `PageRenderedEvent` | `$html` | After each page renders, before writing |
+| `BuildEvent::PageWritten` | `PageWrittenEvent` | — | After each page is written to disk |
+| `BuildEvent::BuildCompleted` | `BuildCompletedEvent` | — | After all pages and assets are written |
+
+Mutable fields let you modify the build in place. Set `ContentDiscoveredEvent::$pages` to inject or remove pages, or set `PageRenderedEvent::$html` to post-process rendered output.
+
+#### `BuildStartedEvent`
+
+```
+$event->config    — BuildConfig
+```
+
+Useful for opening file handles, recording a start time, or validating external prerequisites.
+
+#### `ContentDiscoveredEvent`
+
+```
+$event->pages     — ContentPage[]  (mutable)
+$event->config    — BuildConfig
+```
+
+Mutate `$pages` to inject virtual pages, reorder, augment metadata, or filter the list.
+
+#### `PageRenderedEvent`
+
+```
+$event->page      — ContentPage
+$event->html      — string  (mutable)
+$event->config    — BuildConfig
+```
+
+Mutate `$html` to minify output, inject analytics snippets, or extract content for a search index.
+
+#### `PageWrittenEvent`
+
+```
+$event->page        — ContentPage
+$event->destination — string  (absolute output path)
+$event->config      — BuildConfig
+```
+
+Useful for accumulating sitemap entries, search-index records, or per-page statistics.
+
+#### `BuildCompletedEvent`
+
+```
+$event->writtenFiles — string[]  (absolute paths)
+$event->config       — BuildConfig
+$event->duration     — float  (seconds)
+```
+
+Useful for writing derived files (sitemap, search index, RSS feed) and triggering post-build hooks.

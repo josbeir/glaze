@@ -6,13 +6,12 @@ namespace Glaze\Template\Extension;
 use Attribute;
 
 /**
- * Marks an invokable class as a named Glaze template extension.
+ * Marks an invokable class as a named Glaze template extension, or an event subscriber, or both.
  *
- * Apply this attribute to any invokable class to register it with the extension
- * loader. The `name` argument becomes the lookup key in `$this->extension('name')`
- * calls inside Sugar templates.
+ * Place this attribute on any class in the project's `extensions/` directory to have it
+ * auto-discovered by the extension loader at build and serve time.
  *
- * Example:
+ * **Template helper** — provide a `name` and implement `__invoke()`:
  *
  * ```php
  * #[GlazeExtension('version')]
@@ -25,13 +24,29 @@ use Attribute;
  * }
  * ```
  *
- * Register the class in `glaze.php` at the project root:
+ * **Event subscriber** — omit `name` and decorate methods with `#[ListensTo]`:
  *
  * ```php
- * return [
- *     VersionExtension::class,
- * ];
+ * #[GlazeExtension]
+ * class SitemapGenerator
+ * {
+ *     private array $urls = [];
+ *
+ *     #[ListensTo(BuildEvent::PageWritten)]
+ *     public function collect(PageWrittenEvent $event): void
+ *     {
+ *         $this->urls[] = $event->page->urlPath;
+ *     }
+ *
+ *     #[ListensTo(BuildEvent::BuildCompleted)]
+ *     public function write(BuildCompletedEvent $event): void
+ *     {
+ *         file_put_contents($event->config->outputPath() . '/sitemap.xml', $this->buildXml());
+ *     }
+ * }
  * ```
+ *
+ * **Both** — supply a `name`, implement `__invoke()`, and add `#[ListensTo]` methods.
  */
 #[Attribute(Attribute::TARGET_CLASS)]
 final class GlazeExtension
@@ -39,10 +54,11 @@ final class GlazeExtension
     /**
      * Constructor.
      *
-     * @param string $name Extension name used as lookup key in template calls.
+     * @param string|null $name Extension name used as lookup key in template calls,
+     *                          or `null` for a pure event-subscriber extension.
      */
     public function __construct(
-        public readonly string $name,
+        public readonly ?string $name = null,
     ) {
     }
 }

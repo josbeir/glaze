@@ -3,6 +3,13 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build;
 
+use Glaze\Build\Event\BuildCompletedEvent;
+use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Event\BuildStartedEvent;
+use Glaze\Build\Event\ContentDiscoveredEvent;
+use Glaze\Build\Event\EventDispatcher;
+use Glaze\Build\Event\PageRenderedEvent;
+use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Tests\Helper\ContainerTestTrait;
@@ -499,6 +506,111 @@ final class SiteBuilderTest extends TestCase
         }
 
         putenv($name . '=' . $value);
+    }
+
+    // ------------------------------------------------------------------ //
+    // Event system
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Ensure the BuildStarted event is dispatched at the start of a build.
+     */
+    public function testBuildDispatchesBuildStartedEvent(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $received = [];
+
+        $dispatcher->on(BuildEvent::BuildStarted, function (BuildStartedEvent $event) use (&$received): void {
+            $received[] = $event->config->projectRoot;
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertCount(1, $received);
+        $this->assertSame($projectRoot, $received[0]);
+    }
+
+    /**
+     * Ensure a ContentDiscovered listener can inject an additional virtual page.
+     */
+    public function testBuildContentDiscoveredPagesAreMutable(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+
+        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+            // Remove all discovered pages — build should complete with zero rendered pages.
+            $event->pages = [];
+        });
+
+        $writtenFiles = $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertSame([], $writtenFiles);
+    }
+
+    /**
+     * Ensure a PageRendered listener can overwrite the HTML before it is written to disk.
+     */
+    public function testBuildPageRenderedHtmlIsMutable(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+
+        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event): void {
+            $event->html = '<!-- injected -->';
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertSame('<!-- injected -->', $output);
+    }
+
+    /**
+     * Ensure a PageWritten event is dispatched for every rendered page.
+     */
+    public function testBuildDispatchesPageWrittenForEachPage(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $destinations = [];
+
+        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$destinations): void {
+            $destinations[] = $event->destination;
+        });
+
+        $writtenFiles = $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertSameSize($writtenFiles, $destinations);
+        foreach ($destinations as $dest) {
+            $this->assertContains($dest, $writtenFiles);
+        }
+    }
+
+    /**
+     * Ensure the BuildCompleted event is dispatched after build with a positive duration.
+     */
+    public function testBuildDispatchesBuildCompletedWithDuration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $completedEvents = [];
+
+        $dispatcher->on(BuildEvent::BuildCompleted, function (BuildCompletedEvent $event) use (&$completedEvents): void {
+            $completedEvents[] = $event;
+        });
+
+        $writtenFiles = $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertCount(1, $completedEvents);
+        $this->assertGreaterThan(0.0, $completedEvents[0]->duration);
+        $this->assertSame($writtenFiles, $completedEvents[0]->writtenFiles);
     }
 
     /**

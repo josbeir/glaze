@@ -7,7 +7,7 @@ group: Templating
 
 Glaze uses [Sugar](https://josbeir.github.io/sugar/) for page rendering -- a PHP template engine with inheritance, blocks, components, and directives.
 
-Templates live in `templates/` and use the `.sugar.php` extension. Sugar automatically escapes output based on context (HTML, attribute, URL, JS, CSS), so you do not need a manual `h()` call for most values.
+Templates live in `templates/` and use the `.sugar.php` extension. Sugar automatically escapes output based on context (HTML, attribute, URL, JS, CSS), so you do not need a manual `htmlspecialchars()` call for most values.
 
 This page covers Glaze-specific integration. For the full directive and language reference, see the [Sugar documentation](https://josbeir.github.io/sugar/).
 

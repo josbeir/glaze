@@ -3,52 +3,48 @@ declare(strict_types=1);
 
 namespace Glaze\Template\Extension;
 
+use Glaze\Build\Event\EventDispatcher;
 use InvalidArgumentException;
 use ReflectionClass;
-use RuntimeException;
+use ReflectionMethod;
 
 /**
- * Loads project extensions from two independent sources and builds a populated ExtensionRegistry.
+ * Loads project extensions from the `extensions/` directory and builds a populated registry.
  *
- * **Auto-discovery (no configuration required)**
- * Any invokable class decorated with `#[GlazeExtension('name')]` placed in the project's
- * `extensions/` directory is discovered and registered automatically. Classes without
- * the attribute are silently skipped.
+ * **Auto-discovery**
+ * Any class decorated with `#[GlazeExtension]` placed in the project's `extensions/` directory
+ * is discovered and registered automatically. A class must satisfy at least one of:
  *
- * **Bootstrap file (`glaze.php`)**
- * When a `glaze.php` file exists in the project root it is loaded for explicit
- * registrations. Each array entry is either:
+ * - Have a non-empty `name` in `#[GlazeExtension('name')]` **and** implement `__invoke()` — registered
+ *   as a named template helper callable from Sugar templates.
+ * - Have at least one public method decorated with `#[ListensTo(BuildEvent::X)]` — registered
+ *   as a build-pipeline event listener on the supplied `EventDispatcher`.
  *
- * - A FQCN string for an invokable class decorated with `#[GlazeExtension('name')]`
- * - A named `[string => callable]` pair for inline definitions
+ * Both conditions may be satisfied simultaneously. Classes without `#[GlazeExtension]` are silently skipped.
  *
- * Both sources are independent and optional. You can use either or both.
+ * Example `extensions/SitemapGenerator.php` (event subscriber):
  *
- * Example `extensions/LatestRelease.php` (no `glaze.php` required):
+ * ```php
+ * #[GlazeExtension]
+ * class SitemapGenerator
+ * {
+ *     #[ListensTo(BuildEvent::BuildCompleted)]
+ *     public function write(BuildCompletedEvent $event): void { ... }
+ * }
+ * ```
+ *
+ * Example `extensions/VersionExtension.php` (template helper):
  *
  * ```php
  * #[GlazeExtension('version')]
- * final class LatestRelease
+ * class VersionExtension
  * {
  *     public function __invoke(): string { return trim(file_get_contents('VERSION')); }
  * }
  * ```
- *
- * Example `glaze.php` (inline callables only):
- *
- * ```php
- * return [
- *     'buildDate' => fn() => date('Y-m-d'),
- * ];
- * ```
  */
 final class ExtensionLoader
 {
-    /**
-     * Bootstrap file name resolved relative to the project root.
-     */
-    public const BOOTSTRAP_FILE = 'glaze.php';
-
     /**
      * Conventional auto-discovery directory relative to the project root.
      */
@@ -57,40 +53,44 @@ final class ExtensionLoader
     /**
      * Build a populated ExtensionRegistry from the given project root.
      *
-     * Scans the configured extensions directory for `#[GlazeExtension]`-decorated classes,
-     * then additionally processes `glaze.php` when present. Both sources are optional.
+     * Scans the configured extensions directory for `#[GlazeExtension]`-decorated classes.
+     * Template helpers are registered on the returned `ExtensionRegistry`.
+     * Event-subscriber methods are registered on `$dispatcher`.
      *
      * @param string $projectRoot Absolute project root path.
      * @param string $extensionsDir Relative directory name to scan for extension classes.
-     * @throws \RuntimeException When the bootstrap file returns a non-array value.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Event dispatcher to register listeners on.
+     *        When `null` a fresh, no-op dispatcher is used internally.
      * @throws \InvalidArgumentException When an extension definition is invalid.
      */
     public static function loadFromProjectRoot(
         string $projectRoot,
         string $extensionsDir = self::EXTENSIONS_DIR,
+        ?EventDispatcher $dispatcher = null,
     ): ExtensionRegistry {
         $registry = new ExtensionRegistry();
+        $dispatcher ??= new EventDispatcher();
 
-        self::scanExtensionsDirectory($registry, $projectRoot, $extensionsDir);
-        self::loadBootstrapFile($registry, $projectRoot);
+        self::scanExtensionsDirectory($registry, $dispatcher, $projectRoot, $extensionsDir);
 
         return $registry;
     }
 
     /**
-     * Scan a project directory and auto-register all decorated extension classes.
+     * Scan a project directory and register all decorated extension classes.
      *
      * PHP files are required in alphabetical order. Classes that do not carry the
-     * `#[GlazeExtension]` attribute are silently skipped. Classes that do carry the
-     * attribute but are not invokable or have an empty name throw immediately.
+     * `#[GlazeExtension]` attribute are silently skipped.
      *
-     * @param \Glaze\Template\Extension\ExtensionRegistry $registry Target registry.
+     * @param \Glaze\Template\Extension\ExtensionRegistry $registry Target template extension registry.
+     * @param \Glaze\Build\Event\EventDispatcher $dispatcher Target event dispatcher.
      * @param string $projectRoot Absolute project root path.
      * @param string $extensionsDir Relative directory name to scan.
      * @throws \InvalidArgumentException When a decorated class is invalid.
      */
     protected static function scanExtensionsDirectory(
         ExtensionRegistry $registry,
+        EventDispatcher $dispatcher,
         string $projectRoot,
         string $extensionsDir = self::EXTENSIONS_DIR,
     ): void {
@@ -125,80 +125,37 @@ final class ExtensionLoader
                     continue;
                 }
 
-                self::registerFromClass($registry, $className, $file);
+                self::registerFromClass($registry, $dispatcher, $className, $file);
             }
-        }
-    }
-
-    /**
-     * Load `glaze.php` from the project root and register all defined extensions.
-     *
-     * Does nothing when `glaze.php` is absent.
-     *
-     * @param \Glaze\Template\Extension\ExtensionRegistry $registry Target registry.
-     * @param string $projectRoot Absolute project root path.
-     * @throws \RuntimeException When the bootstrap file returns a non-array value.
-     * @throws \InvalidArgumentException When an extension definition is invalid.
-     */
-    protected static function loadBootstrapFile(ExtensionRegistry $registry, string $projectRoot): void
-    {
-        $bootstrapFile = $projectRoot . DIRECTORY_SEPARATOR . self::BOOTSTRAP_FILE;
-
-        if (!is_file($bootstrapFile)) {
-            return;
-        }
-
-        $definitions = (static function () use ($bootstrapFile): mixed {
-            return require $bootstrapFile;
-        })();
-
-        if (!is_array($definitions)) {
-            throw new RuntimeException(sprintf(
-                'Extension bootstrap file "%s" must return an array, got %s.',
-                $bootstrapFile,
-                get_debug_type($definitions),
-            ));
-        }
-
-        foreach ($definitions as $key => $value) {
-            if (is_int($key) && is_string($value)) {
-                self::registerFromClass($registry, $value, $bootstrapFile);
-                continue;
-            }
-
-            if (is_string($key) && is_callable($value)) {
-                $registry->register($key, $value);
-                continue;
-            }
-
-            throw new InvalidArgumentException(sprintf(
-                'Invalid extension definition at key "%s" in "%s". '
-                . 'Expected a class-name string or a [string => callable] pair.',
-                (string)$key,
-                $bootstrapFile,
-            ));
         }
     }
 
     /**
      * Resolve the `#[GlazeExtension]` attribute on a class and register it.
      *
-     * @param \Glaze\Template\Extension\ExtensionRegistry $registry Target registry.
-     * @param string $className Fully-qualified class name to reflect.
-     * @param string $bootstrapFile Bootstrap file path used in error messages.
-     * @throws \InvalidArgumentException When the class is missing, not invokable, or has no valid attribute.
+     * Validates and registers the class as a template helper, event subscriber, or both:
+     * - A non-empty name requires `__invoke()` and registers the class as a template helper.
+     * - Methods decorated with `#[ListensTo]` are registered as event listeners.
+     * - A class must contribute at least one of the above; otherwise an exception is thrown.
+     *
+     * @param \Glaze\Template\Extension\ExtensionRegistry $registry Target template extension registry.
+     * @param \Glaze\Build\Event\EventDispatcher $dispatcher Target event dispatcher.
+     * @param string $className Fully-qualified class name to reflect and register.
+     * @param string $sourceFile Source file path used in error messages.
+     * @throws \InvalidArgumentException When the class definition is invalid.
      */
-    protected static function registerFromClass(
+    public static function registerFromClass(
         ExtensionRegistry $registry,
+        EventDispatcher $dispatcher,
         string $className,
-        string $bootstrapFile,
+        string $sourceFile,
     ): void {
         if (!class_exists($className)) {
             throw new InvalidArgumentException(sprintf(
-                'Extension class "%s" listed in "%s" could not be found. '
+                'Extension class "%s" defined in "%s" could not be found. '
                 . 'Ensure it is autoloadable.',
                 $className,
-                $bootstrapFile,
+                $sourceFile,
             ));
         }
 
@@ -207,30 +164,62 @@ final class ExtensionLoader
 
         if ($attributes === []) {
             throw new InvalidArgumentException(sprintf(
-                'Extension class "%s" is missing the #[GlazeExtension(\'name\')] attribute.',
+                'Extension class "%s" is missing the #[GlazeExtension] attribute.',
                 $className,
             ));
         }
 
         /** @var \Glaze\Template\Extension\GlazeExtension $attribute */
         $attribute = $attributes[0]->newInstance();
-
-        if ($attribute->name === '') {
-            throw new InvalidArgumentException(sprintf(
-                'Extension class "%s" has an empty name in #[GlazeExtension].',
-                $className,
-            ));
-        }
-
         $instance = new $className();
+        $registeredAnything = false;
 
-        if (!is_callable($instance)) {
+        // --- Template helper registration ---
+        if ($attribute->name !== null) {
+            if ($attribute->name === '') {
+                throw new InvalidArgumentException(sprintf(
+                    'Extension class "%s" has an empty name in #[GlazeExtension]. '
+                    . 'Provide a non-empty name or omit the argument for a pure event subscriber.',
+                    $className,
+                ));
+            }
+
+            if (!is_callable($instance)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Extension class "%s" has a name ("%s") but is not invokable. '
+                    . 'Add a __invoke() method or remove the name to use it as a pure event subscriber.',
+                    $className,
+                    $attribute->name,
+                ));
+            }
+
+            $registry->register($attribute->name, $instance);
+            $registeredAnything = true;
+        }
+
+        // --- Event listener registration ---
+        $methods = $reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC);
+        foreach ($methods as $method) {
+            $listensToAttributes = $method->getAttributes(ListensTo::class);
+            if ($listensToAttributes === []) {
+                continue;
+            }
+
+            /** @var \Glaze\Template\Extension\ListensTo $listensTo */
+            $listensTo = $listensToAttributes[0]->newInstance();
+            $dispatcher->on($listensTo->event, function (object $event) use ($instance, $method): void {
+                $method->invoke($instance, $event);
+            });
+            $registeredAnything = true;
+        }
+
+        if (!$registeredAnything) {
             throw new InvalidArgumentException(sprintf(
-                'Extension class "%s" is not invokable. Add a __invoke() method.',
+                'Extension class "%s" is decorated with #[GlazeExtension] but contributes nothing. '
+                . 'Either provide a name and __invoke() for a template helper, '
+                . 'or add #[ListensTo(BuildEvent::X)] methods for event subscriptions.',
                 $className,
             ));
         }
-
-        $registry->register($attribute->name, $instance);
     }
 }

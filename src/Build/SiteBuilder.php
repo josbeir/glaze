@@ -4,6 +4,13 @@ declare(strict_types=1);
 namespace Glaze\Build;
 
 use ArrayObject;
+use Glaze\Build\Event\BuildCompletedEvent;
+use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Event\BuildStartedEvent;
+use Glaze\Build\Event\ContentDiscoveredEvent;
+use Glaze\Build\Event\EventDispatcher;
+use Glaze\Build\Event\PageRenderedEvent;
+use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
@@ -72,21 +79,40 @@ final class SiteBuilder
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param bool $cleanOutput Whether to clear output directory before build.
      * @param callable(int, int, string):void|null $progressCallback Optional per-page progress callback.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional pre-configured dispatcher;
+     *                                                             when null a fresh dispatcher is created.
      * @return array<string> Generated file paths.
      */
     public function build(
         BuildConfig $config,
         bool $cleanOutput = false,
         ?callable $progressCallback = null,
+        ?EventDispatcher $dispatcher = null,
     ): array {
         if ($cleanOutput) {
             $this->removeDirectory($config->outputPath());
         }
 
-        $pages = $this->filterPages(
-            $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
+        $startTime = hrtime(true);
+        $dispatcher ??= new EventDispatcher();
+        $extensionRegistry = ExtensionLoader::loadFromProjectRoot(
+            $config->projectRoot,
+            $config->extensionsDir,
+            $dispatcher,
+        );
+
+        $dispatcher->dispatch(BuildEvent::BuildStarted, new BuildStartedEvent($config));
+
+        $discoveredEvent = new ContentDiscoveredEvent(
+            $this->filterPages(
+                $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
+                $config,
+            ),
             $config,
         );
+        $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
+        $pages = $discoveredEvent->pages;
+
         $pageRenderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->templateCachePath(),
@@ -96,7 +122,6 @@ final class SiteBuilder
             templateVite: $config->templateViteOptions,
         );
         $siteIndex = new SiteIndex($pages);
-        $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
         $rendererCache = [
             $config->pageTemplate => $pageRenderer,
         ];
@@ -129,8 +154,13 @@ final class SiteBuilder
                 extensionRegistry: $extensionRegistry,
             );
 
+            $renderedEvent = new PageRenderedEvent($page, $html, $config);
+            $dispatcher->dispatch(BuildEvent::PageRendered, $renderedEvent);
+            $html = $renderedEvent->html;
+
             $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
             $this->writeFile($destination, $html);
+            $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
             $writtenFiles[] = $destination;
             $completedPages++;
 
@@ -147,6 +177,11 @@ final class SiteBuilder
         $this->assetPublisher->publishStatic(
             staticPath: $config->staticPath(),
             outputPath: $config->outputPath(),
+        );
+
+        $dispatcher->dispatch(
+            BuildEvent::BuildCompleted,
+            new BuildCompletedEvent($writtenFiles, $config, (float)(hrtime(true) - $startTime) / 1e9),
         );
 
         return $writtenFiles;
