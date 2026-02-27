@@ -2,7 +2,28 @@
 <?php
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+$autoloadCandidates = [
+    dirname(__DIR__) . '/vendor/autoload.php',
+    dirname(__DIR__, 3) . '/autoload.php',
+];
+
+$autoloadPath = null;
+foreach ($autoloadCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $autoloadPath = $candidate;
+
+        break;
+    }
+}
+
+if ($autoloadPath === null) {
+    fwrite(STDERR, "Unable to locate Composer autoload.php for Glaze CLI.\n");
+    fwrite(STDERR, "Checked:\n- " . implode("\n- ", $autoloadCandidates) . "\n");
+
+    exit(1);
+}
+
+require $autoloadPath;
 
 putenv('GLAZE_CLI_ROOT=' . dirname(__DIR__));
 
