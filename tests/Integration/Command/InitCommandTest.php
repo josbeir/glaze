@@ -26,6 +26,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('--base-path');
         $this->assertOutputContains('--taxonomies');
         $this->assertOutputContains('--vite');
+        $this->assertOutputContains('--skip-install');
         $this->assertOutputContains('--yes');
     }
 
@@ -63,7 +64,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $target = $this->createTempDirectory() . '/vite-site';
 
         $this->exec(sprintf(
-            'init "%s" --name "vite-site" --title "Vite Site" --vite --yes',
+            'init "%s" --name "vite-site" --title "Vite Site" --vite --skip-install --yes',
             $target,
         ));
 

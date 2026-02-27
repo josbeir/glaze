@@ -7,6 +7,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
+use Glaze\Scaffold\NpmInstallService;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use Glaze\Utility\Normalization;
@@ -21,9 +22,12 @@ final class InitCommand extends AbstractGlazeCommand
      * Constructor.
      *
      * @param \Glaze\Scaffold\ProjectScaffoldService $scaffoldService Scaffold service.
+     * @param \Glaze\Scaffold\NpmInstallService $npmInstallService NPM install service.
      */
-    public function __construct(protected ProjectScaffoldService $scaffoldService)
-    {
+    public function __construct(
+        protected ProjectScaffoldService $scaffoldService,
+        protected NpmInstallService $npmInstallService,
+    ) {
         parent::__construct();
     }
 
@@ -80,6 +84,11 @@ final class InitCommand extends AbstractGlazeCommand
                 'boolean' => true,
                 'default' => false,
             ])
+            ->addOption('skip-install', [
+                'help' => 'Skip running npm install after scaffolding Vite-enabled projects.',
+                'boolean' => true,
+                'default' => false,
+            ])
             ->addOption('force', [
                 'help' => 'Allow scaffolding into a non-empty directory.',
                 'boolean' => true,
@@ -107,6 +116,11 @@ final class InitCommand extends AbstractGlazeCommand
         try {
             $options = $this->resolveScaffoldOptions($args, $io);
             $this->scaffoldService->scaffold($options);
+
+            if ($options->enableVite && !(bool)$args->getOption('skip-install')) {
+                $io->out('<info>running</info> npm install...');
+                $this->npmInstallService->install($options->targetDirectory);
+            }
         } catch (RuntimeException $runtimeException) {
             $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
 

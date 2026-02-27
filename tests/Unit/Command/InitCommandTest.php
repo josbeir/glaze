@@ -7,6 +7,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Closure;
 use Glaze\Command\InitCommand;
+use Glaze\Scaffold\NpmInstallService;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use Glaze\Tests\Helper\ContainerTestTrait;
@@ -61,12 +62,27 @@ final class InitCommandTest extends TestCase
     public function testConstructorUsesInjectedScaffoldService(): void
     {
         $scaffoldService = new ProjectScaffoldService();
-        $command = new InitCommand($scaffoldService);
+        $command = new InitCommand($scaffoldService, new NpmInstallService());
 
         $scaffoldServiceProperty = new ReflectionProperty($command, 'scaffoldService');
         $resolvedScaffoldService = $scaffoldServiceProperty->getValue($command);
 
         $this->assertSame($scaffoldService, $resolvedScaffoldService);
+    }
+
+    /**
+     * Ensure constructor keeps the injected npm install service instance.
+     */
+    public function testConstructorUsesInjectedNpmInstallService(): void
+    {
+        $scaffoldService = new ProjectScaffoldService();
+        $npmInstallService = new NpmInstallService();
+        $command = new InitCommand($scaffoldService, $npmInstallService);
+
+        $npmInstallServiceProperty = new ReflectionProperty($command, 'npmInstallService');
+        $resolvedNpmInstallService = $npmInstallServiceProperty->getValue($command);
+
+        $this->assertSame($npmInstallService, $resolvedNpmInstallService);
     }
 
     /**
