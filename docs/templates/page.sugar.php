@@ -9,11 +9,13 @@ use function Sugar\Core\Runtime\raw;
 ?>
 <title s:prepend="title"><?= $title ?></title>
 
-<s-template s:extends="layout/page">
+<s-template s:extends="layout/page" />
 
-<s-template s:notempty="$page->toc > 0" s:block="toc">
-	<s-template s:include="partials/toc" />
-</s-template>
+<s-template
+	s:include="partials/toc"
+	s:if="$page->toc > 0"
+	s:block="toc"
+/>
 
 <s-template s:block="content">
 	<div class="breadcrumbs text-sm mb-4 text-base-content/70">

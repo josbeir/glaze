@@ -15,7 +15,7 @@ trait FilesystemTestTrait
      */
     protected function createTempDirectory(): string
     {
-        $path = sys_get_temp_dir() . '/glaze_test_' . uniqid('', true);
+        $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'glaze_test_' . uniqid('', true);
         if (!mkdir($path, 0755, true) && !is_dir($path)) {
             throw new RuntimeException(sprintf('Unable to create temporary directory "%s".', $path));
         }
