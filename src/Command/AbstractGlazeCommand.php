@@ -42,31 +42,71 @@ abstract class AbstractGlazeCommand extends BaseCommand
             return static::$cachedVersion;
         }
 
-        try {
-            $rootPackage = InstalledVersions::getRootPackage();
-            $prettyVersion = $rootPackage['pretty_version'] ?? null;
+        $packageVersion = $this->resolvePackageVersion();
+        if ($packageVersion !== null) {
+            static::$cachedVersion = $packageVersion;
 
-            if (is_string($prettyVersion) && trim($prettyVersion) !== '') {
-                static::$cachedVersion = trim($prettyVersion);
-
-                return static::$cachedVersion;
-            }
-        } catch (Throwable) {
+            return static::$cachedVersion;
         }
 
-        try {
-            $packageVersion = InstalledVersions::getPrettyVersion('josbeir/glaze');
+        $rootPackageVersion = $this->resolveRootPackageVersion();
+        if ($rootPackageVersion !== null) {
+            static::$cachedVersion = $rootPackageVersion;
 
-            if (is_string($packageVersion) && trim($packageVersion) !== '') {
-                static::$cachedVersion = trim($packageVersion);
-
-                return static::$cachedVersion;
-            }
-        } catch (Throwable) {
+            return static::$cachedVersion;
         }
 
         static::$cachedVersion = 'dev';
 
         return static::$cachedVersion;
+    }
+
+    /**
+     * Resolve installed glaze package version from Composer metadata.
+     */
+    protected function resolvePackageVersion(): ?string
+    {
+        try {
+            return $this->normalizeVersionCandidate(InstalledVersions::getPrettyVersion('josbeir/glaze'));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve root package version from Composer metadata.
+     */
+    protected function resolveRootPackageVersion(): ?string
+    {
+        try {
+            $rootPackage = InstalledVersions::getRootPackage();
+
+            return $this->normalizeVersionCandidate($rootPackage['pretty_version'] ?? null);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Normalize Composer version candidates and filter placeholders.
+     *
+     * @param mixed $version Raw version candidate.
+     */
+    protected function normalizeVersionCandidate(mixed $version): ?string
+    {
+        if (!is_string($version)) {
+            return null;
+        }
+
+        $normalizedVersion = trim($version);
+        if ($normalizedVersion === '') {
+            return null;
+        }
+
+        if (str_contains($normalizedVersion, 'no-version-set')) {
+            return null;
+        }
+
+        return $normalizedVersion;
     }
 }

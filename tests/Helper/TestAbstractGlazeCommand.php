@@ -39,6 +39,16 @@ final class TestAbstractGlazeCommand extends AbstractGlazeCommand
     }
 
     /**
+     * Proxy protected helper for tests.
+     *
+     * @param mixed $value Raw version candidate.
+     */
+    public function normalizeVersionCandidateForTest(mixed $value): ?string
+    {
+        return $this->normalizeVersionCandidate($value);
+    }
+
+    /**
      * Set static version cache value for deterministic tests.
      *
      * @param string|null $value Cached value.

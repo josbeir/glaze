@@ -75,6 +75,30 @@ final class AbstractGlazeCommandTest extends TestCase
     }
 
     /**
+     * Ensure no-version-set placeholders are ignored during normalization.
+     */
+    public function testNormalizeVersionCandidateSkipsNoVersionSetPlaceholders(): void
+    {
+        $command = $this->createCommand();
+
+        $normalized = $command->normalizeVersionCandidateForTest('1.0.0+no-version-set');
+
+        $this->assertNull($normalized);
+    }
+
+    /**
+     * Ensure valid version candidates are normalized and preserved.
+     */
+    public function testNormalizeVersionCandidateReturnsTrimmedVersion(): void
+    {
+        $command = $this->createCommand();
+
+        $normalized = $command->normalizeVersionCandidateForTest('  v0.1.0  ');
+
+        $this->assertSame('v0.1.0', $normalized);
+    }
+
+    /**
      * Create concrete test command for protected helper access.
      */
     protected function createCommand(): TestAbstractGlazeCommand
