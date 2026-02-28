@@ -101,6 +101,7 @@ final class SugarPageRenderer
 
         return $builder
             ->withHtmlExceptionRenderer()
+            ->withPhpSyntaxValidation(true)
             ->build();
     }
 

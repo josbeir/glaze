@@ -16,6 +16,12 @@ use Glaze\Http\Middleware\StaticAssetMiddleware;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+ini_set('log_errors', '1');
+ini_set('error_log', 'php://stderr');
+
 $projectRoot = getenv('GLAZE_PROJECT_ROOT');
 if (!is_string($projectRoot) || $projectRoot === '') {
     $projectRoot = dirname(__DIR__);

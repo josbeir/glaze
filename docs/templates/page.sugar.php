@@ -16,7 +16,6 @@ use function Sugar\Core\Runtime\raw;
 	s:if="$page->toc > 0"
 	s:block="toc"
 />
-
 <s-template s:block="content">
 	<div class="breadcrumbs text-sm mb-4 text-base-content/70">
 		<ul>
