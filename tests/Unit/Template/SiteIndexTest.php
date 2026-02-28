@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Template;
 
 use Closure;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Section;
 use Glaze\Template\SiteIndex;
 use PHPUnit\Framework\TestCase;
 
@@ -170,26 +171,24 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
-     * Validate sections() returns non-root sections ordered by minimum page weight.
+     * Validate sections() returns top-level section nodes ordered by section weight.
      */
     public function testSectionsReturnsOrderedSectionMap(): void
     {
         $index = new SiteIndex([
             $this->makePage('index', '/', 'index.dj', ['weight' => 1], 'Home'),
             $this->makePage('reference/commands', '/reference/commands/', 'reference/commands.dj', ['weight' => 100], 'Commands'),
+            $this->makePage('getting-started/index', '/getting-started/', 'getting-started/index.dj', ['weight' => 5], 'Getting started'),
             $this->makePage('getting-started/install', '/getting-started/install/', 'getting-started/install.dj', ['weight' => 20], 'Install'),
-            $this->makePage('getting-started/quick-start', '/getting-started/quick-start.dj', 'getting-started/quick-start.dj', ['weight' => 30], 'Quick Start'),
             $this->makePage('content/routing', '/content/routing/', 'content/routing.dj', ['weight' => 45], 'Routing'),
         ]);
 
         $sections = $index->sections();
 
         $this->assertCount(3, $sections);
-        $sectionKeys = array_keys($sections);
-        $this->assertSame(['getting-started', 'content', 'reference'], $sectionKeys);
-        $this->assertCount(2, $sections['getting-started']);
-        $this->assertCount(1, $sections['content']);
-        $this->assertCount(1, $sections['reference']);
+        $this->assertSame(['getting-started', 'content', 'reference'], array_keys($sections));
+        $this->assertSame('Getting started', $sections['getting-started']->label());
+        $this->assertCount(2, $sections['getting-started']->pages());
     }
 
     /**
@@ -208,7 +207,7 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
-     * Validate rootPages() returns only pages without a section.
+     * Validate rootPages() returns only pages in the content root section.
      */
     public function testRootPagesReturnsUnsectionedPages(): void
     {
@@ -225,46 +224,27 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
-     * Validate sectionLabel() humanizes section keys.
+     * Validate section nodes expose index metadata and nested child sections.
      */
-    public function testSectionLabelHumanizesKeys(): void
+    public function testSectionNodeExposesIndexAndChildren(): void
     {
-        $index = new SiteIndex([]);
+        $guideIndex = $this->makePage('docs/guides/index', '/docs/guides/', 'docs/guides/index.dj', ['weight' => 9], 'Guides');
+        $guidePage = $this->makePage('docs/guides/first', '/docs/guides/first/', 'docs/guides/first.dj', ['weight' => 11], 'First Guide');
+        $docsIndex = $this->makePage('docs/index', '/docs/', 'docs/index.dj', ['weight' => 10], 'Documentation');
 
-        $this->assertSame('Getting Started', $index->sectionLabel('getting-started'));
-        $this->assertSame('Content', $index->sectionLabel('content'));
-        $this->assertSame('Reference', $index->sectionLabel('reference'));
-    }
+        $index = new SiteIndex([$guideIndex, $guidePage, $docsIndex]);
 
-    /**
-     * Validate sectionLabel() uses the index page title when present.
-     */
-    public function testSectionLabelUsesIndexPageTitle(): void
-    {
-        $indexPage = $this->makePage('getting-started', '/getting-started/', 'getting-started/index.dj', ['weight' => 10], 'Getting started');
-        $install = $this->makePage('getting-started/install', '/getting-started/install/', 'getting-started/install.dj', ['weight' => 20], 'Install');
+        $docs = $index->sectionNode('docs') ?? $this->fail('Missing docs section');
+        $guides = $index->sectionNode('docs/guides') ?? $this->fail('Missing docs/guides section');
 
-        $index = new SiteIndex([$indexPage, $install]);
+        $this->assertSame('Documentation', $docs->label());
+        $this->assertSame($docsIndex->slug, $docs->index()?->slug);
+        $this->assertTrue($docs->hasChildren());
+        $this->assertSame($guides, $docs->child('guides'));
 
-        // Uses the index page title (lowercase "s") instead of humanized
-        $this->assertSame('Getting started', $index->sectionLabel('getting-started'));
-    }
-
-    /**
-     * Validate findSectionIndex() returns the index page for a section.
-     */
-    public function testFindSectionIndexReturnsIndexPage(): void
-    {
-        $indexPage = $this->makePage('getting-started', '/getting-started/', 'getting-started/index.dj', ['weight' => 10], 'Getting started');
-        $install = $this->makePage('getting-started/install', '/getting-started/install/', 'getting-started/install.dj', ['weight' => 20], 'Install');
-        $routing = $this->makePage('content/routing', '/content/routing/', 'content/routing.dj', ['weight' => 45], 'Routing');
-
-        $index = new SiteIndex([$indexPage, $install, $routing]);
-
-        $this->assertSame($indexPage, $index->findSectionIndex('getting-started'));
-        $this->assertNull($index->findSectionIndex('content'));
-        $this->assertNull($index->findSectionIndex(''));
-        $this->assertNull($index->findSectionIndex('nonexistent'));
+        $this->assertSame('Guides', $guides->label());
+        $this->assertSame($guideIndex->slug, $guides->index()?->slug);
+        $this->assertCount(2, $guides->pages());
     }
 
     /**
@@ -285,7 +265,25 @@ final class SiteIndexTest extends TestCase
         $this->assertSame(['reference', 'getting-started', 'content'], $sectionKeys);
 
         // Label comes from the index page title
-        $this->assertSame('Reference Docs', $index->sectionLabel('reference'));
+        $this->assertSame('Reference Docs', $index->sections()['reference']->label());
+    }
+
+    /**
+     * Validate tree flattening can resolve nested section paths.
+     */
+    public function testSectionNodeSupportsNestedPaths(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('my-section/page', '/my-section/page/', 'my-section/page.dj', ['weight' => 10], 'Section Page'),
+            $this->makePage('my-section/sub-section/page', '/my-section/sub-section/page/', 'my-section/sub-section/page.dj', ['weight' => 20], 'Subsection Page'),
+        ]);
+
+        $parent = $index->sectionNode('my-section');
+        $child = $index->sectionNode('my-section/sub-section');
+
+        $this->assertInstanceOf(Section::class, $parent);
+        $this->assertInstanceOf(Section::class, $child);
+        $this->assertSame($child, $parent->child('sub-section'));
     }
 
     /**
@@ -302,7 +300,7 @@ final class SiteIndexTest extends TestCase
         $index = new SiteIndex([$intro, $install, $quickStart, $routing, $commands]);
 
         // Root page with weight 0 comes first — no previous
-        $this->assertNull($index->previous($intro));
+        $this->assertNotInstanceOf(ContentPage::class, $index->previous($intro));
         $this->assertSame('Install', $index->next($intro)?->title);
 
         // Install follows intro (root page → section boundary)
@@ -319,7 +317,24 @@ final class SiteIndexTest extends TestCase
 
         // Commands is last — no next
         $this->assertSame('Routing', $index->previous($commands)?->title);
-        $this->assertNull($index->next($commands));
+        $this->assertNotInstanceOf(ContentPage::class, $index->next($commands));
+    }
+
+    /**
+     * Validate previous()/next() can skip pages using a predicate.
+     */
+    public function testPreviousAndNextSkipHiddenPagesWithPredicate(): void
+    {
+        $intro = $this->makePage('intro', '/intro/', 'intro.dj', ['weight' => 0], 'Intro');
+        $hidden = $this->makePage('docs/hidden', '/docs/hidden/', 'docs/hidden.dj', ['weight' => 10, 'navigation' => false], 'Hidden');
+        $visible = $this->makePage('docs/visible', '/docs/visible/', 'docs/visible.dj', ['weight' => 20], 'Visible');
+
+        $index = new SiteIndex([$intro, $hidden, $visible]);
+
+        $isNavigable = static fn(ContentPage $page): bool => (bool)($page->meta('navigation') ?? true);
+
+        $this->assertSame('Visible', $index->next($intro, $isNavigable)?->title);
+        $this->assertSame('Intro', $index->previous($visible, $isNavigable)?->title);
     }
 
     /**
@@ -332,8 +347,8 @@ final class SiteIndexTest extends TestCase
         ]);
 
         $outside = $this->makePage('docs/outside', '/docs/outside/', 'docs/outside.dj', [], 'Outside');
-        $this->assertNull($index->previous($outside));
-        $this->assertNull($index->next($outside));
+        $this->assertNotInstanceOf(ContentPage::class, $index->previous($outside));
+        $this->assertNotInstanceOf(ContentPage::class, $index->next($outside));
     }
 
     /**

@@ -68,22 +68,27 @@ final class SiteContext
     }
 
     /**
-     * Return pages from a section.
+     * Return section node by path.
      *
-     * @param string $name Section slug.
+     * @param string $name Section path.
      */
-    public function section(string $name): PageCollection
+    public function section(string $name): ?Section
     {
-        return $this->siteIndex->section($name);
+        return $this->siteIndex->sectionNode($name);
     }
 
     /**
-     * Return all non-root sections as an ordered map of section key to page collection.
+     * Return root section tree.
+     */
+    public function tree(): Section
+    {
+        return $this->siteIndex->tree();
+    }
+
+    /**
+     * Return top-level sections as an ordered map of section key to section node.
      *
-     * Sections are ordered by the lowest weight of any page within each section.
-     * Root-level pages are excluded; access them via `rootPages()`.
-     *
-     * @return array<string, \Glaze\Template\PageCollection>
+     * @return array<string, \Glaze\Template\Section>
      */
     public function sections(): array
     {
@@ -96,19 +101,6 @@ final class SiteContext
     public function rootPages(): PageCollection
     {
         return $this->siteIndex->rootPages();
-    }
-
-    /**
-     * Derive a human-readable label from a section key.
-     *
-     * Converts slug-style section keys to title case.
-     * For example, `getting-started` becomes `Getting Started`.
-     *
-     * @param string $sectionKey Section slug.
-     */
-    public function sectionLabel(string $sectionKey): string
-    {
-        return $this->siteIndex->sectionLabel($sectionKey);
     }
 
     /**
@@ -178,14 +170,14 @@ final class SiteContext
     /**
      * Paginate a page collection.
      *
-     * @param \Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Source collection.
+     * @param \Glaze\Template\Section|\Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Source collection.
      * @param int $pageSize Page size.
      * @param int $currentPage Current page number.
      * @param string|null $basePath Base pager path.
      * @param string $pathSegment Pagination path segment.
      */
     public function paginate(
-        PageCollection|array $collection,
+        Section|PageCollection|array $collection,
         int $pageSize = 10,
         int $currentPage = 1,
         ?string $basePath = null,
@@ -205,34 +197,42 @@ final class SiteContext
 
     /**
      * Return previous page in the current page section.
+     *
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function previousInSection(): ?ContentPage
+    public function previousInSection(?callable $predicate = null): ?ContentPage
     {
-        return $this->siteIndex->previousInSection($this->currentPage);
+        return $this->siteIndex->previousInSection($this->currentPage, $predicate);
     }
 
     /**
      * Return next page in the current page section.
+     *
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function nextInSection(): ?ContentPage
+    public function nextInSection(?callable $predicate = null): ?ContentPage
     {
-        return $this->siteIndex->nextInSection($this->currentPage);
+        return $this->siteIndex->nextInSection($this->currentPage, $predicate);
     }
 
     /**
      * Return the previous page in global display order, crossing section boundaries.
+     *
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function previous(): ?ContentPage
+    public function previous(?callable $predicate = null): ?ContentPage
     {
-        return $this->siteIndex->previous($this->currentPage);
+        return $this->siteIndex->previous($this->currentPage, $predicate);
     }
 
     /**
      * Return the next page in global display order, crossing section boundaries.
+     *
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function next(): ?ContentPage
+    public function next(?callable $predicate = null): ?ContentPage
     {
-        return $this->siteIndex->next($this->currentPage);
+        return $this->siteIndex->next($this->currentPage, $predicate);
     }
 
     /**
@@ -264,10 +264,14 @@ final class SiteContext
     /**
      * Normalize collections to `PageCollection`.
      *
-     * @param \Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Input collection.
+     * @param \Glaze\Template\Section|\Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Input collection.
      */
-    protected function toCollection(PageCollection|array $collection): PageCollection
+    protected function toCollection(Section|PageCollection|array $collection): PageCollection
     {
+        if ($collection instanceof Section) {
+            return $collection->pages();
+        }
+
         if ($collection instanceof PageCollection) {
             return $collection;
         }

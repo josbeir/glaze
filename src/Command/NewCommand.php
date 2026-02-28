@@ -160,10 +160,10 @@ final class NewCommand extends AbstractGlazeCommand
     protected function resolvePageInput(Arguments $args, ConsoleIo $io, BuildConfig $config): array
     {
         $nonInteractive = (bool)$args->getOption('yes');
-          $pathPrefix = $this->normalizePathPrefix($this->normalizeString($args->getOption('path')));
+                $pathPrefix = Normalization::optionalPathFragment($args->getOption('path'));
 
         $slugInput = $this->normalizeString($args->getOption('slug'));
-        $normalizedSlugInput = $this->normalizePathPrefix($slugInput);
+                $normalizedSlugInput = Normalization::optionalPathFragment($slugInput);
 
         $title = $this->normalizeString($args->getOption('title'))
             ?? $this->normalizeString($args->getArgument('title'));
@@ -431,7 +431,6 @@ final class NewCommand extends AbstractGlazeCommand
     }
 
     /**
-    /**
      * Convert absolute path to root-relative display path.
      *
      * @param string $path Absolute file path.
@@ -456,22 +455,6 @@ final class NewCommand extends AbstractGlazeCommand
     protected function normalizeString(mixed $value): ?string
     {
         return Normalization::optionalString($value);
-    }
-
-    /**
-     * Normalize optional path prefix values.
-     *
-     * @param string|null $value Raw path prefix value.
-     */
-    protected function normalizePathPrefix(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $normalized = trim(str_replace('\\', '/', $value), '/');
-
-        return $normalized === '' ? null : $normalized;
     }
 
     /**

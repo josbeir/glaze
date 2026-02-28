@@ -13,7 +13,8 @@ Collections are lazy and chainable -- call as many methods as you need before it
 ```php
 $this->pages()                         // all pages
 $this->regularPages()                  // pages without a content type
-$this->section('blog')                 // pages under the blog/ path prefix
+$this->section('blog')?->pages()       // direct pages in a section
+$this->section('blog')?->allPages()    // pages in section subtree (includes descendants)
 $this->type('blog')                    // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')     // pages tagged 'php'
 ```
@@ -46,7 +47,7 @@ $page->meta['featured']      // bool (when set)
 
 ```php
 <ul>
-    <li s:foreach="$this->section('blog')->take(5) as $post">
+    <li s:foreach="$this->section('blog')?->pages()->take(5) ?? [] as $post">
         <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
     </li>
 </ul>
@@ -68,8 +69,8 @@ $page->meta['featured']      // bool (when set)
 $this->pages()->by('meta.weight', 'asc')
 
 // by date field
-$this->section('blog')->byDate('desc')                    // uses meta.date by default
-$this->section('blog')->byDate('desc', 'meta.published')  // custom date field
+$this->section('blog')?->pages()->byDate('desc')                    // uses meta.date by default
+$this->section('blog')?->pages()->byDate('desc', 'meta.published')  // custom date field
 
 // alphabetically
 $this->pages()->byTitle('asc')
@@ -121,14 +122,14 @@ $this->pages()->groupBy('meta.category', 'asc')   // optional: sort group keys a
 $this->pages()->groupBy('meta.category', 'desc')  // optional: sort group keys descending
 
 // group by date period
-$this->section('blog')->groupByDate('Y-m', 'desc')                    // uses meta.date
-$this->section('blog')->groupByDate('Y', 'desc', 'meta.published')   // custom date field
+$this->section('blog')?->pages()->groupByDate('Y-m', 'desc')                    // uses meta.date
+$this->section('blog')?->pages()->groupByDate('Y', 'desc', 'meta.published')   // custom date field
 ```
 
 A grouped collection is a plain array where keys are group names and values are `PageCollection` instances:
 
 ```php
-<section s:foreach="$this->section('blog')->groupByDate('Y-m', 'desc') as $month => $pages">
+<section s:foreach="$this->section('blog')?->pages()->groupByDate('Y-m', 'desc') ?? [] as $month => $pages">
     <h2><?= $month ?></h2>
     <ul>
         <li s:foreach="$pages as $post">
@@ -140,14 +141,14 @@ A grouped collection is a plain array where keys are group names and values are 
 
 ### Navigation recipe (section-based menu)
 
-Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` and `$this->sectionLabel()` for clean sidebar navigation:
+Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` with `Section` nodes for clean sidebar navigation:
 
 ```php
 <ul class="menu">
-    <li s:foreach="$this->sections() as $sectionKey => $sectionPages">
-        <h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
+    <li s:foreach="$this->sections() as $section">
+        <h2 class="menu-title"><?= $section->label() ?></h2>
         <ul>
-            <template s:foreach="$sectionPages as $item">
+            <template s:foreach="$section->pages() as $item">
                 <li s:if="$item->meta('navigation') ?? true">
                     <a href="<?= $item->urlPath ?>">
                         <?= $item->meta('navigationTitle') ?? $item->title ?>
@@ -159,8 +160,24 @@ Glaze derives sections from the content folder structure. Place pages inside sub
 </ul>
 ```
 
-Sections are ordered by the lowest `weight` value among their pages.
-The label is auto-humanized from the folder name (`getting-started` becomes `Getting Started`).
+Sections are ordered by index page `weight` when `index.dj` exists, otherwise by the minimum subtree weight. Labels come from index page titles when available.
+
+For nested navigation:
+
+```php
+<?php $docs = $this->section('docs'); ?>
+
+<ul s:if="$docs">
+    <li s:foreach="$docs->children() as $child">
+        <h3><?= $child->label() ?></h3>
+        <ul>
+            <li s:foreach="$child->allPages() as $item">
+                <a href="<?= $item->urlPath ?>"><?= $item->title ?></a>
+            </li>
+        </ul>
+    </li>
+</ul>
+```
 
 Shorthand metadata keys are supported in collection queries:
 
@@ -173,7 +190,7 @@ $pages->by('weight', 'asc');
 ## Pagination
 
 ```php
-<?php $pager = $this->paginate($this->section('blog'), 10, 1, '/blog/'); ?>
+<?php $pager = $this->paginate($this->section('blog')?->pages() ?? [], 10, 1, '/blog/'); ?>
 
 <ul>
     <li s:foreach="$pager->items() as $post">
@@ -208,6 +225,31 @@ To navigate within the current section only, use `previousInSection()` / `nextIn
 ```php
 <?php $prev = $this->previousInSection(); ?>
 <?php $next = $this->nextInSection(); ?>
+```
+
+All navigation helpers accept an optional predicate callback so hidden entries can be skipped while preserving adjacency order:
+
+```php
+<?php
+$isNavigable = static fn(\Glaze\Content\ContentPage $candidate): bool => (bool)($candidate->meta('navigation') ?? true);
+
+$prev = $this->previous($isNavigable);
+$next = $this->next($isNavigable);
+
+$sectionPrev = $this->previousInSection($isNavigable);
+$sectionNext = $this->nextInSection($isNavigable);
+?>
+```
+
+`paginate()` does not take a predicate parameter. Filter first, then paginate:
+
+```php
+<?php
+$isNavigable = static fn(\Glaze\Content\ContentPage $candidate): bool => (bool)($candidate->meta('navigation') ?? true);
+$blog = $this->section('blog');
+$blogPages = $blog ? $blog->pages()->filter($isNavigable) : [];
+$pager = $this->paginate($blogPages, 10, 1, '/blog/');
+?>
 ```
 
 ## Checking the current page

@@ -22,20 +22,21 @@
 					<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
 				</a>
 			</li>
-			<li s:foreach="$this->sections() as $sectionKey => $sectionPages">
-				<h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
+			<li s:foreach="$this->sections() as $section">
+				<?php $sectionPages = $section->pages()->filter(
+					static fn(Glaze\Content\ContentPage $p): bool => (bool)($p->meta('navigation') ?? true),
+				); ?>
+				<h2 class="menu-title"><?= $section->label() ?></h2>
 				<ul>
 					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
-					<s-template s:foreach="$sectionPages as $menuPage">
-						<li s:if="$menuPage->meta('navigation') ?? true">
-							<a
-								href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
-								s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
-							>
-								<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
-							</a>
-						</li>
-					</s-template>
+					<li s:foreach="$sectionPages as $menuPage">
+						<a
+							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
+						>
+							<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
+						</a>
+					</li>
 				</ul>
 			</li>
 		</ul>

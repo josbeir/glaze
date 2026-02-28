@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Config;
 
 use Glaze\Config\TemplateViteOptions;
+use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -125,7 +126,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/my/project',
         );
 
-        $this->assertSame('/my/project/public/.vite/manifest.json', $this->normalizePath($options->manifestPath));
+        $this->assertSame('/my/project/public/.vite/manifest.json', Normalization::path($options->manifestPath));
     }
 
     /**
@@ -139,7 +140,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/my/project',
         );
 
-        $this->assertSame('/absolute/path/manifest.json', $this->normalizePath($options->manifestPath));
+        $this->assertSame('/absolute/path/manifest.json', Normalization::path($options->manifestPath));
     }
 
     /**
@@ -149,17 +150,7 @@ final class TemplateViteOptionsTest extends TestCase
     {
         $options = TemplateViteOptions::fromProjectConfig([], [], '/my/project');
 
-        $this->assertSame('/my/project/public/.vite/manifest.json', $this->normalizePath($options->manifestPath));
-    }
-
-    /**
-     * Normalize directory separators to forward slashes for cross-platform path comparison.
-     *
-     * @param string $path Path value to normalize.
-     */
-    protected function normalizePath(string $path): string
-    {
-        return str_replace('\\', '/', $path);
+        $this->assertSame('/my/project/public/.vite/manifest.json', Normalization::path($options->manifestPath));
     }
 
     /**

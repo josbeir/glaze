@@ -244,9 +244,10 @@ final class SiteBuilderTest extends TestCase
         file_put_contents(
             $projectRoot . '/templates/page.sugar.php',
             '<p class="regular"><?= $this->regularPages()->count() ?></p>'
-            . '<p class="section"><?= $this->section("blog")->count() ?></p>'
+            . '<?php $blogSection = $this->section("blog"); ?>'
+            . '<p class="section"><?= $blogSection ? $blogSection->count() : 0 ?></p>'
             . '<p class="tags"><?= $this->taxonomyTerm("tags", "php")->count() ?></p>'
-            . '<?php $pager = $this->paginate($this->section("blog"), 1, 2, "/blog/"); ?>'
+            . '<?php $pager = $this->paginate($blogSection ?? [], 1, 2, "/blog/"); ?>'
             . '<p class="pager-url"><?= $pager->url() ?></p>'
             . '<p class="pager-prev"><?= $pager->prevUrl() ?? "none" ?></p>'
             . '<?= $content |> raw() ?>',

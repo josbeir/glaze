@@ -5,8 +5,10 @@
  * @var \Glaze\Template\SiteContext $this
  */
 
-$prevPage = $this->previous();
-$nextPage = $this->next();
+$isNavigable = static fn(\Glaze\Content\ContentPage $candidate): bool => (bool)($candidate->meta('navigation') ?? true);
+$prevPage = $this->previous($isNavigable);
+$nextPage = $this->next($isNavigable);
+
 $basePath = $site->basePath ?? '';
 ?>
 <nav

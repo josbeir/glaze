@@ -5,8 +5,8 @@ namespace Glaze\Template;
 
 use Cake\Chronos\Chronos;
 use Cake\Utility\Hash;
-use Cake\Utility\Inflector;
 use Glaze\Content\ContentPage;
+use Glaze\Utility\Normalization;
 use Throwable;
 
 /**
@@ -20,18 +20,16 @@ final class SiteIndex
     protected ?PageCollection $regularPagesCache = null;
 
     /**
-     * Memoized ordered sections array.
-     *
-     * @var array<string, \Glaze\Template\PageCollection>|null
+     * Memoized root section tree.
      */
-    protected ?array $sectionsCache = null;
+    protected ?Section $treeCache = null;
 
     /**
-     * Memoized section collections by normalized section key.
+     * Memoized flattened section lookup by section path.
      *
-     * @var array<string, \Glaze\Template\PageCollection>
+     * @var array<string, \Glaze\Template\Section>|null
      */
-    protected array $sectionCache = [];
+    protected ?array $sectionLookupCache = null;
 
     /**
      * Memoized taxonomy collections by normalized taxonomy key.
@@ -141,124 +139,56 @@ final class SiteIndex
      */
     public function section(string $section): PageCollection
     {
-        $normalizedSection = strtolower(trim($section, '/'));
-
-        if (isset($this->sectionCache[$normalizedSection])) {
-            return $this->sectionCache[$normalizedSection];
+        $resolved = $this->sectionNode($section);
+        if (!$resolved instanceof Section) {
+            return new PageCollection([]);
         }
 
-        $this->sectionCache[$normalizedSection] = $this->regularPages()->filter(
-            function (ContentPage $page) use ($normalizedSection): bool {
-                return $this->resolveSection($page) === $normalizedSection;
-            },
-        );
-
-        return $this->sectionCache[$normalizedSection];
+        return $resolved->pages();
     }
 
     /**
-     * Return all non-root sections as an ordered map of section key to page collection.
+     * Return a section node by path.
      *
-     * Sections are ordered by the index page weight when present, otherwise by
-     * the lowest weight of any page within each section. Root-level pages (those
-     * without a section) are excluded; access them via `rootPages()`.
+     * @param string $sectionPath Section path.
+     */
+    public function sectionNode(string $sectionPath): ?Section
+    {
+        $normalizedPath = strtolower(trim($sectionPath, '/'));
+
+        return $this->sectionsLookup()[$normalizedPath] ?? null;
+    }
+
+    /**
+     * Return top-level sections ordered by section weight.
      *
-     * @return array<string, \Glaze\Template\PageCollection>
+     * @return array<string, \Glaze\Template\Section>
      */
     public function sections(): array
     {
-        if ($this->sectionsCache !== null) {
-            return $this->sectionsCache;
-        }
-
-        $sectionKeys = [];
-        $sectionMinWeight = [];
-
-        foreach ($this->regularPages() as $page) {
-            $sectionKey = $this->resolveSection($page);
-            if ($sectionKey === '') {
-                continue;
-            }
-
-            if (!isset($sectionKeys[$sectionKey])) {
-                $sectionKeys[$sectionKey] = true;
-                $sectionMinWeight[$sectionKey] = $this->extractWeight($page);
-            } else {
-                $sectionMinWeight[$sectionKey] = min(
-                    $sectionMinWeight[$sectionKey],
-                    $this->extractWeight($page),
-                );
-            }
-        }
-
-        $resolvedWeights = [];
-        foreach (array_keys($sectionKeys) as $key) {
-            $resolvedWeights[$key] = $this->resolveSectionWeight($key, $sectionMinWeight[$key]);
-        }
-
-        uksort($sectionKeys, static function (string $a, string $b) use ($resolvedWeights): int {
-            return $resolvedWeights[$a] <=> $resolvedWeights[$b];
-        });
-
-        $result = [];
-        foreach (array_keys($sectionKeys) as $sectionKey) {
-            $result[$sectionKey] = $this->section($sectionKey);
-        }
-
-        $this->sectionsCache = $result;
-
-        return $this->sectionsCache;
+        return $this->tree()->children();
     }
 
     /**
-     * Return root-level pages that do not belong to any section.
+     * Return root section node.
+     */
+    public function tree(): Section
+    {
+        if ($this->treeCache instanceof Section) {
+            return $this->treeCache;
+        }
+
+        $this->treeCache = SectionTree::build($this->regularPages()->all());
+
+        return $this->treeCache;
+    }
+
+    /**
+     * Return root-level pages that do not belong to any nested section.
      */
     public function rootPages(): PageCollection
     {
-        return $this->section('');
-    }
-
-    /**
-     * Derive a human-readable label from a section key.
-     *
-     * When the section contains an `index.dj` page, its title is used as the
-     * label. Otherwise, the section key is auto-humanized from the folder name
-     * (e.g. `getting-started` becomes `Getting Started`).
-     *
-     * @param string $sectionKey Section slug.
-     */
-    public function sectionLabel(string $sectionKey): string
-    {
-        $indexPage = $this->findSectionIndex($sectionKey);
-        if ($indexPage instanceof ContentPage) {
-            return $indexPage->title;
-        }
-
-        return Inflector::humanize(str_replace('-', '_', $sectionKey));
-    }
-
-    /**
-     * Find the index page for a section.
-     *
-     * An index page is a content file whose relative path is `{section}/index.dj`.
-     * Section index pages can provide a custom title and weight for the section.
-     *
-     * @param string $sectionKey Section slug.
-     */
-    public function findSectionIndex(string $sectionKey): ?ContentPage
-    {
-        $normalizedSection = strtolower(trim($sectionKey, '/'));
-        if ($normalizedSection === '') {
-            return null;
-        }
-
-        foreach ($this->section($normalizedSection) as $page) {
-            if ($this->isSectionIndex($page, $normalizedSection)) {
-                return $page;
-            }
-        }
-
-        return null;
+        return $this->tree()->pages();
     }
 
     /**
@@ -268,10 +198,11 @@ final class SiteIndex
      * is positioned by its lowest page weight; root pages by their own weight.
      *
      * @param \Glaze\Content\ContentPage $page Current page.
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function previous(ContentPage $page): ?ContentPage
+    public function previous(ContentPage $page, ?callable $predicate = null): ?ContentPage
     {
-        return $this->adjacentGlobal($page, -1);
+        return $this->adjacentInCollection($this->globalPageOrder(), $page, -1, $predicate);
     }
 
     /**
@@ -281,10 +212,11 @@ final class SiteIndex
      * is positioned by its lowest page weight; root pages by their own weight.
      *
      * @param \Glaze\Content\ContentPage $page Current page.
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function next(ContentPage $page): ?ContentPage
+    public function next(ContentPage $page, ?callable $predicate = null): ?ContentPage
     {
-        return $this->adjacentGlobal($page, 1);
+        return $this->adjacentInCollection($this->globalPageOrder(), $page, 1, $predicate);
     }
 
     /**
@@ -325,91 +257,88 @@ final class SiteIndex
      * Return previous page in the current page section.
      *
      * @param \Glaze\Content\ContentPage $page Current page.
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function previousInSection(ContentPage $page): ?ContentPage
+    public function previousInSection(ContentPage $page, ?callable $predicate = null): ?ContentPage
     {
-        return $this->adjacentInSection($page, -1);
+        $section = $this->sectionNode($this->resolveSectionPath($page));
+        if (!$section instanceof Section) {
+            return null;
+        }
+
+        return $this->adjacentInCollection($section->pages()->all(), $page, -1, $predicate);
     }
 
     /**
      * Return next page in the current page section.
      *
      * @param \Glaze\Content\ContentPage $page Current page.
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    public function nextInSection(ContentPage $page): ?ContentPage
+    public function nextInSection(ContentPage $page, ?callable $predicate = null): ?ContentPage
     {
-        return $this->adjacentInSection($page, 1);
+        $section = $this->sectionNode($this->resolveSectionPath($page));
+        if (!$section instanceof Section) {
+            return null;
+        }
+
+        return $this->adjacentInCollection($section->pages()->all(), $page, 1, $predicate);
     }
 
     /**
-     * Resolve section slug from page data.
+     * Return flattened section lookup by path.
+     *
+     * @return array<string, \Glaze\Template\Section>
+     */
+    protected function sectionsLookup(): array
+    {
+        if ($this->sectionLookupCache !== null) {
+            return $this->sectionLookupCache;
+        }
+
+        $this->sectionLookupCache = $this->tree()->flatten();
+
+        return $this->sectionLookupCache;
+    }
+
+    /**
+     * Resolve section path from page relative path.
      *
      * @param \Glaze\Content\ContentPage $page Content page.
      */
-    protected function resolveSection(ContentPage $page): string
+    protected function resolveSectionPath(ContentPage $page): string
     {
         $metaSection = Hash::get($page->meta, 'section');
         if (is_string($metaSection) && trim($metaSection) !== '') {
-            return strtolower(trim($metaSection, '/'));
+            return Normalization::pathKey($metaSection);
         }
 
-        $segments = explode('/', trim(str_replace('\\', '/', $page->relativePath), '/'));
-        if (count($segments) <= 1) {
+        $normalizedPath = Normalization::pathKey($page->relativePath);
+        $directory = dirname($normalizedPath);
+        if ($directory === '.' || $directory === '/') {
             return '';
         }
 
-        return strtolower($segments[0]);
+        return trim($directory, '/');
     }
 
     /**
-     * Determine whether a page is the index page of a given section.
+     * Resolve adjacent page by relative offset in a page sequence.
      *
-     * @param \Glaze\Content\ContentPage $page Content page.
-     * @param string $sectionKey Normalized section key.
-     */
-    protected function isSectionIndex(ContentPage $page, string $sectionKey): bool
-    {
-        $normalizedPath = strtolower(trim(str_replace('\\', '/', $page->relativePath), '/'));
-
-        return $normalizedPath === $sectionKey . '/index.dj';
-    }
-
-    /**
-     * Resolve weight used for ordering a section relative to other sections and root pages.
-     *
-     * When an `index.dj` page exists in the section, its weight is used.
-     * Otherwise, falls back to the minimum weight of all pages in the section.
-     *
-     * @param string $sectionKey Section key.
-     * @param int $fallbackWeight Minimum weight across all section pages.
-     */
-    protected function resolveSectionWeight(string $sectionKey, int $fallbackWeight): int
-    {
-        $indexPage = $this->findSectionIndex($sectionKey);
-        if ($indexPage instanceof ContentPage) {
-            return $this->extractWeight($indexPage);
-        }
-
-        return $fallbackWeight;
-    }
-
-    /**
-     * Return adjacent page in section order.
-     *
+     * @param array<\Glaze\Content\ContentPage> $pages Ordered page list.
      * @param \Glaze\Content\ContentPage $page Current page.
      * @param int $offset Relative offset.
+     * @param callable(\Glaze\Content\ContentPage): bool|null $predicate Optional matcher for candidate pages.
      */
-    protected function adjacentInSection(ContentPage $page, int $offset): ?ContentPage
-    {
-        /** @var array<int, \Glaze\Content\ContentPage> $sectionPages */
-        $sectionPages = $this->section($this->resolveSection($page))->all();
+    protected function adjacentInCollection(
+        array $pages,
+        ContentPage $page,
+        int $offset,
+        ?callable $predicate = null,
+    ): ?ContentPage {
+        $pages = array_values($pages);
         $index = null;
-
-        foreach ($sectionPages as $position => $candidate) {
-            if (!is_int($position)) {
-                continue;
-            }
-
+        foreach ($pages as $position => $candidate) {
             if ($candidate->slug === $page->slug) {
                 $index = $position;
                 break;
@@ -420,83 +349,72 @@ final class SiteIndex
             return null;
         }
 
-        $target = $index + $offset;
-        if ($target < 0) {
-            return null;
-        }
-
-        return $sectionPages[$target] ?? null;
-    }
-
-    /**
-     * Build a flat ordered page list matching section display order and find an adjacent page.
-     *
-     * The order is: sectioned pages first (grouped by section, ordered by minimum
-     * section weight), then root-level pages. Within each section, pages follow
-     * the `regularPages()` sort order.
-     *
-     * @param \Glaze\Content\ContentPage $page Current page.
-     * @param int $offset Relative offset (-1 for previous, +1 for next).
-     */
-    protected function adjacentGlobal(ContentPage $page, int $offset): ?ContentPage
-    {
-        $orderedPages = $this->buildGlobalPageOrder();
-        $index = null;
-
-        foreach ($orderedPages as $position => $candidate) {
-            if ($candidate->slug === $page->slug) {
-                $index = $position;
-                break;
+        for ($target = $index + $offset; isset($pages[$target]); $target += $offset) {
+            $candidate = $pages[$target];
+            if ($predicate === null || $predicate($candidate)) {
+                return $candidate;
             }
         }
 
-        if ($index === null) {
-            return null;
-        }
-
-        $target = $index + $offset;
-        if ($target < 0) {
-            return null;
-        }
-
-        return $orderedPages[$target] ?? null;
+        return null;
     }
 
     /**
-     * Build a flat ordered list of all navigable pages following section display order.
+     * Build global page order from the section tree.
      *
-     * Sections and root pages are interleaved by weight. Each section is treated
-     * as a block whose weight equals the index page weight (when present) or the
-     * minimum weight of its pages. Root pages use their individual weight. Blocks
-     * are sorted by weight, then flattened.
+     * Pages and child sections are interleaved by weight at each tree depth.
      *
      * @return array<int, \Glaze\Content\ContentPage>
      */
-    protected function buildGlobalPageOrder(): array
+    protected function globalPageOrder(): array
     {
-        /** @var array<int, array{weight: int, pages: array<\Glaze\Content\ContentPage>}> $blocks */
+        return $this->flattenSectionOrder($this->tree());
+    }
+
+    /**
+     * Flatten section subtree into global navigation order.
+     *
+     * @param \Glaze\Template\Section $section Section root.
+     * @return array<int, \Glaze\Content\ContentPage>
+     */
+    protected function flattenSectionOrder(Section $section): array
+    {
+        /** @var array<int, array{weight: int, type: string, pages?: array<\Glaze\Content\ContentPage>, section?: \Glaze\Template\Section}> $blocks */
         $blocks = [];
 
-        foreach ($this->sections() as $sectionKey => $sectionPages) {
-            $minWeight = PHP_INT_MAX;
-            $pages = [];
-            foreach ($sectionPages as $sectionPage) {
-                $pages[] = $sectionPage;
-                $minWeight = min($minWeight, $this->extractWeight($sectionPage));
-            }
-            $blocks[] = ['weight' => $this->resolveSectionWeight($sectionKey, $minWeight), 'pages' => $pages];
+        foreach ($section->pages() as $page) {
+            $blocks[] = [
+                'weight' => $this->extractWeight($page),
+                'type' => 'page',
+                'pages' => [$page],
+            ];
         }
 
-        foreach ($this->rootPages() as $rootPage) {
-            $blocks[] = ['weight' => $this->extractWeight($rootPage), 'pages' => [$rootPage]];
+        foreach ($section->children() as $childSection) {
+            $blocks[] = [
+                'weight' => $childSection->weight(),
+                'type' => 'section',
+                'section' => $childSection,
+            ];
         }
 
         usort($blocks, static fn(array $a, array $b): int => $a['weight'] <=> $b['weight']);
 
         $orderedPages = [];
         foreach ($blocks as $block) {
-            foreach ($block['pages'] as $blockPage) {
-                $orderedPages[] = $blockPage;
+            if ($block['type'] === 'page') {
+                foreach ($block['pages'] ?? [] as $blockPage) {
+                    $orderedPages[] = $blockPage;
+                }
+
+                continue;
+            }
+
+            $childSection = $block['section'] ?? null;
+            if ($childSection instanceof Section) {
+                foreach ($this->flattenSectionOrder($childSection) as $nestedPage) {
+                    $orderedPages[] = $nestedPage;
+                }
             }
         }
 

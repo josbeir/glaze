@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Support;
 
 use Glaze\Config\SiteConfig;
+use Glaze\Utility\Normalization;
 
 /**
  * Rewrites internal resource paths across Djot and Sugar rendering pipelines.
@@ -127,11 +128,11 @@ final class ResourcePathRewriter
         $pathPart = $parts[1] ?? $resourcePath;
         $suffix = $parts[2] ?? '';
 
-        $baseDirectory = dirname(str_replace('\\', '/', $relativePagePath));
+        $baseDirectory = dirname(Normalization::path($relativePagePath));
         $baseDirectory = $baseDirectory === '.' ? '' : trim($baseDirectory, '/');
 
         $combinedPath = ($baseDirectory !== '' ? $baseDirectory . '/' : '') . ltrim($pathPart, '/');
-        $normalizedPath = $this->normalizePathSegments($combinedPath);
+        $normalizedPath = Normalization::normalizePathSegments($combinedPath);
 
         return '/' . ltrim($normalizedPath, '/') . $suffix;
     }
@@ -182,35 +183,5 @@ final class ResourcePathRewriter
         }
 
         return preg_match('/^[a-z][a-z0-9+.-]*:/i', $resourcePath) === 1;
-    }
-
-    /**
-     * Normalize `.` and `..` segments.
-     *
-     * @param string $path Relative path.
-     */
-    public function normalizePathSegments(string $path): string
-    {
-        $segments = explode('/', str_replace('\\', '/', $path));
-        $normalized = [];
-
-        foreach ($segments as $segment) {
-            if ($segment === '') {
-                continue;
-            }
-
-            if ($segment === '.') {
-                continue;
-            }
-
-            if ($segment === '..') {
-                array_pop($normalized);
-                continue;
-            }
-
-            $normalized[] = $segment;
-        }
-
-        return implode('/', $normalized);
     }
 }

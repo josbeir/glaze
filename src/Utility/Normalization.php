@@ -92,6 +92,54 @@ final class Normalization
     }
 
     /**
+     * Normalize path-like values for internal lookup keys.
+     *
+     * Produces lowercase, forward-slash-separated values without leading or
+     * trailing slashes, independent of platform directory separators.
+     *
+     * @param string $path Raw path value.
+     */
+    public static function pathKey(string $path): string
+    {
+        $normalized = self::path($path);
+
+        return strtolower(trim(str_replace(DIRECTORY_SEPARATOR, '/', $normalized), '/'));
+    }
+
+    /**
+     * Normalize relative path segments by resolving `.` and `..` markers.
+     *
+     * Uses forward slashes in the resulting path and prevents traversal above
+     * the virtual root by dropping unmatched parent-directory markers.
+     *
+     * @param string $path Relative path value.
+     */
+    public static function normalizePathSegments(string $path): string
+    {
+        $segments = explode('/', str_replace(DIRECTORY_SEPARATOR, '/', self::path($path)));
+        $normalized = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            if ($segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($normalized);
+                continue;
+            }
+
+            $normalized[] = $segment;
+        }
+
+        return implode('/', $normalized);
+    }
+
+    /**
      * Normalize optional path values.
      *
      * Returns null for non-string or empty-string input.
@@ -106,5 +154,39 @@ final class Normalization
         }
 
         return self::path($normalized);
+    }
+
+    /**
+     * Normalize a path-like value into a slash-trimmed fragment.
+     *
+     * Keeps original character case while converting separators to `/` and
+     * stripping leading/trailing slashes.
+     *
+     * @param string $path Raw path value.
+     */
+    public static function pathFragment(string $path): string
+    {
+        $normalized = self::path($path);
+
+        return trim(str_replace(DIRECTORY_SEPARATOR, '/', $normalized), '/');
+    }
+
+    /**
+     * Normalize optional path fragment values.
+     *
+     * Returns null for non-string, empty, or slash-only values.
+     *
+     * @param mixed $path Raw path value.
+     */
+    public static function optionalPathFragment(mixed $path): ?string
+    {
+        $normalized = self::optionalString($path);
+        if ($normalized === null) {
+            return null;
+        }
+
+        $fragment = self::pathFragment($normalized);
+
+        return $fragment === '' ? null : $fragment;
     }
 }

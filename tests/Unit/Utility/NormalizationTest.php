@@ -72,4 +72,41 @@ final class NormalizationTest extends TestCase
         $this->assertNull(Normalization::optionalPath('   '));
         $this->assertNull(Normalization::optionalPath(null));
     }
+
+    /**
+     * Ensure path-key normalization produces lowercase forward-slash lookup keys.
+     */
+    public function testPathKeyNormalization(): void
+    {
+        $this->assertSame('docs/guides/intro', Normalization::pathKey('\\Docs\\Guides\\Intro\\'));
+    }
+
+    /**
+     * Ensure dot-segment normalization resolves current and parent markers.
+     */
+    public function testNormalizePathSegments(): void
+    {
+        $this->assertSame(
+            'docs/images/hero.png',
+            Normalization::normalizePathSegments('docs/./guides/../images/hero.png'),
+        );
+    }
+
+    /**
+     * Ensure path-fragment normalization keeps case and trims slashes.
+     */
+    public function testPathFragmentNormalization(): void
+    {
+        $this->assertSame('Docs/Guides', Normalization::pathFragment('\\Docs\\Guides\\'));
+    }
+
+    /**
+     * Ensure optional path-fragment normalization handles empty and invalid inputs.
+     */
+    public function testOptionalPathFragmentNormalization(): void
+    {
+        $this->assertSame('Docs/Guides', Normalization::optionalPathFragment(' /Docs/Guides/ '));
+        $this->assertNull(Normalization::optionalPathFragment('///'));
+        $this->assertNull(Normalization::optionalPathFragment(null));
+    }
 }

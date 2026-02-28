@@ -7,6 +7,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
 use Glaze\Config\TemplateViteOptions;
+use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -22,12 +23,12 @@ final class BuildConfigTest extends TestCase
     {
         $config = BuildConfig::fromProjectRoot('/tmp/glaze-project');
 
-        $this->assertSame('/tmp/glaze-project/content', $this->normalizePath($config->contentPath()));
-        $this->assertSame('/tmp/glaze-project/templates', $this->normalizePath($config->templatePath()));
-        $this->assertSame('/tmp/glaze-project/public', $this->normalizePath($config->outputPath()));
-        $this->assertSame('/tmp/glaze-project/tmp/cache', $this->normalizePath($config->cachePath()));
-        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $this->normalizePath($config->templateCachePath()));
-        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $this->normalizePath($config->glideCachePath()));
+        $this->assertSame('/tmp/glaze-project/content', Normalization::path($config->contentPath()));
+        $this->assertSame('/tmp/glaze-project/templates', Normalization::path($config->templatePath()));
+        $this->assertSame('/tmp/glaze-project/public', Normalization::path($config->outputPath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache', Normalization::path($config->cachePath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', Normalization::path($config->templateCachePath()));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', Normalization::path($config->glideCachePath()));
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([], $config->contentTypes);
@@ -47,8 +48,8 @@ final class BuildConfigTest extends TestCase
         $this->assertFalse($config->templateViteOptions->devEnabled);
         $this->assertSame('/', $config->templateViteOptions->assetBaseUrl);
         $this->assertSame(
-            $this->normalizePath('/tmp/glaze-project/public/.vite/manifest.json'),
-            $this->normalizePath($config->templateViteOptions->manifestPath),
+            Normalization::path('/tmp/glaze-project/public/.vite/manifest.json'),
+            Normalization::path($config->templateViteOptions->manifestPath),
         );
         $this->assertSame('http://127.0.0.1:5173', $config->templateViteOptions->devServerUrl);
         $this->assertTrue($config->templateViteOptions->injectClient);
@@ -114,8 +115,8 @@ final class BuildConfigTest extends TestCase
         $this->assertTrue($vite->devEnabled);
         $this->assertSame('/build/', $vite->assetBaseUrl);
         $this->assertSame(
-            $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
-            $this->normalizePath($vite->manifestPath),
+            Normalization::path($projectRoot . '/public/custom-manifest.json'),
+            Normalization::path($vite->manifestPath),
         );
         $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
         $this->assertFalse($vite->injectClient);
@@ -142,8 +143,8 @@ final class BuildConfigTest extends TestCase
         $this->assertTrue($vite->devEnabled);
         $this->assertSame('/build/', $vite->assetBaseUrl);
         $this->assertSame(
-            $this->normalizePath($projectRoot . '/public/custom-manifest.json'),
-            $this->normalizePath($vite->manifestPath),
+            Normalization::path($projectRoot . '/public/custom-manifest.json'),
+            Normalization::path($vite->manifestPath),
         );
         $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
         $this->assertFalse($vite->injectClient);
@@ -770,15 +771,5 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame(['tags'], $config->taxonomies);
-    }
-
-    /**
-     * Normalize platform-specific separators for deterministic assertions.
-     *
-     * @param string $path Path value to normalize.
-     */
-    protected function normalizePath(string $path): string
-    {
-        return str_replace('\\', '/', $path);
     }
 }

@@ -49,7 +49,7 @@ final class PageScaffoldService
 
         foreach ($paths as $path) {
             if (is_string($path)) {
-                $match = trim(str_replace('\\', '/', $path), '/');
+                $match = Normalization::pathFragment($path);
                 if ($match === '') {
                     continue;
                 }
@@ -66,12 +66,12 @@ final class PageScaffoldService
                 continue;
             }
 
-            $match = $this->normalizePathPrefix($path['match'] ?? null);
+            $match = Normalization::optionalPathFragment($path['match'] ?? null);
             if ($match === null) {
                 continue;
             }
 
-            $createPattern = $this->normalizePathPrefix($path['createPattern'] ?? null);
+            $createPattern = Normalization::optionalPathFragment($path['createPattern'] ?? null);
             $rules[] = [
                 'match' => $match,
                 'createPattern' => $createPattern,
@@ -160,8 +160,8 @@ final class PageScaffoldService
         );
 
         return is_string($resolved)
-            ? trim(str_replace('\\', '/', $resolved), '/')
-            : trim(str_replace('\\', '/', $pattern), '/');
+            ? Normalization::pathFragment($resolved)
+            : Normalization::pathFragment($pattern);
     }
 
     /**
@@ -242,22 +242,5 @@ final class PageScaffoldService
         if ($written === false) {
             throw new RuntimeException(sprintf('Unable to write content file "%s".', $targetPath));
         }
-    }
-
-    /**
-     * Normalize optional path prefix values.
-     *
-     * @param mixed $value Raw path prefix value.
-     */
-    protected function normalizePathPrefix(mixed $value): ?string
-    {
-        $normalized = Normalization::optionalString($value);
-        if ($normalized === null) {
-            return null;
-        }
-
-        $path = trim(str_replace('\\', '/', $normalized), '/');
-
-        return $path === '' ? null : $path;
     }
 }

@@ -27,16 +27,17 @@ final class SiteContextTest extends TestCase
         ]);
 
         $context = new SiteContext($index, $index->findBySlug('blog/a') ?? $this->fail('Missing current page'));
+        $blogSection = $context->section('blog') ?? $this->fail('Missing blog section');
 
         $this->assertSame('blog/a', $context->page()->slug);
         $this->assertCount(3, $context->regularPages());
-        $this->assertCount(2, $context->section('blog'));
+        $this->assertCount(2, $blogSection);
         $this->assertCount(2, $context->type('blog'));
         $this->assertCount(2, $context->taxonomy('tags')->term('php'));
         $this->assertCount(2, $context->taxonomyTerm('tags', 'php'));
         $this->assertSame('blog/b', $context->previousInSection()?->slug);
 
-        $pager = $context->paginate($context->section('blog'), 1, 2, '/blog/');
+        $pager = $context->paginate($blogSection, 1, 2, '/blog/');
         $this->assertSame(2, $pager->totalPages());
         $this->assertSame('/blog/page/2/', $pager->url());
         $this->assertSame('/blog/', $pager->prevUrl());
@@ -74,7 +75,8 @@ final class SiteContextTest extends TestCase
         $operatorFiltered = $context->where($context->regularPages(), 'slug', 'eq', 'docs/intro');
         $this->assertCount(1, $operatorFiltered);
 
-        $defaultPager = $context->paginate($context->section('docs'), 1, 1);
+        $docsSection = $context->section('docs') ?? $this->fail('Missing docs section');
+        $defaultPager = $context->paginate($docsSection, 1, 1);
         $this->assertSame('/docs/intro/', $defaultPager->url());
         $this->assertSame($context, $context->site());
 
@@ -124,7 +126,7 @@ final class SiteContextTest extends TestCase
     }
 
     /**
-     * Validate sections(), rootPages(), and sectionLabel() delegation.
+     * Validate sections(), rootPages(), and tree/section access delegation.
      */
     public function testContextExposesSectionsAndRootPages(): void
     {
@@ -142,12 +144,12 @@ final class SiteContextTest extends TestCase
         $this->assertArrayHasKey('docs', $sections);
         $this->assertArrayHasKey('blog', $sections);
         $this->assertCount(2, $sections['docs']);
+        $this->assertSame('Docs', $sections['docs']->label());
+        $this->assertSame('docs', $sections['docs']->path());
+        $this->assertSame($context->tree(), $context->section(''));
 
         $root = $context->rootPages();
         $this->assertCount(1, $root);
-
-        $this->assertSame('Docs', $context->sectionLabel('docs'));
-        $this->assertSame('Blog', $context->sectionLabel('blog'));
     }
 
     /**
@@ -163,7 +165,7 @@ final class SiteContextTest extends TestCase
 
         // Root page with weight 0 comes first
         $introContext = new SiteContext($index, $index->findBySlug('intro') ?? $this->fail('Missing page'));
-        $this->assertNull($introContext->previous());
+        $this->assertNotInstanceOf(ContentPage::class, $introContext->previous());
         $this->assertSame('docs/a', $introContext->next()?->slug);
 
         $aContext = new SiteContext($index, $index->findBySlug('docs/a') ?? $this->fail('Missing page'));
@@ -172,7 +174,27 @@ final class SiteContextTest extends TestCase
 
         $bContext = new SiteContext($index, $index->findBySlug('docs/b') ?? $this->fail('Missing page'));
         $this->assertSame('docs/a', $bContext->previous()?->slug);
-        $this->assertNull($bContext->next());
+        $this->assertNotInstanceOf(ContentPage::class, $bContext->next());
+    }
+
+    /**
+     * Validate previous()/next() support skipping pages via predicate callbacks.
+     */
+    public function testContextPreviousAndNextSupportPredicate(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('intro', '/intro/', 'intro.dj', ['weight' => 0]),
+            $this->makePage('docs/hidden', '/docs/hidden/', 'docs/hidden.dj', ['weight' => 10, 'navigation' => false]),
+            $this->makePage('docs/visible', '/docs/visible/', 'docs/visible.dj', ['weight' => 20]),
+        ]);
+
+        $introContext = new SiteContext($index, $index->findBySlug('intro') ?? $this->fail('Missing page'));
+        $visibleContext = new SiteContext($index, $index->findBySlug('docs/visible') ?? $this->fail('Missing page'));
+
+        $isNavigable = static fn(ContentPage $page): bool => (bool)($page->meta('navigation') ?? true);
+
+        $this->assertSame('docs/visible', $introContext->next($isNavigable)?->slug);
+        $this->assertSame('intro', $visibleContext->previous($isNavigable)?->slug);
     }
 
     /**

@@ -113,17 +113,17 @@ Inside every template, `$this` is a `SiteContext` instance with helpers for quer
 ```php
 $this->pages()                          // all pages
 $this->regularPages()                   // pages without a content type
-$this->section('blog')                  // pages under the blog/ path prefix
+$this->tree()                           // root Section node
+$this->section('blog')                  // ?Section for a path (supports nesting: docs/guides)
 $this->type('blog')                     // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
 $this->isCurrent('/blog/')              // bool
-$this->sections()                      // array<string, PageCollection> — all sections, ordered by weight
-$this->sectionLabel('key')             // human-readable section label
+$this->sections()                       // array<string, Section> — top-level sections, ordered by weight
 $this->rootPages()                     // PageCollection — root-level pages (no section)
-$this->previous()                      // ?ContentPage — previous page in global display order
-$this->next()                          // ?ContentPage — next page in global display order
-$this->previousInSection()             // ?ContentPage
-$this->nextInSection()                 // ?ContentPage
+$this->previous(?callable $predicate = null)          // ?ContentPage — previous page in global display order
+$this->next(?callable $predicate = null)              // ?ContentPage — next page in global display order
+$this->previousInSection(?callable $predicate = null) // ?ContentPage
+$this->nextInSection(?callable $predicate = null)     // ?ContentPage
 $this->extension('name')               // call a project extension (see Extensions)
 ```
 
@@ -135,10 +135,10 @@ Glaze derives sections from the content folder structure. Place pages inside sub
 
 ```php
 <ul class="menu">
-    <li s:foreach="$this->sections() as $sectionKey => $sectionPages">
-        <h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
+    <li s:foreach="$this->sections() as $section">
+        <h2 class="menu-title"><?= $section->label() ?></h2>
         <ul>
-            <template s:foreach="$sectionPages as $item">
+            <template s:foreach="$section->pages() as $item">
                 <li s:if="$item->meta('navigation') ?? true">
                     <a
                         href="<?= $item->urlPath ?>"
@@ -153,13 +153,31 @@ Glaze derives sections from the content folder structure. Place pages inside sub
 </ul>
 ```
 
+For nested folders, use child sections directly:
+
+```php
+<?php $docs = $this->section('docs'); ?>
+
+<section s:if="$docs">
+    <h2><?= $docs->label() ?></h2>
+    <article s:foreach="$docs->children() as $child">
+        <h3><?= $child->label() ?></h3>
+        <ul>
+            <li s:foreach="$child->pages() as $item">
+                <a href="<?= $item->urlPath ?>"><?= $item->title ?></a>
+            </li>
+        </ul>
+    </article>
+</section>
+```
+
 ## Sugar directives
 
 Sugar provides attribute-based directives for control flow, looping, and conditional class merging. A brief example:
 
 ```php
 <!-- loop -->
-<li s:foreach="$this->section('blog')->take(5) as $post">
+<li s:foreach="$this->section('blog')?->pages()->take(5) ?? [] as $post">
     <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
 </li>
 

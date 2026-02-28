@@ -9,6 +9,7 @@ use Glaze\Scaffold\ScaffoldRegistry;
 use Glaze\Scaffold\ScaffoldSchemaLoader;
 use Glaze\Scaffold\TemplateRenderer;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Normalization;
 use Nette\Neon\Neon;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -90,9 +91,11 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
 
-        $this->assertContains($target . '/glaze.neon', $created);
-        $this->assertNotContains($target . '/vite.config.js', $created);
-        $this->assertNotContains($target . '/package.json', $created);
+        $normalizedCreated = array_map(static fn(string $path): string => Normalization::path($path), $created);
+
+        $this->assertContains(Normalization::path($target . '/glaze.neon'), $normalizedCreated);
+        $this->assertNotContains(Normalization::path($target . '/vite.config.js'), $normalizedCreated);
+        $this->assertNotContains(Normalization::path($target . '/package.json'), $normalizedCreated);
     }
 
     /**
@@ -191,8 +194,10 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/package.json');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
 
-        $this->assertContains($target . '/vite.config.js', $created);
-        $this->assertContains($target . '/package.json', $created);
+        $normalizedCreated = array_map(static fn(string $path): string => Normalization::path($path), $created);
+
+        $this->assertContains(Normalization::path($target . '/vite.config.js'), $normalizedCreated);
+        $this->assertContains(Normalization::path($target . '/package.json'), $normalizedCreated);
 
         $viteLayout = file_get_contents($target . '/templates/layout/page.sugar.php');
         $this->assertIsString($viteLayout);
