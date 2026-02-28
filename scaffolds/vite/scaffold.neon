@@ -1,6 +1,7 @@
 name: vite
 description: Glaze project with Vite asset bundling integration
-extends: default
+weight: 20
+extends: plain
 
 config:
 	build:
@@ -17,6 +18,7 @@ config:
 			defaultEntry: assets/css/site.css
 
 files:
+	- assets/css/site.css
 	- vite.config.js
 	- package.json.tpl
-	- templates/layout/page.sugar.php
+	- templates/layout/base.sugar.php

@@ -1,0 +1,12 @@
+{
+    "name": "my-glaze-site",
+    "description": "My Glaze Site",
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "vite": "latest"
+    }
+}

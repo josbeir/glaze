@@ -507,9 +507,9 @@ build:
   vite:
     enabled: false
     command: "npm run build"
-    assetBaseUrl: /assets/
-    manifestPath: public/assets/.vite/manifest.json
-    defaultEntry: assets/css/site.css
+    assetBaseUrl: /
+    manifestPath: public/.vite/manifest.json
+    defaultEntry: css/site.css
 ```
 
 - `enabled` -- opt-in default for Vite build integration (`false` by default)

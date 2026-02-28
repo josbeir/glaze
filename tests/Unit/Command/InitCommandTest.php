@@ -230,16 +230,17 @@ final class InitCommandTest extends TestCase
     }
 
     /**
-     * Ensure interactive preset selection returns askChoice result when multiple presets exist.
+     * Ensure interactive preset selection resolves a numbered choice to the correct preset name.
      */
-    public function testResolvePresetUsesAskChoiceWhenMultiplePresetsExist(): void
+    public function testResolvePresetShowsNumberedListAndResolvesChoice(): void
     {
         $command = $this->createCommand();
         $args = new Arguments([], ['preset' => null], []);
         $io = $this->createMock(ConsoleIo::class);
+        $io->method('out');
         $io->expects($this->once())
-            ->method('askChoice')
-            ->willReturn('vite');
+            ->method('ask')
+            ->willReturn('3');
 
         $preset = $this->callProtected($command, 'resolvePreset', $args, $io, false);
 
@@ -247,9 +248,27 @@ final class InitCommandTest extends TestCase
     }
 
     /**
-     * Ensure interactive preset resolution skips askChoice when only default is available.
+     * Ensure interactive preset selection accepts a preset name as input.
      */
-    public function testResolvePresetSkipsAskChoiceWhenOnlyDefaultExists(): void
+    public function testResolvePresetAcceptsNameInput(): void
+    {
+        $command = $this->createCommand();
+        $args = new Arguments([], ['preset' => null], []);
+        $io = $this->createMock(ConsoleIo::class);
+        $io->method('out');
+        $io->expects($this->once())
+            ->method('ask')
+            ->willReturn('plain');
+
+        $preset = $this->callProtected($command, 'resolvePreset', $args, $io, false);
+
+        $this->assertSame('plain', $preset);
+    }
+
+    /**
+     * Ensure interactive preset resolution skips prompt when only default is available.
+     */
+    public function testResolvePresetSkipsPromptWhenOnlyDefaultExists(): void
     {
         $scaffoldsRoot = $this->createTempDirectory();
         $defaultDir = $scaffoldsRoot . '/default';
@@ -267,7 +286,7 @@ final class InitCommandTest extends TestCase
         $args = new Arguments([], ['preset' => null], []);
         $io = $this->createMock(ConsoleIo::class);
         $io->expects($this->never())
-            ->method('askChoice');
+            ->method('ask');
 
         $preset = $this->callProtected($command, 'resolvePreset', $args, $io, false);
 

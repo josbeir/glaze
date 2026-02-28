@@ -75,6 +75,10 @@ final class ScaffoldSchemaLoader
             ? $data['config']
             : [];
 
+        $weight = isset($data['weight']) && is_int($data['weight'])
+            ? $data['weight']
+            : 0;
+
         $files = $this->parseFileEntries($directory, (array)($data['files'] ?? []));
 
         return new ScaffoldSchema(
@@ -83,6 +87,7 @@ final class ScaffoldSchemaLoader
             files: $files,
             config: $config,
             extends: $extends,
+            weight: $weight,
         );
     }
 

@@ -80,7 +80,7 @@ final class InitCommand extends AbstractGlazeCommand
                 'default' => null,
             ])
             ->addOption('preset', [
-                'help' => 'Scaffold preset name (e.g. default, vite) or path to a custom preset directory.',
+                'help' => 'Scaffold preset name (e.g. plain, default, vite) or path to a custom preset directory.',
                 'default' => null,
             ])
             ->addOption('skip-install', [
@@ -209,6 +209,9 @@ final class InitCommand extends AbstractGlazeCommand
     /**
      * Resolve the scaffold preset from CLI flags and interactive prompt.
      *
+     * When running interactively, displays a numbered list of available presets
+     * with their descriptions and prompts the user to pick one by number.
+     *
      * If the preset value contains a path separator it is treated as a directory path.
      * Relative paths are resolved to absolute using the current working directory.
      * Path-based presets skip the interactive choice; they must be passed explicitly
@@ -232,12 +235,60 @@ final class InitCommand extends AbstractGlazeCommand
             return $preset;
         }
 
-        $available = $this->scaffoldService->presetNames();
-        if ($available === [] || $available === ['default']) {
+        $presets = $this->scaffoldService->presets();
+        if ($presets === [] || array_keys($presets) === ['default']) {
             return $preset;
         }
 
-        return strtolower($io->askChoice('Scaffold preset', $available, $preset));
+        return $this->promptPresetChoice($io, $presets, $preset);
+    }
+
+    /**
+     * Display a numbered list of scaffold presets and prompt the user to pick one.
+     *
+     * Each preset is shown with its description. The user may enter a number
+     * or a preset name directly; input is validated and re-prompted on invalid choices.
+     *
+     * @param \Cake\Console\ConsoleIo $io Console IO service.
+     * @param array<string, string> $presets Name-to-description map of available presets.
+     * @param string $default Default preset name.
+     */
+    protected function promptPresetChoice(ConsoleIo $io, array $presets, string $default): string
+    {
+        $names = array_keys($presets);
+        $defaultIndex = array_search($default, $names, true);
+        $defaultDisplay = $defaultIndex !== false ? (string)($defaultIndex + 1) : '1';
+
+        $io->out('');
+        $io->out('<info>Available presets:</info>');
+
+        $index = 1;
+        foreach ($presets as $name => $description) {
+            $label = $description !== '' ? sprintf('%s - %s', $name, $description) : $name;
+            $io->out(sprintf('  [%d] %s', $index, $label));
+            $index++;
+        }
+
+        $io->out('');
+
+        $choice = $io->ask('Scaffold preset', $defaultDisplay);
+        $choice = trim($choice);
+
+        if (is_numeric($choice)) {
+            $idx = (int)$choice - 1;
+            if (isset($names[$idx])) {
+                return $names[$idx];
+            }
+        }
+
+        $lower = strtolower($choice);
+        if (in_array($lower, $names, true)) {
+            return $lower;
+        }
+
+        $io->err(sprintf('<warning>Invalid choice "%s". Please try again.</warning>', $choice));
+
+        return $this->promptPresetChoice($io, $presets, $default);
     }
 
     /**

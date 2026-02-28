@@ -37,6 +37,7 @@ final class ScaffoldSchemaLoaderTest extends TestCase
         $this->assertSame('mypreset', $schema->name);
         $this->assertSame('My preset description', $schema->description);
         $this->assertNull($schema->extends);
+        $this->assertSame(0, $schema->weight);
         $this->assertCount(2, $schema->files);
     }
 
@@ -194,6 +195,32 @@ final class ScaffoldSchemaLoaderTest extends TestCase
         $schema = (new ScaffoldSchemaLoader())->load($dir);
 
         $this->assertSame('', $schema->description);
+    }
+
+    /**
+     * Ensure the weight field is parsed from the schema.
+     */
+    public function testLoadParsesWeightField(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/scaffold.neon', "name: weighted\nweight: 15\n");
+
+        $schema = (new ScaffoldSchemaLoader())->load($dir);
+
+        $this->assertSame(15, $schema->weight);
+    }
+
+    /**
+     * Ensure the weight defaults to zero when omitted.
+     */
+    public function testLoadDefaultsWeightToZero(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/scaffold.neon', "name: noweight\n");
+
+        $schema = (new ScaffoldSchemaLoader())->load($dir);
+
+        $this->assertSame(0, $schema->weight);
     }
 
     /**

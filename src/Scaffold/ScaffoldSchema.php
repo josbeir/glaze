@@ -34,6 +34,7 @@ final class ScaffoldSchema
      * @param list<\Glaze\Scaffold\ScaffoldFileEntry> $files Ordered list of file entries to process.
      * @param array<mixed> $config Extra configuration to deep-merge into the generated `glaze.neon`.
      * @param string|null $extends Name of the parent schema to inherit from, if any.
+     * @param int $weight Sort weight for display ordering (lower values appear first).
      */
     public function __construct(
         public readonly string $name,
@@ -41,6 +42,7 @@ final class ScaffoldSchema
         public readonly array $files,
         public readonly array $config,
         public readonly ?string $extends = null,
+        public readonly int $weight = 0,
     ) {
     }
 }

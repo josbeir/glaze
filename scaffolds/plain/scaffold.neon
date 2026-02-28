@@ -1,0 +1,12 @@
+name: plain
+description: Bare-bones Glaze starter with content and templates but no styling
+weight: 0
+
+files:
+	- .editorconfig
+	- .gitignore
+	- content/index.dj
+	- static/.gitkeep
+	- static/glaze-logo.svg
+	- templates/page.sugar.php
+	- templates/layout/base.sugar.php

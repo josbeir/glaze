@@ -32,6 +32,55 @@ final class ScaffoldRegistryTest extends TestCase
     }
 
     /**
+     * Ensure the presets method returns a name-to-description map ordered by weight then name.
+     */
+    public function testPresetsReturnsNameToDescriptionMap(): void
+    {
+        $root = $this->buildScaffoldsRoot([
+            'default' => "name: default\ndescription: Default starter\nfiles:\n",
+            'vite' => "name: vite\ndescription: Vite-powered preset\nextends: default\nfiles:\n",
+        ]);
+
+        $registry = new ScaffoldRegistry($root, new ScaffoldSchemaLoader());
+
+        $this->assertSame([
+            'default' => 'Default starter',
+            'vite' => 'Vite-powered preset',
+        ], $registry->presets());
+    }
+
+    /**
+     * Ensure presets are ordered by weight, with lower weights appearing first.
+     */
+    public function testPresetsOrderedByWeight(): void
+    {
+        $root = $this->buildScaffoldsRoot([
+            'alpha' => "name: alpha\ndescription: Alpha preset\nweight: 20\nfiles:\n",
+            'beta' => "name: beta\ndescription: Beta preset\nweight: 0\nfiles:\n",
+            'gamma' => "name: gamma\ndescription: Gamma preset\nweight: 10\nfiles:\n",
+        ]);
+
+        $registry = new ScaffoldRegistry($root, new ScaffoldSchemaLoader());
+
+        $this->assertSame(['beta', 'gamma', 'alpha'], $registry->names());
+        $this->assertSame([
+            'beta' => 'Beta preset',
+            'gamma' => 'Gamma preset',
+            'alpha' => 'Alpha preset',
+        ], $registry->presets());
+    }
+
+    /**
+     * Ensure the presets method returns an empty array for a non-existent directory.
+     */
+    public function testPresetsReturnsEmptyForMissingDirectory(): void
+    {
+        $registry = new ScaffoldRegistry('/non/existent/path', new ScaffoldSchemaLoader());
+
+        $this->assertSame([], $registry->presets());
+    }
+
+    /**
      * Ensure getting a preset returns a schema with its name and files.
      */
     public function testGetReturnsSchemaForExistingPreset(): void
@@ -147,6 +196,7 @@ final class ScaffoldRegistryTest extends TestCase
 
         $names = $registry->names();
         $this->assertContains('default', $names);
+        $this->assertContains('plain', $names);
         $this->assertContains('vite', $names);
     }
 

@@ -57,7 +57,7 @@ final class ProjectScaffoldServiceTest extends TestCase
             taxonomies: [],
         ));
 
-        $layout = file_get_contents($target . '/templates/layout/page.sugar.php');
+        $layout = file_get_contents($target . '/templates/layout/base.sugar.php');
         $this->assertIsString($layout);
         $this->assertStringNotContainsString('<s-vite', $layout);
     }
@@ -85,8 +85,10 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertFileExists($target . '/content/index.dj');
         $this->assertFileExists($target . '/static/.gitkeep');
+        $this->assertFileExists($target . '/static/glaze-logo.svg');
+        $this->assertFileExists($target . '/static/css/site.css');
         $this->assertFileExists($target . '/templates/page.sugar.php');
-        $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/templates/layout/base.sugar.php');
         $this->assertFileExists($target . '/.gitignore');
         $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
@@ -156,15 +158,15 @@ final class ProjectScaffoldServiceTest extends TestCase
         $scaffoldsDir = $this->scaffoldsDirectory();
 
         $this->assertSame(
-            file_get_contents($scaffoldsDir . '/default/content/index.dj'),
+            file_get_contents($scaffoldsDir . '/plain/content/index.dj'),
             file_get_contents($target . '/content/index.dj'),
         );
         $this->assertSame(
-            file_get_contents($scaffoldsDir . '/default/templates/page.sugar.php'),
+            file_get_contents($scaffoldsDir . '/plain/templates/page.sugar.php'),
             file_get_contents($target . '/templates/page.sugar.php'),
         );
         $this->assertSame(
-            file_get_contents($scaffoldsDir . '/default/.gitignore'),
+            file_get_contents($scaffoldsDir . '/plain/.gitignore'),
             file_get_contents($target . '/.gitignore'),
         );
     }
@@ -192,14 +194,14 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertFileExists($target . '/vite.config.js');
         $this->assertFileExists($target . '/package.json');
-        $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/templates/layout/base.sugar.php');
 
         $normalizedCreated = array_map(static fn(string $path): string => Normalization::path($path), $created);
 
         $this->assertContains(Normalization::path($target . '/vite.config.js'), $normalizedCreated);
         $this->assertContains(Normalization::path($target . '/package.json'), $normalizedCreated);
 
-        $viteLayout = file_get_contents($target . '/templates/layout/page.sugar.php');
+        $viteLayout = file_get_contents($target . '/templates/layout/base.sugar.php');
         $this->assertIsString($viteLayout);
         $this->assertStringContainsString("<s-vite src=\"['assets/css/site.css']\" />", $viteLayout);
 
@@ -310,7 +312,7 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertFileExists($target . '/keep.txt');
         $this->assertFileExists($target . '/content/index.dj');
-        $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+        $this->assertFileExists($target . '/templates/layout/base.sugar.php');
     }
 
     /**
@@ -322,7 +324,24 @@ final class ProjectScaffoldServiceTest extends TestCase
         $names = $service->presetNames();
 
         $this->assertContains('default', $names);
+        $this->assertContains('plain', $names);
         $this->assertContains('vite', $names);
+    }
+
+    /**
+     * Ensure presets returns a name-to-description map of all available presets.
+     */
+    public function testPresetsReturnsNameToDescriptionMap(): void
+    {
+        $service = $this->buildService();
+        $presets = $service->presets();
+
+        $this->assertArrayHasKey('default', $presets);
+        $this->assertArrayHasKey('plain', $presets);
+        $this->assertArrayHasKey('vite', $presets);
+        $this->assertNotEmpty($presets['default']);
+        $this->assertNotEmpty($presets['plain']);
+        $this->assertNotEmpty($presets['vite']);
     }
 
     /**

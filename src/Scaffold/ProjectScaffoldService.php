@@ -97,6 +97,16 @@ final class ProjectScaffoldService
     }
 
     /**
+     * Return all available scaffold presets as a name-to-description map.
+     *
+     * @return array<string, string>
+     */
+    public function presets(): array
+    {
+        return $this->registry->presets();
+    }
+
+    /**
      * Guard the target directory state before scaffold writes.
      *
      * Throws when the directory is non-empty and force is not enabled.

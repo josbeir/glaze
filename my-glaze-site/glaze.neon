@@ -1,0 +1,115 @@
+pageTemplate: page
+site:
+	title: My Glaze Site
+
+taxonomies:
+	- tags
+	- categories
+
+build:
+	vite:
+		enabled: true
+		command: npm run build
+		defaultEntry: assets/css/site.css
+
+devServer:
+	vite:
+		enabled: true
+		host: '127.0.0.1'
+		port: 5173
+		command: 'npm run dev -- --host {host} --port {port} --strictPort'
+		defaultEntry: assets/css/site.css
+
+
+# --- Available options (uncomment and adjust as needed) ---
+# pageTemplate: page
+#
+# images:
+#   driver: gd
+#   presets:
+#     thumb:
+#       w: 320
+#       h: 180
+#       fit: crop
+#
+# site:
+#   title: My Site
+#   description: Default site description
+#   baseUrl: https://example.com
+#   basePath: /blog
+#   meta:
+#     robots: index,follow
+#
+# taxonomies:
+#   - tags
+#   - categories
+#
+# contentTypes:
+#   blog:
+#     paths:
+#       - blog
+#       - match: blog/archive
+#         createPattern: 'blog/archive/{date:Y/m}'
+#     defaults:
+#       template: blog
+#
+# staticDir: static
+#
+# extensionsDir: extensions
+#
+# djot:
+#   codeHighlighting:
+#     enabled: true
+#     theme: github-dark
+#     withGutter: false
+#   headerAnchors:
+#     enabled: false
+#     symbol: "#"
+#     position: after
+#     cssClass: permalink-wrapper
+#     ariaLabel: Anchor link
+#     levels: [1, 2, 3, 4, 5, 6]
+#   autolink:
+#     enabled: false
+#     allowedSchemes: [https, http, mailto]
+#   externalLinks:
+#     enabled: false
+#     internalHosts: []
+#     target: _blank
+#     rel: noopener noreferrer
+#     nofollow: false
+#   smartQuotes:
+#     enabled: false
+#     locale: null
+#   mentions:
+#     enabled: false
+#     urlTemplate: '/users/view/{username}'
+#     cssClass: mention
+#   semanticSpan:
+#     enabled: false
+#   defaultAttributes:
+#     enabled: false
+#     defaults: {}
+#
+# build:
+#   clean: false
+#   drafts: false
+#   vite:
+#     enabled: false
+#     command: "npm run build"
+#     assetBaseUrl: /
+#     manifestPath: public/.vite/manifest.json
+#     defaultEntry: assets/css/site.css
+#
+# devServer:
+#   php:
+#     host: 127.0.0.1
+#     port: 8080
+#   vite:
+#     enabled: false
+#     host: 127.0.0.1
+#     port: 5173
+#     url: http://127.0.0.1:5173
+#     injectClient: true
+#     defaultEntry: assets/css/site.css
+#     command: "npm run dev -- --host {host} --port {port} --strictPort"

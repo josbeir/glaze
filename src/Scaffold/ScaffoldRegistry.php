@@ -126,13 +126,27 @@ final class ScaffoldRegistry
     }
 
     /**
-     * Return the names of all available scaffold presets, sorted alphabetically.
+     * Return the names of all available scaffold presets, ordered by weight then name.
      *
      * Only directories containing a valid `scaffold.neon` file are included.
      *
      * @return list<string>
      */
     public function names(): array
+    {
+        return array_keys($this->presets());
+    }
+
+    /**
+     * Return all available scaffold presets as a name-to-description map, ordered by weight then name.
+     *
+     * Each entry maps a preset name (directory name) to its human-readable description
+     * as defined in the `scaffold.neon` file. Presets with a lower `weight` value are
+     * listed first; presets sharing the same weight are sorted alphabetically by name.
+     *
+     * @return array<string, string>
+     */
+    public function presets(): array
     {
         if (!is_dir($this->scaffoldsDirectory)) {
             return [];
@@ -143,7 +157,8 @@ final class ScaffoldRegistry
             return [];
         }
 
-        $names = [];
+        /** @var array<string, array{description: string, weight: int}> $discovered */
+        $discovered = [];
         foreach ($entries as $entry) {
             if ($entry === '.') {
                 continue;
@@ -155,13 +170,24 @@ final class ScaffoldRegistry
 
             $path = $this->scaffoldsDirectory . DIRECTORY_SEPARATOR . $entry;
             if (is_dir($path) && is_file($path . DIRECTORY_SEPARATOR . 'scaffold.neon')) {
-                $names[] = $entry;
+                $schema = $this->loader->load($path);
+                $discovered[$entry] = [
+                    'description' => $schema->description,
+                    'weight' => $schema->weight,
+                ];
             }
         }
 
-        sort($names);
+        uasort($discovered, function (array $a, array $b): int {
+            return $a['weight'] <=> $b['weight'];
+        });
 
-        return $names;
+        $presets = [];
+        foreach ($discovered as $name => $meta) {
+            $presets[$name] = $meta['description'];
+        }
+
+        return $presets;
     }
 
     /**
@@ -194,6 +220,7 @@ final class ScaffoldRegistry
             description: $child->description,
             files: array_values($byDestination),
             config: $mergedConfig,
+            weight: $child->weight,
         );
     }
 
