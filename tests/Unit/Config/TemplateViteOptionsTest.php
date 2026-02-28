@@ -126,7 +126,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/my/project',
         );
 
-        $this->assertSame('/my/project/public/.vite/manifest.json', Normalization::path($options->manifestPath));
+        $this->assertSame('/my/project/public/.vite/manifest.json', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($options->manifestPath)));
     }
 
     /**
@@ -140,7 +140,7 @@ final class TemplateViteOptionsTest extends TestCase
             '/my/project',
         );
 
-        $this->assertSame('/absolute/path/manifest.json', Normalization::path($options->manifestPath));
+        $this->assertSame('/absolute/path/manifest.json', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($options->manifestPath)));
     }
 
     /**
@@ -150,7 +150,7 @@ final class TemplateViteOptionsTest extends TestCase
     {
         $options = TemplateViteOptions::fromProjectConfig([], [], '/my/project');
 
-        $this->assertSame('/my/project/public/.vite/manifest.json', Normalization::path($options->manifestPath));
+        $this->assertSame('/my/project/public/.vite/manifest.json', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($options->manifestPath)));
     }
 
     /**
