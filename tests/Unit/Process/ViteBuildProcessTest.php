@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Process;
 
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -47,5 +48,30 @@ final class ViteBuildProcessTest extends TestCase
         $this->expectExceptionMessage('Failed to run Vite build command');
 
         $process->start($configuration, $projectRoot);
+    }
+
+    /**
+     * Ensure invalid configuration is rejected when command is missing.
+     */
+    public function testStartThrowsForMissingCommandConfiguration(): void
+    {
+        $process = new ViteBuildProcess();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid configuration for');
+
+        $process->start([], $this->createTempDirectory());
+    }
+
+    /**
+     * Ensure stop is a no-op for compatibility with ProcessInterface.
+     */
+    public function testStopDoesNothing(): void
+    {
+        $process = new ViteBuildProcess();
+
+        $this->expectNotToPerformAssertions();
+
+        $process->stop('runtime');
     }
 }

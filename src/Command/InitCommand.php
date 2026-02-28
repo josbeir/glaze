@@ -14,7 +14,7 @@ use Glaze\Utility\Normalization;
 use RuntimeException;
 
 /**
- * Initialize a new Glaze project directory.
+ * Initialize a new Glaze project directory using a named scaffold preset.
  */
 final class InitCommand extends AbstractGlazeCommand
 {
@@ -79,13 +79,12 @@ final class InitCommand extends AbstractGlazeCommand
                 'help' => 'Comma-separated taxonomy keys.',
                 'default' => null,
             ])
-            ->addOption('vite', [
-                'help' => 'Enable Vite integration and generate a vite.config.js file.',
-                'boolean' => true,
-                'default' => false,
+            ->addOption('preset', [
+                'help' => 'Scaffold preset name (e.g. default, vite) or path to a custom preset directory.',
+                'default' => null,
             ])
             ->addOption('skip-install', [
-                'help' => 'Skip running npm install after scaffolding Vite-enabled projects.',
+                'help' => 'Skip running npm install when the preset generates a package.json.',
                 'boolean' => true,
                 'default' => false,
             ])
@@ -115,9 +114,10 @@ final class InitCommand extends AbstractGlazeCommand
 
         try {
             $options = $this->resolveScaffoldOptions($args, $io);
-            $this->scaffoldService->scaffold($options);
+            $createdFiles = $this->scaffoldService->scaffold($options);
 
-            if ($options->enableVite && !(bool)$args->getOption('skip-install')) {
+            $packageJsonPath = $options->targetDirectory . DIRECTORY_SEPARATOR . 'package.json';
+            if (in_array($packageJsonPath, $createdFiles, true) && !(bool)$args->getOption('skip-install')) {
                 $io->out('<info>running</info> npm install...');
                 $this->npmInstallProcess->start([], $options->targetDirectory);
             }
@@ -184,7 +184,7 @@ final class InitCommand extends AbstractGlazeCommand
             $taxonomiesDefault = $io->ask('Taxonomies (comma separated)', $taxonomiesDefault);
         }
 
-        $enableVite = $this->resolveEnableVite($args, $io, $nonInteractive);
+        $preset = $this->resolvePreset($args, $io, $nonInteractive);
 
         $directoryPath = Normalization::path($directory);
         if (!$this->isAbsolutePath($directoryPath)) {
@@ -201,32 +201,72 @@ final class InitCommand extends AbstractGlazeCommand
             baseUrl: $this->normalizeString($baseUrlDefault),
             basePath: $basePathDefault,
             taxonomies: $this->parseTaxonomies($taxonomiesDefault),
-            enableVite: $enableVite,
+            preset: $preset,
             force: (bool)$args->getOption('force'),
         );
     }
 
     /**
-     * Resolve Vite integration option from CLI flags and interactive prompt.
+     * Resolve the scaffold preset from CLI flags and interactive prompt.
+     *
+     * If the preset value contains a path separator it is treated as a directory path.
+     * Relative paths are resolved to absolute using the current working directory.
+     * Path-based presets skip the interactive choice; they must be passed explicitly
+     * via `--preset`.
+     *
+     * Falls back to `default` when no preset is specified.
      *
      * @param \Cake\Console\Arguments $args Parsed command arguments.
      * @param \Cake\Console\ConsoleIo $io Console IO service.
      * @param bool $nonInteractive Whether prompts are disabled.
      */
-    protected function resolveEnableVite(Arguments $args, ConsoleIo $io, bool $nonInteractive): bool
+    protected function resolvePreset(Arguments $args, ConsoleIo $io, bool $nonInteractive): string
     {
-        $enableVite = (bool)$args->getOption('vite');
-        if ($nonInteractive) {
-            return $enableVite;
+        $preset = $this->normalizeString($args->getOption('preset')) ?? 'default';
+
+        if ($this->isPresetPath($preset)) {
+            return $this->resolvePresetAbsolutePath($preset);
         }
 
-        $choice = strtolower($io->askChoice(
-            'Enable Vite integration',
-            ['no', 'yes'],
-            $enableVite ? 'yes' : 'no',
-        ));
+        if ($nonInteractive) {
+            return $preset;
+        }
 
-        return $choice === 'yes';
+        $available = $this->scaffoldService->presetNames();
+        if ($available === [] || $available === ['default']) {
+            return $preset;
+        }
+
+        return strtolower($io->askChoice('Scaffold preset', $available, $preset));
+    }
+
+    /**
+     * Determine whether a preset value should be treated as a directory path.
+     *
+     * @param string $preset Preset name or path.
+     */
+    protected function isPresetPath(string $preset): bool
+    {
+        return str_contains($preset, '/') || str_contains($preset, '\\');
+    }
+
+    /**
+     * Resolve a preset path expression to an absolute directory path.
+     *
+     * Absolute paths are returned as-is. Relative paths are resolved against
+     * the current working directory.
+     *
+     * @param string $preset Preset path (absolute or relative).
+     */
+    protected function resolvePresetAbsolutePath(string $preset): string
+    {
+        if ($this->isAbsolutePath($preset)) {
+            return $preset;
+        }
+
+        $cwd = getcwd() ?: '.';
+
+        return Normalization::path($cwd . DIRECTORY_SEPARATOR . $preset);
     }
 
     /**

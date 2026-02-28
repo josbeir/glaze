@@ -1,0 +1,22 @@
+name: vite
+description: Glaze project with Vite asset bundling integration
+extends: default
+
+config:
+	build:
+		vite:
+			enabled: true
+			command: npm run build
+			defaultEntry: assets/css/site.css
+	devServer:
+		vite:
+			enabled: true
+			host: 127.0.0.1
+			port: 5173
+			command: "npm run dev -- --host {host} --port {port} --strictPort"
+			defaultEntry: assets/css/site.css
+
+files:
+	- vite.config.js
+	- package.json.tpl
+	- templates/layout/page.sugar.php

@@ -39,7 +39,7 @@ Useful options:
 - `--base-url`
 - `--base-path` (for subfolder deployments, for example `/blog`)
 - `--taxonomies`
-- `--vite` (scaffold Vite files and enable Vite defaults in `glaze.neon`)
+- `--preset <name|path>` (scaffold preset to use; defaults to `default`; built-in values: `default`, `vite`; or a path to a custom preset directory)
 - `--force`
 - `--yes` (non-interactive)
 
@@ -51,10 +51,18 @@ glaze init my-site \
   --page-template "landing" \
   --description "Small notes and experiments" \
   --base-path "/blog" \
-  --vite \
+  --preset vite \
   --taxonomies tags,categories \
   --yes
 ```
+
+Path to a custom preset directory:
+
+```bash
+glaze init my-site --preset ./my-company-preset --yes
+```
+
+See [Scaffold presets](scaffolding.dj) for details on creating custom presets.
 
 ## `build`
 
@@ -188,7 +196,7 @@ Prerequisites:
 For a quick start, scaffold Vite files and defaults with:
 
 ```bash
-glaze init my-site --vite
+glaze init my-site --preset vite
 ```
 
 Basic usage:

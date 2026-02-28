@@ -3,30 +3,73 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Scaffold;
 
-use Closure;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
+use Glaze\Scaffold\ScaffoldRegistry;
+use Glaze\Scaffold\ScaffoldSchemaLoader;
+use Glaze\Scaffold\TemplateRenderer;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use Nette\Neon\Neon;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 /**
- * Tests for project scaffold service.
+ * Tests for ProjectScaffoldService.
  */
 final class ProjectScaffoldServiceTest extends TestCase
 {
     use FilesystemTestTrait;
 
     /**
-     * Ensure scaffold copies expected starter directories and files.
+     * Resolve the bundled scaffolds directory.
      */
-    public function testScaffoldCreatesProjectFiles(): void
+    private function scaffoldsDirectory(): string
+    {
+        return dirname(__DIR__, 3) . '/scaffolds';
+    }
+
+    /**
+     * Build a service instance using the bundled scaffolds registry.
+     */
+    private function buildService(): ProjectScaffoldService
+    {
+        return new ProjectScaffoldService(
+            new ScaffoldRegistry($this->scaffoldsDirectory(), new ScaffoldSchemaLoader()),
+            new TemplateRenderer(),
+        );
+    }
+
+    /**
+     * Ensure the default preset layout does not include the s-vite directive.
+     */
+    public function testScaffoldDefaultPresetLayoutHasNoViteDirective(): void
+    {
+        $target = $this->createTempDirectory() . '/plain-site';
+        $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'plain-site',
+            siteTitle: 'Plain Site',
+            pageTemplate: 'page',
+            description: '',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: [],
+        ));
+
+        $layout = file_get_contents($target . '/templates/layout/page.sugar.php');
+        $this->assertIsString($layout);
+        $this->assertStringNotContainsString('<s-vite', $layout);
+    }
+
+    /**
+     * Ensure scaffold with the default preset creates expected starter files.
+     */
+    public function testScaffoldDefaultPresetCreatesExpectedFiles(): void
     {
         $target = $this->createTempDirectory() . '/my-site';
-        $service = new ProjectScaffoldService();
+        $service = $this->buildService();
 
-        $service->scaffold(new ScaffoldOptions(
+        $created = $service->scaffold(new ScaffoldOptions(
             targetDirectory: $target,
             siteName: 'my-site',
             siteTitle: 'My Site',
@@ -35,6 +78,7 @@ final class ProjectScaffoldServiceTest extends TestCase
             baseUrl: 'https://example.com',
             basePath: '/blog',
             taxonomies: ['tags', 'categories'],
+            preset: 'default',
             force: false,
         ));
 
@@ -46,50 +90,175 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
 
-        $this->assertSame(
-            file_get_contents(__DIR__ . '/../../../skeleton/content/index.dj'),
-            file_get_contents($target . '/content/index.dj'),
-        );
-        $this->assertSame(
-            file_get_contents(__DIR__ . '/../../../skeleton/templates/page.sugar.php'),
-            file_get_contents($target . '/templates/page.sugar.php'),
-        );
-        $this->assertSame(
-            file_get_contents(__DIR__ . '/../../../skeleton/.gitignore'),
-            file_get_contents($target . '/.gitignore'),
-        );
-
-        $config = file_get_contents($target . '/glaze.neon');
-        $this->assertIsString($config);
-        $decoded = Neon::decode($config);
-        $this->assertIsArray($decoded);
-        $this->assertArrayHasKey('site', $decoded);
-        $this->assertArrayHasKey('taxonomies', $decoded);
-        $this->assertIsArray($decoded['site']);
-        $this->assertIsArray($decoded['taxonomies']);
-        $this->assertSame('landing', $decoded['pageTemplate'] ?? null);
-        $this->assertSame('My Site', $decoded['site']['title'] ?? null);
-        $this->assertSame('/blog', $decoded['site']['basePath'] ?? null);
-        $this->assertSame(['tags', 'categories'], $decoded['taxonomies']);
-        $this->assertStringContainsString('# --- Available options (uncomment and adjust as needed) ---', $config);
-        $this->assertStringContainsString('# images:', $config);
-        $this->assertStringContainsString('#   driver: gd', $config);
-        $this->assertStringContainsString('#   meta:', $config);
-        $this->assertStringContainsString('# contentTypes:', $config);
-        $this->assertStringContainsString('#       template: blog', $config);
-        $this->assertStringContainsString('# djot:', $config);
-        $this->assertStringContainsString('#   codeHighlighting:', $config);
-        $this->assertStringContainsString('#   headerAnchors:', $config);
-        $this->assertStringContainsString('# devServer:', $config);
-        $this->assertStringContainsString('#   php:', $config);
-        $this->assertStringContainsString('#     host: 127.0.0.1', $config);
-        $this->assertStringContainsString('#     port: 8080', $config);
-        $this->assertStringContainsString('#   vite:', $config);
-        $this->assertStringContainsString('#     command: "npm run dev -- --host {host} --port {port} --strictPort"', $config);
+        $this->assertContains($target . '/glaze.neon', $created);
+        $this->assertNotContains($target . '/vite.config.js', $created);
+        $this->assertNotContains($target . '/package.json', $created);
     }
 
     /**
-     * Ensure non-empty target directory fails unless force is enabled.
+     * Ensure the generated glaze.neon encodes user-supplied values correctly.
+     */
+    public function testScaffoldDefaultPresetGeneratesCorrectGlazeNeon(): void
+    {
+        $target = $this->createTempDirectory() . '/my-site';
+        $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'my-site',
+            siteTitle: 'My Site',
+            pageTemplate: 'landing',
+            description: 'My description',
+            baseUrl: 'https://example.com',
+            basePath: '/blog',
+            taxonomies: ['tags', 'categories'],
+        ));
+
+        $raw = file_get_contents($target . '/glaze.neon');
+        $this->assertIsString($raw);
+
+        $decoded = Neon::decode($raw);
+        $this->assertIsArray($decoded);
+        $this->assertSame('landing', $decoded['pageTemplate'] ?? null);
+        $this->assertIsArray($decoded['site']);
+        /** @var array<string, mixed> $siteConfig */
+        $siteConfig = $decoded['site'];
+        $this->assertSame('My Site', $siteConfig['title'] ?? null);
+        $this->assertSame('My description', $siteConfig['description'] ?? null);
+        $this->assertSame('https://example.com', $siteConfig['baseUrl'] ?? null);
+        $this->assertSame('/blog', $siteConfig['basePath'] ?? null);
+        $this->assertSame(['tags', 'categories'], $decoded['taxonomies'] ?? null);
+
+        $this->assertStringContainsString('# --- Available options (uncomment and adjust as needed) ---', $raw);
+        $this->assertStringContainsString('# contentTypes:', $raw);
+        $this->assertStringContainsString('# djot:', $raw);
+        $this->assertStringContainsString('# devServer:', $raw);
+    }
+
+    /**
+     * Ensure the skeleton files are copied verbatim for the default preset.
+     */
+    public function testScaffoldCopiesSkeletonFilesVerbatim(): void
+    {
+        $target = $this->createTempDirectory() . '/my-site';
+        $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'my-site',
+            siteTitle: 'My Site',
+            pageTemplate: 'page',
+            description: '',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: ['tags'],
+        ));
+
+        $scaffoldsDir = $this->scaffoldsDirectory();
+
+        $this->assertSame(
+            file_get_contents($scaffoldsDir . '/default/content/index.dj'),
+            file_get_contents($target . '/content/index.dj'),
+        );
+        $this->assertSame(
+            file_get_contents($scaffoldsDir . '/default/templates/page.sugar.php'),
+            file_get_contents($target . '/templates/page.sugar.php'),
+        );
+        $this->assertSame(
+            file_get_contents($scaffoldsDir . '/default/.gitignore'),
+            file_get_contents($target . '/.gitignore'),
+        );
+    }
+
+    /**
+     * Ensure the vite preset creates vite.config.js and package.json with npm-ready content.
+     */
+    public function testScaffoldVitePresetCreatesViteFiles(): void
+    {
+        $target = $this->createTempDirectory() . '/vite-site';
+        $service = $this->buildService();
+
+        $created = $service->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'vite-site',
+            siteTitle: 'Vite Site',
+            pageTemplate: 'page',
+            description: 'Vite-enabled description',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: ['tags'],
+            preset: 'vite',
+            force: false,
+        ));
+
+        $this->assertFileExists($target . '/vite.config.js');
+        $this->assertFileExists($target . '/package.json');
+        $this->assertFileExists($target . '/templates/layout/page.sugar.php');
+
+        $this->assertContains($target . '/vite.config.js', $created);
+        $this->assertContains($target . '/package.json', $created);
+
+        $viteLayout = file_get_contents($target . '/templates/layout/page.sugar.php');
+        $this->assertIsString($viteLayout);
+        $this->assertStringContainsString("<s-vite src=\"['assets/css/site.css']\" />", $viteLayout);
+
+        $viteConfig = file_get_contents($target . '/vite.config.js');
+        $this->assertIsString($viteConfig);
+        $this->assertStringContainsString('manifest: true', $viteConfig);
+        $this->assertStringContainsString("input: 'assets/css/site.css'", $viteConfig);
+
+        $package = file_get_contents($target . '/package.json');
+        $this->assertIsString($package);
+        $packageData = json_decode($package, true);
+        $this->assertIsArray($packageData);
+        $this->assertSame('vite-site', $packageData['name'] ?? null);
+        $this->assertSame('Vite-enabled description', $packageData['description'] ?? null);
+        $this->assertArrayHasKey('devDependencies', $packageData);
+        $this->assertIsArray($packageData['devDependencies']);
+        /** @var array<string, mixed> $devDeps */
+        $devDeps = $packageData['devDependencies'];
+        $this->assertSame('latest', $devDeps['vite'] ?? null);
+    }
+
+    /**
+     * Ensure the vite preset injects build and devServer vite config into glaze.neon.
+     */
+    public function testScaffoldVitePresetInjectsViteConfigIntoGlazeNeon(): void
+    {
+        $target = $this->createTempDirectory() . '/vite-site';
+        $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'vite-site',
+            siteTitle: 'Vite Site',
+            pageTemplate: 'page',
+            description: '',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: ['tags'],
+            preset: 'vite',
+        ));
+
+        $raw = file_get_contents($target . '/glaze.neon');
+        $this->assertIsString($raw);
+
+        $decoded = Neon::decode($raw);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('build', $decoded);
+        $this->assertArrayHasKey('devServer', $decoded);
+
+        /** @var array{vite: array{enabled: bool, command: string, defaultEntry: string}} $buildConfig */
+        $buildConfig = $decoded['build'];
+        $this->assertArrayHasKey('vite', $buildConfig);
+        $this->assertTrue($buildConfig['vite']['enabled']);
+        $this->assertSame('npm run build', $buildConfig['vite']['command']);
+        $this->assertSame('assets/css/site.css', $buildConfig['vite']['defaultEntry']);
+
+        /** @var array{vite: array{enabled: bool, port: int, defaultEntry: string}} $devServer */
+        $devServer = $decoded['devServer'];
+        $this->assertArrayHasKey('vite', $devServer);
+        $this->assertTrue($devServer['vite']['enabled']);
+        $this->assertSame(5173, $devServer['vite']['port']);
+        $this->assertSame('assets/css/site.css', $devServer['vite']['defaultEntry']);
+    }
+
+    /**
+     * Ensure scaffold rejects non-empty target directory when force is false.
      */
     public function testScaffoldRejectsNonEmptyTargetWithoutForce(): void
     {
@@ -97,12 +266,10 @@ final class ProjectScaffoldServiceTest extends TestCase
         mkdir($target, 0755, true);
         file_put_contents($target . '/keep.txt', 'keep');
 
-        $service = new ProjectScaffoldService();
-
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('is not empty');
 
-        $service->scaffold(new ScaffoldOptions(
+        $this->buildService()->scaffold(new ScaffoldOptions(
             targetDirectory: $target,
             siteName: 'site',
             siteTitle: 'Site',
@@ -116,7 +283,7 @@ final class ProjectScaffoldServiceTest extends TestCase
     }
 
     /**
-     * Ensure force allows writing into existing non-empty target directory.
+     * Ensure force allows scaffolding into a non-empty target directory.
      */
     public function testScaffoldAllowsForceForNonEmptyTarget(): void
     {
@@ -124,8 +291,7 @@ final class ProjectScaffoldServiceTest extends TestCase
         mkdir($target, 0755, true);
         file_put_contents($target . '/keep.txt', 'keep');
 
-        $service = new ProjectScaffoldService();
-        $service->scaffold(new ScaffoldOptions(
+        $this->buildService()->scaffold(new ScaffoldOptions(
             targetDirectory: $target,
             siteName: 'site',
             siteTitle: 'Site',
@@ -139,110 +305,94 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertFileExists($target . '/keep.txt');
         $this->assertFileExists($target . '/content/index.dj');
-        $this->assertFileExists($target . '/static/.gitkeep');
         $this->assertFileExists($target . '/templates/layout/page.sugar.php');
     }
 
     /**
-     * Ensure skeleton source path resolves to existing package skeleton directory.
+     * Ensure presetNames returns the names of all available presets.
      */
-    public function testSkeletonSourcePathResolvesExistingDirectory(): void
+    public function testPresetNamesReturnsAvailablePresets(): void
     {
-        $service = new ProjectScaffoldService();
-        $path = $this->callProtected($service, 'skeletonSourcePath');
+        $service = $this->buildService();
+        $names = $service->presetNames();
 
-        $this->assertIsString($path);
-        $this->assertDirectoryExists($path);
+        $this->assertContains('default', $names);
+        $this->assertContains('vite', $names);
     }
 
     /**
-     * Ensure Vite-enabled scaffolding writes vite.config.js and enables Vite settings in glaze.neon.
+     * Ensure requesting an unknown preset throws a RuntimeException.
      */
-    public function testScaffoldCreatesViteConfigurationWhenEnabled(): void
+    public function testScaffoldThrowsForUnknownPreset(): void
     {
-        $target = $this->createTempDirectory() . '/vite-site';
-        $service = new ProjectScaffoldService();
+        $target = $this->createTempDirectory() . '/new-site';
 
-        $service->scaffold(new ScaffoldOptions(
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Scaffold preset "nonexistent" not found');
+
+        $this->buildService()->scaffold(new ScaffoldOptions(
             targetDirectory: $target,
-            siteName: 'vite-site',
-            siteTitle: 'Vite Site',
+            siteName: 'site',
+            siteTitle: 'Site',
             pageTemplate: 'page',
-            description: 'Vite-enabled site description',
+            description: '',
             baseUrl: null,
             basePath: null,
-            taxonomies: ['tags', 'categories'],
-            enableVite: true,
-            force: false,
+            taxonomies: [],
+            preset: 'nonexistent',
         ));
-
-        $this->assertFileExists($target . '/vite.config.js');
-        $this->assertFileExists($target . '/package.json');
-
-        $viteConfig = file_get_contents($target . '/vite.config.js');
-        $this->assertIsString($viteConfig);
-        $this->assertStringContainsString('manifest: true', $viteConfig);
-        $this->assertStringContainsString("input: 'assets/css/site.css'", $viteConfig);
-
-        $package = file_get_contents($target . '/package.json');
-        $this->assertIsString($package);
-        $packageData = json_decode($package, true);
-        $this->assertIsArray($packageData);
-        $this->assertSame('vite-site', $packageData['name'] ?? null);
-        $this->assertSame('Vite-enabled site description', $packageData['description'] ?? null);
-        $this->assertArrayHasKey('devDependencies', $packageData);
-        $this->assertIsArray($packageData['devDependencies']);
-        /** @var array<string, mixed> $devDependencies */
-        $devDependencies = $packageData['devDependencies'];
-        $this->assertSame('latest', $devDependencies['vite'] ?? null);
-
-        $config = file_get_contents($target . '/glaze.neon');
-        $this->assertIsString($config);
-        $decoded = Neon::decode($config);
-        $this->assertIsArray($decoded);
-        $this->assertArrayHasKey('build', $decoded);
-        $this->assertArrayHasKey('devServer', $decoded);
-        $this->assertIsArray($decoded['build']);
-        $this->assertIsArray($decoded['devServer']);
-        /** @var array<string, mixed> $buildConfig */
-        $buildConfig = $decoded['build'];
-        /** @var array<string, mixed> $devServerConfig */
-        $devServerConfig = $decoded['devServer'];
-
-        $this->assertArrayHasKey('vite', $buildConfig);
-        $this->assertArrayHasKey('vite', $devServerConfig);
-        $this->assertIsArray($buildConfig['vite']);
-        $this->assertIsArray($devServerConfig['vite']);
-        /** @var array<string, mixed> $buildViteConfig */
-        $buildViteConfig = $buildConfig['vite'];
-        /** @var array<string, mixed> $devServerViteConfig */
-        $devServerViteConfig = $devServerConfig['vite'];
-
-        $this->assertTrue($buildViteConfig['enabled'] ?? null);
-        $this->assertSame('npm run build', $buildViteConfig['command'] ?? null);
-        $this->assertSame('assets/css/site.css', $buildViteConfig['defaultEntry'] ?? null);
-        $this->assertTrue($devServerViteConfig['enabled'] ?? null);
-        $this->assertSame(5173, $devServerViteConfig['port'] ?? null);
-        $this->assertSame('assets/css/site.css', $devServerViteConfig['defaultEntry'] ?? null);
     }
 
     /**
-     * Invoke a protected method on an object using scope-bound closure.
-     *
-     * @param object $object Object to invoke method on.
-     * @param string $method Protected method name.
-     * @param mixed ...$arguments Method arguments.
+     * Ensure scaffold returns list of all created file absolute paths.
      */
-    protected function callProtected(object $object, string $method, mixed ...$arguments): mixed
+    public function testScaffoldReturnsCreatedFilePaths(): void
     {
-        $invoker = Closure::bind(
-            function (string $method, mixed ...$arguments): mixed {
-                return $this->{$method}(...$arguments);
-            },
-            $object,
-            $object::class,
-        );
+        $target = $this->createTempDirectory() . '/paths-site';
+        $created = $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'site',
+            siteTitle: 'Site',
+            pageTemplate: 'page',
+            description: '',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: [],
+        ));
 
-        return $invoker($method, ...$arguments);
+        $this->assertNotEmpty($created);
+        foreach ($created as $path) {
+            $this->assertStringStartsWith($target, $path);
+            $this->assertFileExists($path);
+        }
+    }
+
+    /**
+     * Ensure description and optional site fields are omitted from glaze.neon when blank.
+     */
+    public function testScaffoldOmitsBlankOptionalSiteFields(): void
+    {
+        $target = $this->createTempDirectory() . '/minimal';
+        $this->buildService()->scaffold(new ScaffoldOptions(
+            targetDirectory: $target,
+            siteName: 'minimal',
+            siteTitle: 'Minimal',
+            pageTemplate: 'page',
+            description: '',
+            baseUrl: null,
+            basePath: null,
+            taxonomies: ['tags'],
+        ));
+
+        $raw = file_get_contents($target . '/glaze.neon');
+        $this->assertIsString($raw);
+        $decoded = Neon::decode($raw);
+        $this->assertIsArray($decoded);
+        $this->assertIsArray($decoded['site']);
+        /** @var array<string, mixed> $siteConfig */
+        $siteConfig = $decoded['site'];
+        $this->assertArrayNotHasKey('description', $siteConfig);
+        $this->assertArrayNotHasKey('baseUrl', $siteConfig);
+        $this->assertArrayNotHasKey('basePath', $siteConfig);
     }
 }

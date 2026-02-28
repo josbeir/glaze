@@ -17,10 +17,10 @@ With Glaze installed globally:
 glaze init my-site
 ```
 
-To scaffold Vite setup (`vite.config.js`, `package.json`, and Vite-enabled `glaze.neon` defaults):
+To scaffold a Vite setup (`vite.config.js`, `package.json`, and Vite-enabled `glaze.neon` defaults), use the `vite` preset:
 
 ```bash
-glaze init my-site --vite
+glaze init my-site --preset vite
 ```
 
 Glaze asks a few questions interactively (title, base URL, taxonomies). To skip all prompts:
@@ -41,7 +41,7 @@ my-site/
   glaze.neon
 ```
 
-When `--vite` is enabled, it also creates:
+When `--preset vite` is used, it also adds:
 
 ```
 my-site/
@@ -91,17 +91,17 @@ glaze serve
 
 Open `http://127.0.0.1:8080`. The server renders each page on request -- edit content or templates and refresh to see changes immediately.
 
-If you enabled Vite, install dependencies and start Glaze + Vite together:
+If you used the Vite preset, install dependencies and start Glaze + Vite together:
 
 ```bash
 npm install
 glaze serve --vite
 ```
 
-Then reference assets in your template using Sugar's Vite directive:
+Then reference assets in your layout template using Sugar's Vite directive:
 
 ```php
-<s-template s:vite="'assets/css/site.css'" />
+<s-vite src="['assets/css/site.css']" />
 ```
 
 ## Add a page
@@ -160,3 +160,4 @@ You have a working site. From here:
 - [Templating](templating.dj) — Sugar layouts, components, variables, and directives
 - [Frontmatter](frontmatter.dj) — full metadata field reference
 - [Commands](commands.dj) — complete CLI option reference
+- [Scaffold presets](scaffolding.dj) — built-in presets, custom presets, and `scaffold.neon` format

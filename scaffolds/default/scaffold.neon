@@ -1,0 +1,11 @@
+name: default
+description: Minimal Glaze starter project with basic templates and content structure
+
+files:
+	- .editorconfig
+	- .gitignore
+	- content/index.dj
+	- static/.gitkeep
+	- templates/page.sugar.php
+	- templates/layout/page.sugar.php
+	- assets/css/site.css

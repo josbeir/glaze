@@ -5,6 +5,9 @@ namespace Glaze\Scaffold;
 
 /**
  * Immutable options for project scaffolding.
+ *
+ * The `preset` value must match the name of a scaffold directory registered
+ * in the `ScaffoldRegistry` (e.g. `default`, `vite`).
  */
 final class ScaffoldOptions
 {
@@ -19,7 +22,7 @@ final class ScaffoldOptions
      * @param string|null $baseUrl Optional canonical site base URL.
      * @param string|null $basePath Optional site base path for subfolder deployments.
      * @param array<string> $taxonomies Taxonomy keys.
-     * @param bool $enableVite Whether Vite integration should be scaffolded.
+     * @param string $preset Scaffold preset name to use (default: `default`).
      * @param bool $force Whether existing files can be overwritten.
      */
     public function __construct(
@@ -31,7 +34,7 @@ final class ScaffoldOptions
         public readonly ?string $baseUrl,
         public readonly ?string $basePath,
         public readonly array $taxonomies,
-        public readonly bool $enableVite = false,
+        public readonly string $preset = 'default',
         public readonly bool $force = false,
     ) {
     }

@@ -1,0 +1,124 @@
+---
+title: Scaffold Presets
+weight: 45
+group: Reference
+---
+# Scaffold Presets
+
+`glaze init` creates a new project by applying a **scaffold preset** — a named bundle of starter files and `glaze.neon` config defaults. Glaze ships two built-in presets and supports custom ones you point to on disk.
+
+## Built-in presets
+
+| Preset | Description |
+|---|---|
+| `default` | Minimal starter — templates, content stub, CSS placeholder |
+| `vite` | Everything in `default` plus `vite.config.js`, `package.json`, and a Vite-ready layout |
+
+```bash
+glaze init my-site                  # uses default
+glaze init my-site --preset vite    # uses vite
+```
+
+## Creating a custom preset
+
+A preset is a directory containing a `scaffold.neon` schema and whatever files you want copied into the new project.
+
+```
+my-company-preset/
+  scaffold.neon
+  templates/
+    layout/
+      page.sugar.php
+  assets/
+    css/
+      site.css
+  content/
+    index.dj
+```
+
+Use it with a relative or absolute path:
+
+```bash
+glaze init my-site --preset ./my-company-preset
+glaze init my-site --preset /home/user/presets/my-company-preset
+```
+
+### Extending a built-in preset
+
+The easiest way to start is to extend `default` or `vite` and only supply what differs. Files are merged by destination path — your files win over the parent's.
+
+`scaffold.neon`:
+
+```neon
+name: my-company-preset
+description: Company starter with custom layout
+extends: default
+
+config:
+  site:
+    meta:
+      robots: index,follow
+
+files:
+  - templates/layout/page.sugar.php
+```
+
+This inherits all files from `default`, then replaces only `templates/layout/page.sugar.php` with your version. The `config` block is deep-merged on top of the parent's.
+
+### Fully standalone preset
+
+Omit `extends` and list every file explicitly:
+
+```neon
+name: my-standalone-preset
+description: Fully custom starter
+
+files:
+  - templates/layout/page.sugar.php
+  - templates/page.sugar.php
+  - content/index.dj
+  - assets/css/site.css
+  - .gitignore
+```
+
+### Template files
+
+Any file with a `.tpl` extension is rendered before writing — the `.tpl` suffix is stripped from the destination name. Use `{variable}` tokens for user-supplied values:
+
+```
+my-preset/
+  package.json.tpl   →  written as package.json
+```
+
+Available variables:
+
+| Variable | Value |
+|---|---|
+| `{siteName}` | Project directory name |
+| `{siteTitle}` | Human-readable site title |
+| `{pageTemplate}` | Default page template name |
+| `{siteNameJson}` | JSON-encoded `siteName` |
+| `{siteDescriptionJson}` | JSON-encoded site description |
+
+Example `package.json.tpl`:
+
+```json
+{
+  "name": {siteNameJson},
+  "description": {siteDescriptionJson},
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+```
+
+### Explicit source → destination mapping
+
+If a file in your preset directory has a different name than its destination, use the object notation:
+
+```neon
+files:
+  - { src: gitignore.txt, dest: .gitignore }
+```
+

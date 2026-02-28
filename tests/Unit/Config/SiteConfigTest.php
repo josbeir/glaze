@@ -167,4 +167,30 @@ final class SiteConfigTest extends TestCase
         $this->assertSame('Build fast', $config->meta('hero.title'));
         $this->assertSame('index,follow', $config->meta('robots'));
     }
+
+    /**
+     * Ensure empty-path metadata checks reflect whether any metadata exists.
+     */
+    public function testHasSiteMetaForEmptyPathReflectsMetadataPresence(): void
+    {
+        $empty = SiteConfig::fromProjectConfig(['title' => 'Only title']);
+        $withMeta = SiteConfig::fromProjectConfig(['hero' => ['title' => 'Build fast']]);
+
+        $this->assertFalse($empty->hasSiteMeta(''));
+        $this->assertTrue($withMeta->hasSiteMeta(''));
+    }
+
+    /**
+     * Ensure empty-string root keys are ignored when extracting custom metadata.
+     */
+    public function testFromProjectConfigIgnoresEmptyStringRootMetadataKey(): void
+    {
+        $config = SiteConfig::fromProjectConfig([
+            1 => 'ignore-numeric-key',
+            '' => 'ignore-me',
+            'hero' => ['title' => 'Build fast'],
+        ]);
+
+        $this->assertSame(['hero' => ['title' => 'Build fast']], $config->meta);
+    }
 }

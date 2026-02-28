@@ -3,51 +3,107 @@ declare(strict_types=1);
 
 namespace Glaze\Scaffold;
 
-use JsonException;
 use Nette\Neon\Neon;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use RuntimeException;
-use SplFileInfo;
 
 /**
- * Creates a new Glaze project directory with starter content and templates.
+ * Creates a new Glaze project directory from a scaffold preset definition.
+ *
+ * The service loads a `ScaffoldSchema` from the registry using the preset name
+ * declared in `ScaffoldOptions`, then processes each file entry defined by the
+ * schema. Static files are copied directly; template files (`.tpl`) are rendered
+ * via `TemplateRenderer` with variables derived from the options.
+ *
+ * A `glaze.neon` configuration file is always generated from the user-supplied
+ * options and is deep-merged with any extra `config` block defined in the schema,
+ * allowing presets to contribute additional configuration sections (e.g., Vite
+ * build settings).
+ *
+ * Example:
+ * ```php
+ * $service = new ProjectScaffoldService($registry, $renderer);
+ * $created = $service->scaffold($options); // returns absolute paths of created files
+ * ```
  */
 final class ProjectScaffoldService
 {
     /**
-     * Create a new project scaffold on disk.
+     * Constructor.
      *
-     * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     * @param \Glaze\Scaffold\ScaffoldRegistry $registry Scaffold preset registry.
+     * @param \Glaze\Scaffold\TemplateRenderer $renderer Template variable renderer.
      */
-    public function scaffold(ScaffoldOptions $options): void
-    {
-        $this->guardTargetDirectory($options->targetDirectory, $options->force);
-        $this->ensureDirectory($options->targetDirectory);
-        $this->copySkeleton($options->targetDirectory);
-        $this->writeFile(
-            $options->targetDirectory . DIRECTORY_SEPARATOR . 'glaze.neon',
-            $this->buildProjectConfig($options),
-        );
-
-        if ($options->enableVite) {
-            $this->writeFile(
-                $options->targetDirectory . DIRECTORY_SEPARATOR . 'vite.config.js',
-                $this->buildViteConfig(),
-            );
-
-            $this->writeFile(
-                $options->targetDirectory . DIRECTORY_SEPARATOR . 'package.json',
-                $this->buildPackageJson($options),
-            );
-        }
+    public function __construct(
+        protected readonly ScaffoldRegistry $registry,
+        protected readonly TemplateRenderer $renderer,
+    ) {
     }
 
     /**
-     * Guard target directory state before scaffold writes.
+     * Scaffold a new project into the target directory.
      *
-     * @param string $targetDirectory Target project directory.
+     * Loads the preset schema from the registry, guards the target directory,
+     * processes all file entries (copy or render), and generates `glaze.neon`.
+     * Returns the absolute paths of all files written to disk.
+     *
+     * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     * @return list<string> Absolute paths of all files written during scaffolding.
+     * @throws \RuntimeException If the target directory is non-empty and force is not set,
+     *   or if any file operation fails.
+     */
+    public function scaffold(ScaffoldOptions $options): array
+    {
+        $schema = $this->registry->get($options->preset);
+
+        $this->guardTargetDirectory($options->targetDirectory, $options->force);
+        $this->ensureDirectory($options->targetDirectory);
+
+        $variables = $this->buildTemplateVariables($options);
+        $created = [];
+
+        foreach ($schema->files as $fileEntry) {
+            $destinationPath = $this->resolveDestinationPath(
+                $options->targetDirectory,
+                $fileEntry->destination,
+            );
+            $this->ensureDirectory(dirname($destinationPath));
+
+            if ($fileEntry->isTemplate) {
+                $source = $this->readFile($fileEntry->absoluteSource);
+                $content = $this->renderer->render($source, $variables);
+                $this->writeFile($destinationPath, $content);
+            } else {
+                $this->copyFile($fileEntry->absoluteSource, $destinationPath);
+            }
+
+            $created[] = $destinationPath;
+        }
+
+        $glazeNeonPath = $options->targetDirectory . DIRECTORY_SEPARATOR . 'glaze.neon';
+        $this->writeFile($glazeNeonPath, $this->buildGlazeNeon($options, $schema));
+        $created[] = $glazeNeonPath;
+
+        return $created;
+    }
+
+    /**
+     * Return the names of all available scaffold presets.
+     *
+     * @return list<string>
+     */
+    public function presetNames(): array
+    {
+        return $this->registry->names();
+    }
+
+    /**
+     * Guard the target directory state before scaffold writes.
+     *
+     * Throws when the directory is non-empty and force is not enabled.
+     *
+     * @param string $targetDirectory Target project directory path.
      * @param bool $force Whether writes can overwrite existing files.
+     * @throws \RuntimeException If the directory is non-empty and force is false.
      */
     protected function guardTargetDirectory(string $targetDirectory, bool $force): void
     {
@@ -60,12 +116,12 @@ final class ProjectScaffoldService
             throw new RuntimeException(sprintf('Unable to inspect target directory "%s".', $targetDirectory));
         }
 
-        $visibleEntries = array_values(array_filter(
+        $visible = array_values(array_filter(
             $entries,
             static fn(string $entry): bool => $entry !== '.' && $entry !== '..',
         ));
 
-        if ($visibleEntries === [] || $force) {
+        if ($visible === [] || $force) {
             return;
         }
 
@@ -76,9 +132,10 @@ final class ProjectScaffoldService
     }
 
     /**
-     * Ensure a directory exists.
+     * Ensure a directory exists, creating it recursively if necessary.
      *
-     * @param string $directory Directory path.
+     * @param string $directory Absolute directory path.
+     * @throws \RuntimeException If the directory cannot be created.
      */
     protected function ensureDirectory(string $directory): void
     {
@@ -92,93 +149,101 @@ final class ProjectScaffoldService
     }
 
     /**
-     * Write a file to disk.
+     * Resolve an absolute destination file path from the target directory and a relative path.
      *
-     * @param string $path File path.
-     * @param string $content File content.
+     * @param string $targetDirectory Absolute project target directory.
+     * @param string $relativePath Relative file path (forward-slash separated).
+     */
+    protected function resolveDestinationPath(string $targetDirectory, string $relativePath): string
+    {
+        return rtrim($targetDirectory, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, ltrim($relativePath, '/'));
+    }
+
+    /**
+     * Copy a source file to a destination path.
+     *
+     * @param string $source Absolute source path.
+     * @param string $destination Absolute destination path.
+     * @throws \RuntimeException If the copy fails.
+     */
+    protected function copyFile(string $source, string $destination): void
+    {
+        if (!copy($source, $destination)) {
+            throw new RuntimeException(sprintf('Unable to copy file "%s" to "%s".', $source, $destination));
+        }
+    }
+
+    /**
+     * Read a file from disk and return its content as a string.
+     *
+     * @param string $path Absolute file path.
+     * @throws \RuntimeException If the file cannot be read.
+     */
+    protected function readFile(string $path): string
+    {
+        $content = file_get_contents($path);
+        if ($content === false) {
+            throw new RuntimeException(sprintf('Unable to read file "%s".', $path));
+        }
+
+        return $content;
+    }
+
+    /**
+     * Write content to a file on disk.
+     *
+     * @param string $path Absolute file path.
+     * @param string $content File content to write.
+     * @throws \RuntimeException If the write fails.
      */
     protected function writeFile(string $path, string $content): void
     {
-        $written = file_put_contents($path, $content);
-        if ($written === false) {
+        if (file_put_contents($path, $content) === false) {
             throw new RuntimeException(sprintf('Unable to write file "%s".', $path));
         }
     }
 
     /**
-     * Copy skeleton project files from package into target path.
+     * Build the template variable map from scaffold options.
      *
-     * @param string $targetDirectory Target directory path.
-     */
-    protected function copySkeleton(string $targetDirectory): void
-    {
-        $this->copyDirectory($this->skeletonSourcePath(), $targetDirectory);
-    }
-
-    /**
-     * Resolve skeleton source path from package root.
-     */
-    protected function skeletonSourcePath(): string
-    {
-        $root = dirname(__DIR__, 2);
-        $sourceDirectory = $root . DIRECTORY_SEPARATOR . 'skeleton';
-
-        if (!is_dir($sourceDirectory)) {
-            throw new RuntimeException('Skeleton directory does not exist.');
-        }
-
-        return $sourceDirectory;
-    }
-
-    /**
-     * Recursively copy a directory to destination.
-     *
-     * @param string $sourceDirectory Source directory path.
-     * @param string $targetDirectory Target directory path.
-     */
-    protected function copyDirectory(string $sourceDirectory, string $targetDirectory): void
-    {
-        $this->ensureDirectory($targetDirectory);
-
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($sourceDirectory, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST,
-        );
-
-        foreach ($iterator as $entry) {
-            if (!$entry instanceof SplFileInfo) {
-                continue;
-            }
-
-            $relativePath = $iterator->getSubPathName();
-            $destinationPath = $targetDirectory . DIRECTORY_SEPARATOR . $relativePath;
-
-            if ($entry->isDir()) {
-                $this->ensureDirectory($destinationPath);
-
-                continue;
-            }
-
-            if (!$entry->isFile()) {
-                continue;
-            }
-
-            if (!copy($entry->getPathname(), $destinationPath)) {
-                throw new RuntimeException(sprintf('Unable to copy file "%s".', $entry->getPathname()));
-            }
-        }
-    }
-
-    /**
-     * Build project configuration file.
+     * Provides plain string variables for use in NEON/text templates as well as
+     * JSON-encoded variants (`*Json`) for inclusion directly inside JSON templates
+     * without manual escaping.
      *
      * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     * @return array<string, string>
      */
-    protected function buildProjectConfig(ScaffoldOptions $options): string
+    protected function buildTemplateVariables(ScaffoldOptions $options): array
     {
-        $siteConfig = [
-            'title' => $options->siteTitle,
+        $siteDescription = trim($options->description) !== ''
+            ? $options->description
+            : $options->siteTitle;
+
+        return [
+            'siteName' => $options->siteName,
+            'siteTitle' => $options->siteTitle,
+            'pageTemplate' => $options->pageTemplate,
+            'description' => $options->description,
+            'siteNameJson' => json_encode($options->siteName, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'siteDescriptionJson' => json_encode($siteDescription, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
         ];
+    }
+
+    /**
+     * Generate the `glaze.neon` configuration file content.
+     *
+     * Builds the base configuration from the scaffold options, deep-merges any
+     * additional config contributed by the schema preset, and appends a commented
+     * reference block listing all available configuration options.
+     *
+     * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     * @param \Glaze\Scaffold\ScaffoldSchema $schema Resolved scaffold schema.
+     */
+    protected function buildGlazeNeon(ScaffoldOptions $options, ScaffoldSchema $schema): string
+    {
+        $siteConfig = ['title' => $options->siteTitle];
 
         if (trim($options->description) !== '') {
             $siteConfig['description'] = $options->description;
@@ -192,106 +257,53 @@ final class ProjectScaffoldService
             $siteConfig['basePath'] = trim($options->basePath);
         }
 
-        $projectConfig = [
+        $config = [
             'pageTemplate' => $options->pageTemplate,
             'site' => $siteConfig,
             'taxonomies' => $options->taxonomies,
         ];
 
-        if ($options->enableVite) {
-            $projectConfig = array_merge($projectConfig, $this->viteProjectConfig());
+        if ($schema->config !== []) {
+            $config = $this->deepMerge($config, $schema->config);
         }
 
-        return Neon::encode($projectConfig, true)
+        return Neon::encode($config, true)
             . PHP_EOL
-            . $this->commentedOptionsTemplate();
+            . $this->commentedOptionsBlock();
     }
 
     /**
-     * Build Vite configuration section for glaze.neon.
+     * Recursively deep-merge two arrays with the override array taking precedence.
      *
-     * @return array{build: array{vite: array{enabled: bool, command: string, defaultEntry: string}}, devServer: array{vite: array{enabled: bool, host: string, port: int, command: string, defaultEntry: string}}}
-     */
-    protected function viteProjectConfig(): array
-    {
-        return [
-            'build' => [
-                'vite' => [
-                    'enabled' => true,
-                    'command' => 'npm run build',
-                    'defaultEntry' => 'assets/css/site.css',
-                ],
-            ],
-            'devServer' => [
-                'vite' => [
-                    'enabled' => true,
-                    'host' => '127.0.0.1',
-                    'port' => 5173,
-                    'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
-                    'defaultEntry' => 'assets/css/site.css',
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Build default Vite configuration file content.
-     */
-    protected function buildViteConfig(): string
-    {
-        return <<<JS
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  build: {
-    outDir: 'public',
-        manifest: true,
-        emptyOutDir: false,
-        rollupOptions: {
-            input: 'assets/css/site.css',
-        },
-  },
-});
-JS;
-    }
-
-    /**
-     * Build package.json content for Vite-enabled projects.
+     * String-keyed sub-arrays are merged recursively; other values (including
+     * numeric-keyed arrays) are overwritten by the override value.
      *
-     * @param \Glaze\Scaffold\ScaffoldOptions $options Scaffold options.
+     * @param array<mixed> $base Base configuration.
+     * @param array<mixed> $override Override values that take precedence.
+     * @return array<mixed>
      */
-    protected function buildPackageJson(ScaffoldOptions $options): string
+    protected function deepMerge(array $base, array $override): array
     {
-        $description = trim($options->description);
-        if ($description === '') {
-            $description = $options->siteTitle;
+        $merged = $base;
+
+        foreach ($override as $key => $value) {
+            if (is_string($key) && isset($merged[$key]) && is_array($merged[$key]) && is_array($value)) {
+                $merged[$key] = $this->deepMerge($merged[$key], $value);
+            } else {
+                $merged[$key] = $value;
+            }
         }
 
-        $package = [
-            'name' => $options->siteName,
-            'description' => $description,
-            'private' => true,
-            'scripts' => [
-                'dev' => 'vite',
-                'build' => 'vite build',
-            ],
-            'devDependencies' => [
-                'vite' => 'latest',
-            ],
-        ];
-
-        try {
-            return json_encode($package, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-                . PHP_EOL;
-        } catch (JsonException $jsonException) {
-            throw new RuntimeException('Unable to generate package.json.', 0, $jsonException);
-        }
+        return $merged;
     }
 
     /**
-     * Build commented reference block with available configuration options.
+     * Build a commented reference block listing all available configuration options.
+     *
+     * This block is appended to the generated `glaze.neon` to help users discover
+     * available settings without needing to consult external documentation.
      */
-    protected function commentedOptionsTemplate(): string
+    protected function commentedOptionsBlock(): string
     {
         return <<<NEON
 # --- Available options (uncomment and adjust as needed) ---

@@ -16,6 +16,8 @@ use Glaze\Command\ServeCommand;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Image\ImageTransformerInterface;
+use Glaze\Scaffold\ScaffoldRegistry;
+use Glaze\Scaffold\ScaffoldSchemaLoader;
 use League\Container\ReflectionContainer;
 
 /**
@@ -62,6 +64,15 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
                 $presetResolver = $container->get(ImagePresetResolver::class);
 
                 return new GlideImageTransformer($presetResolver);
+            },
+        );
+
+        $container->addShared(
+            ScaffoldRegistry::class,
+            static function (): ScaffoldRegistry {
+                $scaffoldsDirectory = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'scaffolds';
+
+                return new ScaffoldRegistry($scaffoldsDirectory, new ScaffoldSchemaLoader());
             },
         );
     }

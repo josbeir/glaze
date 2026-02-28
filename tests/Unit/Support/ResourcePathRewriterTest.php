@@ -140,4 +140,47 @@ final class ResourcePathRewriterTest extends TestCase
 
         $this->assertSame('docs/images/hero.png', $normalized);
     }
+
+    /**
+     * Ensure Djot rewrite short-circuits for empty and external resource paths.
+     */
+    public function testRewriteDjotResourcePathReturnsUnchangedForExternalAndEmptyValues(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+        $siteConfig = new SiteConfig(basePath: '/docs');
+
+        $this->assertSame('', $rewriter->rewriteDjotResourcePath('', 'guides/intro.dj', $siteConfig));
+        $this->assertSame(
+            'https://example.com/app.css',
+            $rewriter->rewriteDjotResourcePath('https://example.com/app.css', 'guides/intro.dj', $siteConfig),
+        );
+    }
+
+    /**
+     * Ensure base path stripping handles exact match and missing base path.
+     */
+    public function testStripBasePathFromPathHandlesExactBasePathAndNoConfiguredBasePath(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $withBasePath = new SiteConfig(basePath: '/docs');
+        $withoutBasePath = new SiteConfig(basePath: null);
+
+        $this->assertSame('/', $rewriter->stripBasePathFromPath('/docs', $withBasePath));
+        $this->assertSame('/images/photo.jpg', $rewriter->stripBasePathFromPath('images/photo.jpg', $withoutBasePath));
+    }
+
+    /**
+     * Ensure applyBasePathToPath preserves query/hash suffixes and passes through when no base path is configured.
+     */
+    public function testApplyBasePathToPathPreservesSuffixAndPassesThroughWithoutBasePath(): void
+    {
+        $rewriter = new ResourcePathRewriter();
+
+        $withBasePath = new SiteConfig(basePath: '/docs');
+        $withoutBasePath = new SiteConfig(basePath: null);
+
+        $this->assertSame('/docs/assets/app.css?v=1#top', $rewriter->applyBasePathToPath('/assets/app.css?v=1#top', $withBasePath));
+        $this->assertSame('/assets/app.css?v=1#top', $rewriter->applyBasePathToPath('/assets/app.css?v=1#top', $withoutBasePath));
+    }
 }

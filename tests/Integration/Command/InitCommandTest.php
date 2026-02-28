@@ -25,7 +25,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
         $this->assertOutputContains('--base-url');
         $this->assertOutputContains('--base-path');
         $this->assertOutputContains('--taxonomies');
-        $this->assertOutputContains('--vite');
+        $this->assertOutputContains('--preset');
         $this->assertOutputContains('--skip-install');
         $this->assertOutputContains('--yes');
     }
@@ -57,14 +57,14 @@ final class InitCommandTest extends IntegrationCommandTestCase
     }
 
     /**
-     * Ensure Vite option generates vite config file and enables Vite in project config.
+     * Ensure vite preset generates vite config file and enables Vite in project config.
      */
     public function testInitCommandCreatesViteConfigurationWhenEnabled(): void
     {
         $target = $this->createTempDirectory() . '/vite-site';
 
         $this->exec(sprintf(
-            'init "%s" --name "vite-site" --title "Vite Site" --vite --skip-install --yes',
+            'init "%s" --name "vite-site" --title "Vite Site" --preset vite --skip-install --yes',
             $target,
         ));
 
@@ -86,7 +86,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->exec(
             sprintf('init "%s"', $target),
-            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories', 'no'],
+            ['interactive-site', 'Interactive Site', 'Interactive description', 'https://interactive.example', '/interactive', 'tags,categories', 'default'],
         );
 
         $this->assertExitCode(0);
@@ -110,7 +110,7 @@ final class InitCommandTest extends IntegrationCommandTestCase
 
         $this->exec(
             'init',
-            [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories', 'no'],
+            [$target, 'prompted-directory-site', 'Prompted Site', 'Prompted description', 'https://prompted.example', '/prompted', 'tags,categories', 'default'],
         );
 
         $this->assertExitCode(0);

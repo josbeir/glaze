@@ -81,4 +81,38 @@ final class ViteServeProcessTest extends TestCase
         $process = new ViteServeProcess();
         $process->stop('not-a-process');
     }
+
+    /**
+     * Ensure commandLine replaces host and port placeholders.
+     */
+    public function testCommandLineReplacesHostAndPortPlaceholders(): void
+    {
+        $process = new ViteServeProcess();
+        $configuration = [
+            'host' => '0.0.0.0',
+            'port' => 5173,
+            'command' => 'npm run dev -- --host {host} --port {port}',
+        ];
+
+        $commandLine = $process->commandLine($configuration);
+
+        $this->assertSame('npm run dev -- --host 0.0.0.0 --port 5173', $commandLine);
+    }
+
+    /**
+     * Ensure url returns the expected Vite server URL.
+     */
+    public function testUrlReturnsExpectedServerUrl(): void
+    {
+        $process = new ViteServeProcess();
+        $configuration = [
+            'host' => '127.0.0.1',
+            'port' => 5173,
+            'command' => 'npm run dev',
+        ];
+
+        $url = $process->url($configuration);
+
+        $this->assertSame('http://127.0.0.1:5173', $url);
+    }
 }
