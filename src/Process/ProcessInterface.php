@@ -1,21 +1,21 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Serve;
+namespace Glaze\Process;
 
 /**
- * Shared lifecycle contract for serve-related background/runtime processes.
+ * Shared lifecycle contract for background/runtime processes.
  */
-interface ServeProcessInterface
+interface ProcessInterface
 {
     /**
      * Start process runtime for the given configuration.
      *
-     * @param object $configuration Process-specific configuration value object.
+     * @param array<string, mixed> $configuration Process-specific configuration.
      * @param string $workingDirectory Working directory to use while starting.
      * @return mixed Process runtime handle or exit code, depending on implementation.
      */
-    public function start(object $configuration, string $workingDirectory): mixed;
+    public function start(array $configuration, string $workingDirectory): mixed;
 
     /**
      * Stop previously started process runtime.

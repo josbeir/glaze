@@ -9,8 +9,7 @@ use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Serve\ViteBuildConfig;
-use Glaze\Serve\ViteBuildService;
+use Glaze\Process\ViteBuildProcess;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\ProjectRootResolver;
 use Throwable;
@@ -25,13 +24,13 @@ final class BuildCommand extends AbstractGlazeCommand
      *
      * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
      * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
-     * @param \Glaze\Serve\ViteBuildService $viteBuildService Vite build service.
+     * @param \Glaze\Process\ViteBuildProcess $viteBuildProcess Vite build process.
      * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
         protected SiteBuilder $siteBuilder,
         protected ProjectConfigurationReader $projectConfigurationReader,
-        protected ViteBuildService $viteBuildService,
+        protected ViteBuildProcess $viteBuildProcess,
         protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
@@ -126,10 +125,10 @@ final class BuildCommand extends AbstractGlazeCommand
                 $io->overwrite($formatStageMessage($doneIcon, 'Clean', 'Skipping output cleanup...'));
             }
 
-            if ($viteBuildConfiguration->enabled) {
+            if ($viteBuildConfiguration['enabled']) {
                 $viteMessage = $formatStageMessage($pendingIcon, 'Vite', 'Running Vite build...');
                 $io->out($viteMessage, 0);
-                $this->viteBuildService->run($viteBuildConfiguration, $projectRoot);
+                $this->viteBuildProcess->start($viteBuildConfiguration, $projectRoot);
                 $io->overwrite($formatStageMessage($doneIcon, 'Vite', 'Running Vite build...'));
             } else {
                 $viteMessage = $formatStageMessage($pendingIcon, 'Vite', 'Skipping Vite build (disabled)...');
@@ -191,8 +190,9 @@ final class BuildCommand extends AbstractGlazeCommand
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
      * @param array<string, mixed> $buildConfiguration Build configuration map.
+     * @return array{enabled: bool, command: string}
      */
-    protected function resolveViteBuildConfiguration(Arguments $args, array $buildConfiguration): ViteBuildConfig
+    protected function resolveViteBuildConfiguration(Arguments $args, array $buildConfiguration): array
     {
         $viteConfiguration = $buildConfiguration['vite'] ?? null;
         if (!is_array($viteConfiguration)) {
@@ -206,10 +206,10 @@ final class BuildCommand extends AbstractGlazeCommand
             ?? Normalization::optionalString($viteConfiguration['command'] ?? null)
             ?? 'npm run build';
 
-        return new ViteBuildConfig(
-            enabled: $enabled,
-            command: $command,
-        );
+        return [
+            'enabled' => $enabled,
+            'command' => $command,
+        ];
     }
 
     /**

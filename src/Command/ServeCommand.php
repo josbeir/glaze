@@ -9,10 +9,8 @@ use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Serve\PhpServerConfig;
-use Glaze\Serve\PhpServerService;
-use Glaze\Serve\ViteProcessService;
-use Glaze\Serve\ViteServeConfig;
+use Glaze\Process\PhpServerProcess;
+use Glaze\Process\ViteServeProcess;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\ProjectRootResolver;
 use InvalidArgumentException;
@@ -28,15 +26,15 @@ final class ServeCommand extends AbstractGlazeCommand
      *
      * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
      * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
-     * @param \Glaze\Serve\ViteProcessService $viteProcessService Vite process service.
-     * @param \Glaze\Serve\PhpServerService $phpServerService PHP server service.
+     * @param \Glaze\Process\ViteServeProcess $viteServeProcess Vite process service.
+     * @param \Glaze\Process\PhpServerProcess $phpServerProcess PHP server process.
      * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
         protected SiteBuilder $siteBuilder,
         protected ProjectConfigurationReader $projectConfigurationReader,
-        protected ViteProcessService $viteProcessService,
-        protected PhpServerService $phpServerService,
+        protected ViteServeProcess $viteServeProcess,
+        protected PhpServerProcess $phpServerProcess,
         protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
@@ -129,8 +127,9 @@ final class ServeCommand extends AbstractGlazeCommand
         $isStaticMode = (bool)$args->getOption('static');
         $includeDrafts = !$isStaticMode || (bool)$args->getOption('drafts');
         $viteConfiguration = $this->resolveViteConfiguration($args, $projectRoot);
+        /** @var array{enabled: bool, host: string, port: int, command: string} $viteConfiguration */
 
-        if ($viteConfiguration->enabled && $isStaticMode) {
+        if ($viteConfiguration['enabled'] && $isStaticMode) {
             $io->err('<error>--vite can only be used in live mode (without --static).</error>');
 
             return self::CODE_ERROR;
@@ -171,14 +170,15 @@ final class ServeCommand extends AbstractGlazeCommand
                 $isStaticMode,
                 $verbose,
             );
-            $this->phpServerService->assertCanRun($phpServerConfiguration);
+            /** @var array{host: string, port: int, docRoot: string, projectRoot: string, staticMode: bool, streamOutput: bool} $phpServerConfiguration */
+            $this->phpServerProcess->assertCanRun($phpServerConfiguration);
         } catch (InvalidArgumentException $invalidArgumentException) {
             $io->err(sprintf('<error>%s</error>', $invalidArgumentException->getMessage()));
 
             return self::CODE_ERROR;
         }
 
-        $address = $phpServerConfiguration->address();
+        $address = $this->phpServerProcess->address($phpServerConfiguration);
         if ($verbose) {
             if ($isStaticMode) {
                 $io->out(sprintf('Serving static output from %s at http://%s', $docRoot, $address));
@@ -186,8 +186,8 @@ final class ServeCommand extends AbstractGlazeCommand
                 $io->out(sprintf('Serving live templates/content from %s at http://%s', $projectRoot, $address));
             }
 
-            if ($viteConfiguration->enabled) {
-                $io->out(sprintf('Vite integration enabled at %s', $viteConfiguration->url()));
+            if ($viteConfiguration['enabled']) {
+                $io->out(sprintf('Vite integration enabled at %s', $this->viteServeProcess->url($viteConfiguration)));
             }
 
             $io->out('Press Ctrl+C to stop.');
@@ -203,9 +203,9 @@ final class ServeCommand extends AbstractGlazeCommand
         }
 
         $viteProcess = null;
-        if (!$isStaticMode && $viteConfiguration->enabled) {
+        if (!$isStaticMode && $viteConfiguration['enabled']) {
             try {
-                $viteProcess = $this->viteProcessService->start($viteConfiguration, $projectRoot);
+                $viteProcess = $this->viteServeProcess->start($viteConfiguration, $projectRoot);
             } catch (RuntimeException $runtimeException) {
                 $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));
                 $this->restoreEnvironment($previousEnvironment);
@@ -217,7 +217,7 @@ final class ServeCommand extends AbstractGlazeCommand
         $exitCode = self::CODE_SUCCESS;
 
         try {
-            $exitCode = $this->phpServerService->start(
+            $exitCode = $this->phpServerProcess->start(
                 $phpServerConfiguration,
                 $projectRoot,
                 static function (string $type, string $buffer) use ($io): void {
@@ -236,7 +236,7 @@ final class ServeCommand extends AbstractGlazeCommand
                 },
             );
         } finally {
-            $this->viteProcessService->stop($viteProcess);
+            $this->viteServeProcess->stop($viteProcess);
 
             if (!$isStaticMode) {
                 $this->restoreEnvironment($previousEnvironment);
@@ -251,19 +251,19 @@ final class ServeCommand extends AbstractGlazeCommand
      *
      * @param string $projectRoot Project root directory.
      * @param bool $includeDrafts Whether draft pages should be included.
-     * @param \Glaze\Serve\ViteServeConfig $viteConfiguration Vite runtime configuration.
+     * @param array{enabled: bool, host: string, port: int, command: string} $viteConfiguration Vite runtime configuration.
      * @return array<string, string>
      */
     protected function buildLiveEnvironment(
         string $projectRoot,
         bool $includeDrafts,
-        ViteServeConfig $viteConfiguration,
+        array $viteConfiguration,
     ): array {
         return [
             'GLAZE_PROJECT_ROOT' => $projectRoot,
             'GLAZE_INCLUDE_DRAFTS' => $includeDrafts ? '1' : '0',
-            'GLAZE_VITE_ENABLED' => $viteConfiguration->enabled ? '1' : '0',
-            'GLAZE_VITE_URL' => $viteConfiguration->enabled ? $viteConfiguration->url() : '',
+            'GLAZE_VITE_ENABLED' => $viteConfiguration['enabled'] ? '1' : '0',
+            'GLAZE_VITE_URL' => $viteConfiguration['enabled'] ? $this->viteServeProcess->url($viteConfiguration) : '',
         ];
     }
 
@@ -272,8 +272,9 @@ final class ServeCommand extends AbstractGlazeCommand
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
      * @param string $projectRoot Project root directory.
+     * @return array{enabled: bool, host: string, port: int, command: string}
      */
-    protected function resolveViteConfiguration(Arguments $args, string $projectRoot): ViteServeConfig
+    protected function resolveViteConfiguration(Arguments $args, string $projectRoot): array
     {
         $devServerConfig = $this->readDevServerConfiguration($projectRoot);
 
@@ -303,12 +304,12 @@ final class ServeCommand extends AbstractGlazeCommand
             ?? Normalization::optionalString($viteConfig['command'] ?? null)
             ?? 'npm run dev -- --host {host} --port {port} --strictPort';
 
-        return new ViteServeConfig(
-            enabled: $enabled,
-            host: $host,
-            port: $port,
-            command: $command,
-        );
+        return [
+            'enabled' => $enabled,
+            'host' => $host,
+            'port' => $port,
+            'command' => $command,
+        ];
     }
 
     /**
@@ -319,6 +320,7 @@ final class ServeCommand extends AbstractGlazeCommand
      * @param string $docRoot PHP server document root.
      * @param bool $isStaticMode Whether static mode is enabled.
      * @param bool $streamOutput Whether process output should be streamed.
+     * @return array{host: string, port: int, docRoot: string, projectRoot: string, staticMode: bool, streamOutput: bool}
      */
     protected function resolvePhpServerConfiguration(
         Arguments $args,
@@ -326,7 +328,7 @@ final class ServeCommand extends AbstractGlazeCommand
         string $docRoot,
         bool $isStaticMode,
         bool $streamOutput = false,
-    ): PhpServerConfig {
+    ): array {
         $devServerConfig = $this->readDevServerConfiguration($projectRoot);
 
         $phpConfig = $devServerConfig['php'] ?? null;
@@ -348,14 +350,14 @@ final class ServeCommand extends AbstractGlazeCommand
             ?? $this->normalizePort($phpConfig['port'] ?? null)
             ?? 8080;
 
-        return new PhpServerConfig(
-            host: $host,
-            port: $port,
-            docRoot: $docRoot,
-            projectRoot: $projectRoot,
-            staticMode: $isStaticMode,
-            streamOutput: $streamOutput,
-        );
+        return [
+            'host' => $host,
+            'port' => $port,
+            'docRoot' => $docRoot,
+            'projectRoot' => $projectRoot,
+            'staticMode' => $isStaticMode,
+            'streamOutput' => $streamOutput,
+        ];
     }
 
     /**

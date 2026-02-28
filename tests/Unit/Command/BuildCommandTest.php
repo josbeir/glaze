@@ -9,8 +9,7 @@ use Glaze\Build\SiteBuilder;
 use Glaze\Command\BuildCommand;
 use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Serve\ViteBuildConfig;
-use Glaze\Serve\ViteBuildService;
+use Glaze\Process\ViteBuildProcess;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
@@ -60,7 +59,7 @@ final class BuildCommandTest extends TestCase
         $command = new BuildCommand(
             siteBuilder: $siteBuilder,
             projectConfigurationReader: $this->service(ProjectConfigurationReader::class),
-            viteBuildService: $this->service(ViteBuildService::class),
+            viteBuildProcess: $this->service(ViteBuildProcess::class),
             buildConfigFactory: $this->service(BuildConfigFactory::class),
         );
 
@@ -110,9 +109,9 @@ final class BuildCommandTest extends TestCase
             ],
         );
 
-        $this->assertInstanceOf(ViteBuildConfig::class, $resolvedFromConfig);
-        $this->assertTrue($resolvedFromConfig->enabled);
-        $this->assertSame('npm run build:prod', $resolvedFromConfig->command);
+        $this->assertIsArray($resolvedFromConfig);
+        $this->assertTrue($resolvedFromConfig['enabled']);
+        $this->assertSame('npm run build:prod', $resolvedFromConfig['command']);
 
         $argsFromCli = new Arguments([], [
             'vite' => true,
@@ -131,9 +130,9 @@ final class BuildCommandTest extends TestCase
             ],
         );
 
-        $this->assertInstanceOf(ViteBuildConfig::class, $resolvedFromCli);
-        $this->assertTrue($resolvedFromCli->enabled);
-        $this->assertSame('pnpm build', $resolvedFromCli->command);
+        $this->assertIsArray($resolvedFromCli);
+        $this->assertTrue($resolvedFromCli['enabled']);
+        $this->assertSame('pnpm build', $resolvedFromCli['command']);
     }
 
     /**

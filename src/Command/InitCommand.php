@@ -7,7 +7,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
-use Glaze\Scaffold\NpmInstallService;
+use Glaze\Process\NpmInstallProcess;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use Glaze\Utility\Normalization;
@@ -22,11 +22,11 @@ final class InitCommand extends AbstractGlazeCommand
      * Constructor.
      *
      * @param \Glaze\Scaffold\ProjectScaffoldService $scaffoldService Scaffold service.
-     * @param \Glaze\Scaffold\NpmInstallService $npmInstallService NPM install service.
+     * @param \Glaze\Process\NpmInstallProcess $npmInstallProcess NPM install process.
      */
     public function __construct(
         protected ProjectScaffoldService $scaffoldService,
-        protected NpmInstallService $npmInstallService,
+        protected NpmInstallProcess $npmInstallProcess,
     ) {
         parent::__construct();
     }
@@ -119,7 +119,7 @@ final class InitCommand extends AbstractGlazeCommand
 
             if ($options->enableVite && !(bool)$args->getOption('skip-install')) {
                 $io->out('<info>running</info> npm install...');
-                $this->npmInstallService->install($options->targetDirectory);
+                $this->npmInstallProcess->start([], $options->targetDirectory);
             }
         } catch (RuntimeException $runtimeException) {
             $io->err(sprintf('<error>%s</error>', $runtimeException->getMessage()));

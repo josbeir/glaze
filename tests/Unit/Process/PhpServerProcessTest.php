@@ -1,20 +1,19 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Tests\Unit\Serve;
+namespace Glaze\Tests\Unit\Process;
 
 use Closure;
-use Glaze\Serve\PhpServerConfig;
-use Glaze\Serve\PhpServerService;
+use Glaze\Process\PhpServerProcess;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 /**
- * Unit tests for PHP server service internals.
+ * Unit tests for PHP server process internals.
  */
-final class PhpServerServiceTest extends TestCase
+final class PhpServerProcessTest extends TestCase
 {
     use FilesystemTestTrait;
 
@@ -27,16 +26,16 @@ final class PhpServerServiceTest extends TestCase
         mkdir($projectRoot . '/bin', 0755, true);
         file_put_contents($projectRoot . '/bin/dev-router.php', '<?php');
 
-        $service = new PhpServerService();
-        $config = new PhpServerConfig(
-            host: '127.0.0.1',
-            port: 8080,
-            docRoot: $projectRoot,
-            projectRoot: $projectRoot,
-            staticMode: false,
-        );
+        $process = new PhpServerProcess();
+        $config = [
+            'host' => '127.0.0.1',
+            'port' => 8080,
+            'docRoot' => $projectRoot,
+            'projectRoot' => $projectRoot,
+            'staticMode' => false,
+        ];
 
-        $builtCommand = $this->callProtected($service, 'buildCommand', $config);
+        $builtCommand = $this->callProtected($process, 'buildCommand', $config);
 
         $this->assertIsString($builtCommand);
         $this->assertStringStartsWith('php -S ', $builtCommand);
@@ -52,16 +51,16 @@ final class PhpServerServiceTest extends TestCase
     {
         $projectRoot = $this->createTempDirectory();
 
-        $service = new PhpServerService();
-        $config = new PhpServerConfig(
-            host: '127.0.0.1',
-            port: 8080,
-            docRoot: $projectRoot,
-            projectRoot: $projectRoot,
-            staticMode: true,
-        );
+        $process = new PhpServerProcess();
+        $config = [
+            'host' => '127.0.0.1',
+            'port' => 8080,
+            'docRoot' => $projectRoot,
+            'projectRoot' => $projectRoot,
+            'staticMode' => true,
+        ];
 
-        $builtCommand = $this->callProtected($service, 'buildCommand', $config);
+        $builtCommand = $this->callProtected($process, 'buildCommand', $config);
 
         $this->assertIsString($builtCommand);
         $this->assertStringStartsWith('php -S ', $builtCommand);
@@ -77,16 +76,16 @@ final class PhpServerServiceTest extends TestCase
         $this->expectExceptionMessage('Live router script not found');
 
         $projectRoot = $this->createTempDirectory();
-        $service = new PhpServerService();
-        $config = new PhpServerConfig(
-            host: '127.0.0.1',
-            port: 8080,
-            docRoot: $projectRoot,
-            projectRoot: $projectRoot,
-            staticMode: false,
-        );
+        $process = new PhpServerProcess();
+        $config = [
+            'host' => '127.0.0.1',
+            'port' => 8080,
+            'docRoot' => $projectRoot,
+            'projectRoot' => $projectRoot,
+            'staticMode' => false,
+        ];
 
-        $this->callProtected($service, 'buildCommand', $config);
+        $this->callProtected($process, 'buildCommand', $config);
     }
 
     /**
@@ -105,16 +104,16 @@ final class PhpServerServiceTest extends TestCase
         putenv('GLAZE_CLI_ROOT=' . $cliRoot);
 
         try {
-            $service = new PhpServerService();
-            $config = new PhpServerConfig(
-                host: '127.0.0.1',
-                port: 8080,
-                docRoot: $projectRoot,
-                projectRoot: $projectRoot,
-                staticMode: false,
-            );
+            $process = new PhpServerProcess();
+            $config = [
+                'host' => '127.0.0.1',
+                'port' => 8080,
+                'docRoot' => $projectRoot,
+                'projectRoot' => $projectRoot,
+                'staticMode' => false,
+            ];
 
-            $builtCommand = $this->callProtected($service, 'buildCommand', $config);
+            $builtCommand = $this->callProtected($process, 'buildCommand', $config);
         } finally {
             $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
         }
@@ -127,16 +126,16 @@ final class PhpServerServiceTest extends TestCase
     }
 
     /**
-     * Ensure shared start API rejects non-PHP-server configuration objects.
+     * Ensure shared start API rejects invalid configuration arrays.
      */
-    public function testStartThrowsForInvalidConfigurationObject(): void
+    public function testStartThrowsForInvalidConfigurationArray(): void
     {
-        $service = new PhpServerService();
+        $process = new PhpServerProcess();
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid configuration type');
+        $this->expectExceptionMessage('Invalid configuration for');
 
-        $service->start(new stdClass(), sys_get_temp_dir());
+        $process->start([], sys_get_temp_dir());
     }
 
     /**
@@ -149,19 +148,19 @@ final class PhpServerServiceTest extends TestCase
     public function testStartInvokesCustomOutputCallbackForStreamOutput(): void
     {
         $projectRoot = $this->createTempDirectory();
-        $service = new PhpServerService();
+        $process = new PhpServerProcess();
 
-        $config = new PhpServerConfig(
-            host: '192.0.2.1',
-            port: 8099,
-            docRoot: $projectRoot,
-            projectRoot: $projectRoot,
-            staticMode: true,
-            streamOutput: true,
-        );
+        $config = [
+            'host' => '192.0.2.1',
+            'port' => 8099,
+            'docRoot' => $projectRoot,
+            'projectRoot' => $projectRoot,
+            'staticMode' => true,
+            'streamOutput' => true,
+        ];
 
         $received = [];
-        $service->start($config, $projectRoot, function (string $type, string $buffer) use (&$received): void {
+        $process->start($config, $projectRoot, function (string $type, string $buffer) use (&$received): void {
             $received[] = [$type, $buffer];
         });
 
@@ -175,8 +174,8 @@ final class PhpServerServiceTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $service = new PhpServerService();
-        $service->stop(new stdClass());
+        $process = new PhpServerProcess();
+        $process->stop(new stdClass());
     }
 
     /**
@@ -184,7 +183,7 @@ final class PhpServerServiceTest extends TestCase
      */
     public function testForwardedEnvironmentVariablesIncludesGlazeKeys(): void
     {
-        $service = new PhpServerService();
+        $process = new PhpServerProcess();
 
         $originalProjectRoot = getenv('GLAZE_PROJECT_ROOT');
         $originalIncludeDrafts = getenv('GLAZE_INCLUDE_DRAFTS');
@@ -199,7 +198,7 @@ final class PhpServerServiceTest extends TestCase
             putenv('GLAZE_VITE_URL=http://127.0.0.1:5174');
             putenv('GLAZE_CLI_ROOT=/tmp/glaze-cli');
 
-            $environment = $this->callProtected($service, 'forwardedEnvironmentVariables');
+            $environment = $this->callProtected($process, 'forwardedEnvironmentVariables');
         } finally {
             $this->restoreVariable('GLAZE_PROJECT_ROOT', $originalProjectRoot);
             $this->restoreVariable('GLAZE_INCLUDE_DRAFTS', $originalIncludeDrafts);
@@ -228,16 +227,16 @@ final class PhpServerServiceTest extends TestCase
         putenv('GLAZE_CLI_ROOT');
 
         try {
-            $service = new PhpServerService();
-            $config = new PhpServerConfig(
-                host: '127.0.0.1',
-                port: 8080,
-                docRoot: $projectRoot,
-                projectRoot: $projectRoot,
-                staticMode: false,
-            );
+            $process = new PhpServerProcess();
+            $config = [
+                'host' => '127.0.0.1',
+                'port' => 8080,
+                'docRoot' => $projectRoot,
+                'projectRoot' => $projectRoot,
+                'staticMode' => false,
+            ];
 
-            $builtCommand = $this->callProtected($service, 'buildCommand', $config);
+            $builtCommand = $this->callProtected($process, 'buildCommand', $config);
         } finally {
             $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
         }

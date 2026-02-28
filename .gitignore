@@ -5,3 +5,4 @@ tmp/
 public/
 build/
 composer.lock
+.rules

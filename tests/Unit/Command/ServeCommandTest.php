@@ -6,8 +6,6 @@ namespace Glaze\Tests\Unit\Command;
 use Cake\Console\Arguments;
 use Closure;
 use Glaze\Command\ServeCommand;
-use Glaze\Serve\PhpServerConfig;
-use Glaze\Serve\ViteServeConfig;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
@@ -89,8 +87,18 @@ final class ServeCommandTest extends TestCase
     public function testBuildLiveEnvironmentContainsExpectedValues(): void
     {
         $command = $this->createCommand();
-        $viteEnabled = new ViteServeConfig(true, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
-        $viteDisabled = new ViteServeConfig(false, '127.0.0.1', 5173, 'npm run dev -- --host {host} --port {port} --strictPort');
+        $viteEnabled = [
+            'enabled' => true,
+            'host' => '127.0.0.1',
+            'port' => 5173,
+            'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
+        ];
+        $viteDisabled = [
+            'enabled' => false,
+            'host' => '127.0.0.1',
+            'port' => 5173,
+            'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
+        ];
 
         $enabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true, $viteDisabled);
         $disabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', false, $viteDisabled);
@@ -138,10 +146,11 @@ final class ServeCommandTest extends TestCase
             $projectRoot,
         );
 
-        $this->assertInstanceOf(ViteServeConfig::class, $resolvedFromConfig);
-        $this->assertTrue($resolvedFromConfig->enabled);
-        $this->assertSame('0.0.0.0', $resolvedFromConfig->host);
-        $this->assertSame(5175, $resolvedFromConfig->port);
+        $this->assertIsArray($resolvedFromConfig);
+        $this->assertTrue($resolvedFromConfig['enabled']);
+        $this->assertSame('0.0.0.0', $resolvedFromConfig['host']);
+        $this->assertSame(5175, $resolvedFromConfig['port']);
+        $this->assertSame('npm run dev -- --host {host} --port {port}', $resolvedFromConfig['command']);
 
         $argsFromCli = new Arguments([], [
             'vite' => true,
@@ -157,12 +166,11 @@ final class ServeCommandTest extends TestCase
             $projectRoot,
         );
 
-        $this->assertInstanceOf(ViteServeConfig::class, $resolvedFromCli);
-        $this->assertTrue($resolvedFromCli->enabled);
-        $this->assertSame('127.0.0.1', $resolvedFromCli->host);
-        $this->assertSame(5176, $resolvedFromCli->port);
-        $this->assertSame('pnpm dev --host {host} --port {port}', $resolvedFromCli->command);
-        $this->assertSame('pnpm dev --host 127.0.0.1 --port 5176', $resolvedFromCli->commandLine());
+        $this->assertIsArray($resolvedFromCli);
+        $this->assertTrue($resolvedFromCli['enabled']);
+        $this->assertSame('127.0.0.1', $resolvedFromCli['host']);
+        $this->assertSame(5176, $resolvedFromCli['port']);
+        $this->assertSame('pnpm dev --host {host} --port {port}', $resolvedFromCli['command']);
     }
 
     /**
@@ -192,9 +200,9 @@ final class ServeCommandTest extends TestCase
             false,
         );
 
-        $this->assertInstanceOf(PhpServerConfig::class, $resolvedFromConfig);
-        $this->assertSame('0.0.0.0', $resolvedFromConfig->host);
-        $this->assertSame(9080, $resolvedFromConfig->port);
+        $this->assertIsArray($resolvedFromConfig);
+        $this->assertSame('0.0.0.0', $resolvedFromConfig['host']);
+        $this->assertSame(9080, $resolvedFromConfig['port']);
 
         $argsFromCli = new Arguments([], [
             'host' => '127.0.0.1',
@@ -210,9 +218,9 @@ final class ServeCommandTest extends TestCase
             false,
         );
 
-        $this->assertInstanceOf(PhpServerConfig::class, $resolvedFromCli);
-        $this->assertSame('127.0.0.1', $resolvedFromCli->host);
-        $this->assertSame(9090, $resolvedFromCli->port);
+        $this->assertIsArray($resolvedFromCli);
+        $this->assertSame('127.0.0.1', $resolvedFromCli['host']);
+        $this->assertSame(9090, $resolvedFromCli['port']);
     }
 
     /**

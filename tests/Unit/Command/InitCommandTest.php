@@ -7,7 +7,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Closure;
 use Glaze\Command\InitCommand;
-use Glaze\Scaffold\NpmInstallService;
+use Glaze\Process\NpmInstallProcess;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
 use Glaze\Tests\Helper\ContainerTestTrait;
@@ -62,7 +62,7 @@ final class InitCommandTest extends TestCase
     public function testConstructorUsesInjectedScaffoldService(): void
     {
         $scaffoldService = new ProjectScaffoldService();
-        $command = new InitCommand($scaffoldService, new NpmInstallService());
+        $command = new InitCommand($scaffoldService, new NpmInstallProcess());
 
         $scaffoldServiceProperty = new ReflectionProperty($command, 'scaffoldService');
         $resolvedScaffoldService = $scaffoldServiceProperty->getValue($command);
@@ -71,18 +71,18 @@ final class InitCommandTest extends TestCase
     }
 
     /**
-     * Ensure constructor keeps the injected npm install service instance.
+     * Ensure constructor keeps the injected npm install process instance.
      */
-    public function testConstructorUsesInjectedNpmInstallService(): void
+    public function testConstructorUsesInjectedNpmInstallProcess(): void
     {
         $scaffoldService = new ProjectScaffoldService();
-        $npmInstallService = new NpmInstallService();
-        $command = new InitCommand($scaffoldService, $npmInstallService);
+        $npmInstallProcess = new NpmInstallProcess();
+        $command = new InitCommand($scaffoldService, $npmInstallProcess);
 
-        $npmInstallServiceProperty = new ReflectionProperty($command, 'npmInstallService');
-        $resolvedNpmInstallService = $npmInstallServiceProperty->getValue($command);
+        $npmInstallProcessProperty = new ReflectionProperty($command, 'npmInstallProcess');
+        $resolvedNpmInstallProcess = $npmInstallProcessProperty->getValue($command);
 
-        $this->assertSame($npmInstallService, $resolvedNpmInstallService);
+        $this->assertSame($npmInstallProcess, $resolvedNpmInstallProcess);
     }
 
     /**
