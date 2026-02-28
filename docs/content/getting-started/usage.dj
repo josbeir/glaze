@@ -1,7 +1,6 @@
 ---
 title: Daily workflow
 weight: 40
-group: Getting Started
 ---
 # Daily workflow
 
@@ -76,7 +75,7 @@ Create a bundle-style page with an `index.dj` inside a subfolder:
 glaze new "Project notes" --path notes --index --yes
 ```
 
-Full option reference: [Commands](commands.dj).
+Full option reference: [Commands](../reference/commands.dj).
 
 ## Drafts
 
@@ -153,7 +152,7 @@ Or define named presets in `glaze.neon` and reference them with `?p=`:
 In `glaze serve`, transforms run on demand and are cached under `tmp/cache/glide/`. In
 `glaze build`, all discovered image URLs are baked to static files under `public/_glide/`.
 
-Full details: [Glide images](glide-images.dj).
+Full details: [Glide images](../content/glide-images.dj).
 
 ## Syntax highlighting
 

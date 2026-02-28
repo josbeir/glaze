@@ -1,7 +1,6 @@
 ---
 title: Frontmatter
 weight: 50
-group: Content
 ---
 # Frontmatter
 
@@ -47,7 +46,7 @@ Reserved keys are interpreted by Glaze runtime features:
 
 Common convention keys (used by templates/themes, not reserved by core):
 
-- `group` (group label for navigation sections)
+- `section` (override folder-derived section slug)
 - `navigation` (include/exclude page from navigation)
 - `navigationTitle` (alternate title for menus)
 
@@ -123,7 +122,7 @@ In templates, sort a collection by weight:
 </li>
 ```
 
-Navigation-focused usage of `weight`, `group`, `navigation`, and `navigationTitle` is covered in [Templating](templating.dj) and [Page Collections](page-collections.dj).
+Navigation-focused usage of `weight`, `section`, `navigation`, and `navigationTitle` is covered in [Templating](../templating/overview.dj) and [Page Collections](../templating/page-collections.dj).
 
 ### `draft`
 
@@ -203,4 +202,4 @@ In templates:
 - Content type `defaults` from `glaze.neon` are merged in, with page frontmatter taking precedence
 - `type` resolves via path matching first, then explicit frontmatter override
 
-Next: [Configuration](configuration.dj) and [Templating](templating.dj).
+Next: [Configuration](../getting-started/configuration.dj) and [Templating](../templating/overview.dj).

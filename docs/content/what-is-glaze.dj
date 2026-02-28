@@ -1,8 +1,6 @@
 ---
 title: What is Glaze?
-weight: 12
-group: Getting Started
-navigationTitle: What is Glaze?
+weight: 10
 ---
 # What is Glaze?
 
@@ -75,7 +73,7 @@ tags:
 Your content here.
 ```
 
-See [Why not Markdown?](why-not-markdown.dj) for a full comparison.
+See [Why not Markdown?](../reference/why-not-markdown.dj) for a full comparison.
 
 ### Sugar for templates
 

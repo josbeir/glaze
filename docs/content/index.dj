@@ -1,7 +1,6 @@
 ---
 title: Glaze Documentation
 template: home
-weight: 10
 navigation: false
 hero:
   category: "Documentation"
@@ -9,7 +8,7 @@ hero:
   subtitle: "Write content in Djot, build layouts with Sugar templates, and ship a folder of plain HTML."
   primaryAction:
     label: Get started
-    href: /installation
+    href: /getting-started/installation
   secondaryAction:
     label: What is Glaze?
     href: /what-is-glaze

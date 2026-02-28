@@ -78,6 +78,40 @@ final class SiteContext
     }
 
     /**
+     * Return all non-root sections as an ordered map of section key to page collection.
+     *
+     * Sections are ordered by the lowest weight of any page within each section.
+     * Root-level pages are excluded; access them via `rootPages()`.
+     *
+     * @return array<string, \Glaze\Template\PageCollection>
+     */
+    public function sections(): array
+    {
+        return $this->siteIndex->sections();
+    }
+
+    /**
+     * Return root-level pages that do not belong to any section.
+     */
+    public function rootPages(): PageCollection
+    {
+        return $this->siteIndex->rootPages();
+    }
+
+    /**
+     * Derive a human-readable label from a section key.
+     *
+     * Converts slug-style section keys to title case.
+     * For example, `getting-started` becomes `Getting Started`.
+     *
+     * @param string $sectionKey Section slug.
+     */
+    public function sectionLabel(string $sectionKey): string
+    {
+        return $this->siteIndex->sectionLabel($sectionKey);
+    }
+
+    /**
      * Find a page by slug.
      *
      * @param string $slug Page slug.
@@ -183,6 +217,22 @@ final class SiteContext
     public function nextInSection(): ?ContentPage
     {
         return $this->siteIndex->nextInSection($this->currentPage);
+    }
+
+    /**
+     * Return the previous page in global display order, crossing section boundaries.
+     */
+    public function previous(): ?ContentPage
+    {
+        return $this->siteIndex->previous($this->currentPage);
+    }
+
+    /**
+     * Return the next page in global display order, crossing section boundaries.
+     */
+    public function next(): ?ContentPage
+    {
+        return $this->siteIndex->next($this->currentPage);
     }
 
     /**

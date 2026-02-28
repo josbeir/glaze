@@ -1,7 +1,6 @@
 ---
 title: Templating
 weight: 80
-group: Templating
 ---
 # Templating
 
@@ -118,6 +117,11 @@ $this->section('blog')                  // pages under the blog/ path prefix
 $this->type('blog')                     // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
 $this->isCurrent('/blog/')              // bool
+$this->sections()                      // array<string, PageCollection> — all sections, ordered by weight
+$this->sectionLabel('key')             // human-readable section label
+$this->rootPages()                     // PageCollection — root-level pages (no section)
+$this->previous()                      // ?ContentPage — previous page in global display order
+$this->next()                          // ?ContentPage — next page in global display order
 $this->previousInSection()             // ?ContentPage
 $this->nextInSection()                 // ?ContentPage
 $this->extension('name')               // call a project extension (see Extensions)
@@ -125,52 +129,27 @@ $this->extension('name')               // call a project extension (see Extensio
 
 See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
-### Navigation example (grouped sidebar)
+### Navigation example (section-based sidebar)
 
-This pattern builds a nested docs navigation from frontmatter keys like `group`, `weight`, `navigation`, and `navigationTitle`.
+Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` for clean sidebar navigation:
 
 ```php
-<?php
-$pages = $this->pages()->by('weight', 'asc')->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => (bool)($p->meta('navigation') ?? true),
-);
-$grouped = $pages->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) !== '',
-)->groupBy('group');
-$other = $pages->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) === '',
-);
-?>
-
-<ul class="menu bg-base-200 rounded-box w-56">
-    <?php foreach ($grouped as $groupName => $groupPages): ?>
-        <li>
-            <h2 class="menu-title"><?= $groupName ?></h2>
-            <ul>
-                <?php foreach ($groupPages as $item): ?>
-                    <li>
-                        <a
-                            href="<?= ($site->basePath ?? '') . $item->urlPath ?>"
-                            s:class="['menu-active' => $this->isCurrent($item->urlPath)]"
-                        >
-                            <?= $item->meta('navigationTitle', $item->title) ?>
-                        </a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </li>
-    <?php endforeach; ?>
-
-    <?php if (count($other) > 0): ?>
-        <li>
-            <h2 class="menu-title">Other</h2>
-            <ul>
-                <?php foreach ($other as $item): ?>
-                    <li><a href="<?= ($site->basePath ?? '') . $item->urlPath ?>"><?= $item->title ?></a></li>
-                <?php endforeach; ?>
-            </ul>
-        </li>
-    <?php endif; ?>
+<ul class="menu">
+    <li s:foreach="$this->sections() as $sectionKey => $sectionPages">
+        <h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
+        <ul>
+            <template s:foreach="$sectionPages as $item">
+                <li s:if="$item->meta('navigation') ?? true">
+                    <a
+                        href="<?= $item->urlPath ?>"
+                        s:class="['menu-active' => $this->isCurrent($item->urlPath)]"
+                    >
+                        <?= $item->meta('navigationTitle') ?? $item->title ?>
+                    </a>
+                </li>
+            </template>
+        </ul>
+    </li>
 </ul>
 ```
 

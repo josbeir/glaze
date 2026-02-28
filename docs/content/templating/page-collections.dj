@@ -1,7 +1,6 @@
 ---
 title: Page Collections
 weight: 90
-group: Templating
 ---
 # Page collections
 
@@ -139,59 +138,35 @@ A grouped collection is a plain array where keys are group names and values are 
 </section>
 ```
 
-### Navigation recipe (grouped menu)
+### Navigation recipe (section-based menu)
 
-For docs sidebars, combine `weight`, `group`, `navigation`, and `navigationTitle` frontmatter values:
+Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` and `$this->sectionLabel()` for clean sidebar navigation:
 
 ```php
-<?php
-$pages = $this->pages()->by('weight', 'asc')->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => (bool)($p->meta('navigation') ?? true),
-);
-
-$grouped = $pages->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) !== '',
-)->groupBy('group');
-
-$other = $pages->filter(
-    static fn(\Glaze\Content\ContentPage $p): bool => trim((string)($p->meta('group') ?? '')) === '',
-);
-?>
-
-<ul class="menu bg-base-200 rounded-box w-56">
-    <?php foreach ($grouped as $groupName => $groupPages): ?>
-        <li>
-            <h2 class="menu-title"><?= $groupName ?></h2>
-            <ul>
-                <?php foreach ($groupPages as $item): ?>
-                    <li>
-                        <a href="<?= $item->urlPath ?>">
-                            <?= $item->meta('navigationTitle', $item->title) ?>
-                        </a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </li>
-    <?php endforeach; ?>
-
-    <?php if (count($other) > 0): ?>
-        <li>
-            <h2 class="menu-title">Other</h2>
-            <ul>
-                <?php foreach ($other as $item): ?>
-                    <li><a href="<?= $item->urlPath ?>"><?= $item->title ?></a></li>
-                <?php endforeach; ?>
-            </ul>
-        </li>
-    <?php endif; ?>
+<ul class="menu">
+    <li s:foreach="$this->sections() as $sectionKey => $sectionPages">
+        <h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
+        <ul>
+            <template s:foreach="$sectionPages as $item">
+                <li s:if="$item->meta('navigation') ?? true">
+                    <a href="<?= $item->urlPath ?>">
+                        <?= $item->meta('navigationTitle') ?? $item->title ?>
+                    </a>
+                </li>
+            </template>
+        </ul>
+    </li>
 </ul>
 ```
 
-Because shorthand metadata keys are supported in collection queries, this is valid too:
+Sections are ordered by the lowest `weight` value among their pages.
+The label is auto-humanized from the folder name (`getting-started` becomes `Getting Started`).
+
+Shorthand metadata keys are supported in collection queries:
 
 ```php
-$pages->groupBy('group');
-$pages->groupBy('group', 'desc');
+$pages->groupBy('category');
+$pages->groupBy('category', 'desc');
 $pages->by('weight', 'asc');
 ```
 
@@ -216,16 +191,23 @@ Arguments: `paginate(collection, perPage, currentPage, baseUrl)`.
 
 ## Previous / next navigation
 
-These helpers work relative to the current page's section:
+Navigate across section boundaries in global display order:
 
 ```php
-<?php $prev = $this->previousInSection(); ?>
-<?php $next = $this->nextInSection(); ?>
+<?php $prev = $this->previous(); ?>
+<?php $next = $this->next(); ?>
 
 <nav>
     <a s:if="$prev !== null" href="<?= $prev->urlPath ?>">&larr; <?= $prev->title ?></a>
     <a s:if="$next !== null" href="<?= $next->urlPath ?>"><?= $next->title ?> &rarr;</a>
 </nav>
+```
+
+To navigate within the current section only, use `previousInSection()` / `nextInSection()`:
+
+```php
+<?php $prev = $this->previousInSection(); ?>
+<?php $next = $this->nextInSection(); ?>
 ```
 
 ## Checking the current page

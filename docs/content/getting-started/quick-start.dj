@@ -1,7 +1,6 @@
 ---
 title: Quick Start
 weight: 30
-group: Getting Started
 ---
 # Quick start
 
@@ -154,10 +153,10 @@ During build, Glaze:
 
 You have a working site. From here:
 
-- [Content & routing](content.dj) — how files become pages, URL rules, frontmatter,
+- [Content & routing](../content/routing.dj) — how files become pages, URL rules, frontmatter,
   content types, and static files
 - [Daily workflow](usage.dj) — dev server, drafts, creating pages, building
-- [Templating](templating.dj) — Sugar layouts, components, variables, and directives
-- [Frontmatter](frontmatter.dj) — full metadata field reference
-- [Commands](commands.dj) — complete CLI option reference
-- [Scaffold presets](scaffolding.dj) — built-in presets, custom presets, and `scaffold.neon` format
+- [Templating](../templating/overview.dj) — Sugar layouts, components, variables, and directives
+- [Frontmatter](../content/frontmatter.dj) — full metadata field reference
+- [Commands](../reference/commands.dj) — complete CLI option reference
+- [Scaffold presets](../reference/scaffolding.dj) — built-in presets, custom presets, and `scaffold.neon` format

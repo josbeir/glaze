@@ -1,7 +1,6 @@
 ---
 title: Content & Routing
 weight: 45
-group: Content
 ---
 # Content & routing
 
@@ -124,7 +123,7 @@ title: A post that lives outside the blog folder
 ---
 ```
 
-See [Configuration](configuration.dj) for the full `contentTypes` reference.
+See [Configuration](../getting-started/configuration.dj) for the full `contentTypes` reference.
 
 ## Static files
 
@@ -162,4 +161,4 @@ Once Glaze renders a page, these variables are available in every Sugar template
 | `$site` | `SiteConfig` 🔷 | Global site config |
 | `$this` | `SiteContext` 🔷 | Collections, pagination, taxonomy helpers |
 
-See [Templating](templating.dj) for the full variable and directive reference.
+See [Templating](../templating/overview.dj) for the full variable and directive reference.

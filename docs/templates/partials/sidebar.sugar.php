@@ -4,54 +4,38 @@
  * @var Glaze\Config\SiteConfig $site
  * @var Glaze\Template\SiteContext $this
  */
-
-use Glaze\Content\ContentPage;
-
 ?>
 <div class="w-72 h-full min-h-screen border-r border-base-300 bg-base-200 text-base-content">
 	<nav class="h-full overflow-y-auto p-4 lg:p-5">
 		<a class="btn btn-ghost justify-start normal-case text-base sm:text-lg w-full mb-3" href="<?= ($site->basePath ?? '') . '/' ?>">
 			<s-site-brand s:bind="['site' => $site]" />
 		</a>
-		<?php
-			$menuPages = $this->pages()->by('weight', 'asc')->filter(
-				static fn(ContentPage $menuPage): bool => (bool)($menuPage->meta('navigation') ?? true),
-			);
-			$groupedPages = $menuPages->filter(
-				static fn(ContentPage $menuPage): bool => trim((string)($menuPage->meta('group') ?? '')) !== '',
-			)->groupBy('group');
-			$ungroupedPages = $menuPages->filter(
-				static fn(ContentPage $menuPage): bool => trim((string)($menuPage->meta('group') ?? '')) === '',
-			);
-		?>
 		<ul class="menu bg-base-200 rounded-box w-56">
-			<li s:foreach="$groupedPages as $groupName => $groupPages">
-				<h2 class="menu-title"><?= $groupName ?></h2>
-				<ul>
-					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
-					<li s:foreach="$groupPages as $menuPage">
-						<a
-							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
-							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
-						>
-							<?= $menuPage->title ?>
-						</a>
-					</li>
-				</ul>
+			<?php $rootPages = $this->rootPages()->filter(
+				static fn(Glaze\Content\ContentPage $p): bool => (bool)($p->meta('navigation') ?? true),
+			); ?>
+			<li s:foreach="$rootPages as $menuPage">
+				<a
+					href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+					s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
+				>
+					<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
+				</a>
 			</li>
-
-			<li s:if="count($ungroupedPages) > 0">
-				<h2 class="menu-title">Other</h2>
+			<li s:foreach="$this->sections() as $sectionKey => $sectionPages">
+				<h2 class="menu-title"><?= $this->sectionLabel($sectionKey) ?></h2>
 				<ul>
 					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
-					<li s:foreach="$ungroupedPages as $menuPage">
-						<a
-							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
-							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
-						>
-							<?= $menuPage->title ?>
-						</a>
-					</li>
+					<s-template s:foreach="$sectionPages as $menuPage">
+						<li s:if="$menuPage->meta('navigation') ?? true">
+							<a
+								href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+								s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
+							>
+								<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
+							</a>
+						</li>
+					</s-template>
 				</ul>
 			</li>
 		</ul>

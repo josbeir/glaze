@@ -124,6 +124,58 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate sections(), rootPages(), and sectionLabel() delegation.
+     */
+    public function testContextExposesSectionsAndRootPages(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', ['weight' => 1]),
+            $this->makePage('docs/intro', '/docs/intro/', 'docs/intro.dj', ['weight' => 10]),
+            $this->makePage('docs/setup', '/docs/setup/', 'docs/setup.dj', ['weight' => 20]),
+            $this->makePage('blog/post', '/blog/post/', 'blog/post.dj', ['weight' => 30]),
+        ]);
+
+        $context = new SiteContext($index, $index->findBySlug('index') ?? $this->fail('Missing page'));
+
+        $sections = $context->sections();
+        $this->assertCount(2, $sections);
+        $this->assertArrayHasKey('docs', $sections);
+        $this->assertArrayHasKey('blog', $sections);
+        $this->assertCount(2, $sections['docs']);
+
+        $root = $context->rootPages();
+        $this->assertCount(1, $root);
+
+        $this->assertSame('Docs', $context->sectionLabel('docs'));
+        $this->assertSame('Blog', $context->sectionLabel('blog'));
+    }
+
+    /**
+     * Validate previous()/next() delegation through SiteContext with weight interleaving.
+     */
+    public function testContextExposesPreviousAndNext(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('intro', '/intro/', 'intro.dj', ['weight' => 0]),
+            $this->makePage('docs/a', '/docs/a/', 'docs/a.dj', ['weight' => 10]),
+            $this->makePage('docs/b', '/docs/b/', 'docs/b.dj', ['weight' => 20]),
+        ]);
+
+        // Root page with weight 0 comes first
+        $introContext = new SiteContext($index, $index->findBySlug('intro') ?? $this->fail('Missing page'));
+        $this->assertNull($introContext->previous());
+        $this->assertSame('docs/a', $introContext->next()?->slug);
+
+        $aContext = new SiteContext($index, $index->findBySlug('docs/a') ?? $this->fail('Missing page'));
+        $this->assertSame('intro', $aContext->previous()?->slug);
+        $this->assertSame('docs/b', $aContext->next()?->slug);
+
+        $bContext = new SiteContext($index, $index->findBySlug('docs/b') ?? $this->fail('Missing page'));
+        $this->assertSame('docs/a', $bContext->previous()?->slug);
+        $this->assertNull($bContext->next());
+    }
+
+    /**
      * Create a content page object for test scenarios.
      *
      * @param string $slug Page slug.
