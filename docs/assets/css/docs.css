@@ -279,6 +279,19 @@
 		@apply bg-base-200 border border-base-300 rounded-box;
 	}
 
+	html[data-theme="glaze-docs-light"] .prose :where(pre.phiki.phiki-themes) {
+		background-color: var(--phiki-light-background-color) !important;
+		color: var(--phiki-light-color) !important;
+	}
+
+	html[data-theme="glaze-docs-light"] .prose :where(pre.phiki.phiki-themes) :where([style*="--phiki-light-color"]) {
+		color: var(--phiki-light-color) !important;
+	}
+
+	html[data-theme="glaze-docs-light"] .prose :where(pre.phiki.phiki-themes) :where([style*="--phiki-light-background-color"]) {
+		background-color: var(--phiki-light-background-color) !important;
+	}
+
 	.prose :where(code):not(:where(pre code)) {
 		@apply bg-base-200 px-1.5 py-0.5 rounded;
 	}
@@ -366,6 +379,84 @@
 	.prose a.header-anchor:focus,
 	.prose a.header-anchor:focus-visible {
 		text-decoration: none !important;
+	}
+
+	.prose :where(.glaze-code-group) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		@apply my-6 w-full rounded-box border border-base-300 bg-base-200 overflow-hidden;
+	}
+
+	.prose .glaze-code-group pre {
+		margin: 0 !important;
+		border: 0 !important;
+		border-radius: 0 !important;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab) {
+		order: 1;
+		@apply relative py-2 px-5 text-base font-medium text-base-content/65;
+		appearance: none;
+		cursor: pointer;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab)::before {
+		font-size: 0.95rem;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab[aria-label$=".js"])::before {
+		content: "JS  " attr(aria-label);
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: color-mix(in srgb, var(--color-warning) 88%, var(--color-base-content));
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab[aria-label$=".ts"])::before {
+		content: "TS  " attr(aria-label);
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: color-mix(in srgb, var(--color-info) 88%, var(--color-base-content));
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab:not([aria-label$=".js"]):not([aria-label$=".ts"]))::before {
+		content: attr(aria-label);
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab[aria-selected="true"]) {
+		@apply text-base-content;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-tab[aria-selected="true"])::after {
+		content: "";
+		position: absolute;
+		left: 0.9rem;
+		right: 0.9rem;
+		bottom: 0;
+		height: 2px;
+		border-radius: 9999px;
+		background-color: color-mix(in srgb, var(--color-primary) 88%, var(--color-base-content));
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-panel) {
+		order: 2;
+		@apply w-full border-t border-base-300 bg-base-100 overflow-hidden rounded-b-box;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-panel[hidden]) {
+		display: none !important;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-panel > pre) {
+		@apply m-0 rounded-none border-0;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-panel code) {
+		@apply text-sm;
 	}
 
 	[data-scaffold-demo] .typed-cursor {

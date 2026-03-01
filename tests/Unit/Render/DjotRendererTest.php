@@ -61,6 +61,28 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
+     * Ensure named multi-theme configuration produces Phiki theme variables.
+     */
+    public function testRenderSupportsMultipleCodeHighlightingThemes(): void
+    {
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $html = $renderer->render(
+            "```php\necho 1;\n```\n",
+            $this->withCodeHighlighting([
+                'enabled' => true,
+                'theme' => 'nord',
+                'themes' => ['dark' => 'github-dark', 'light' => 'github-light'],
+                'withGutter' => false,
+            ]),
+        );
+
+        $this->assertStringContainsString('class="phiki', $html);
+        $this->assertStringContainsString('phiki-themes', $html);
+        $this->assertStringContainsString('github-light', $html);
+        $this->assertStringContainsString('--phiki-light-background-color', $html);
+    }
+
+    /**
      * Ensure `neon` fenced blocks are highlighted via the YAML grammar alias.
      */
     public function testRenderMapsNeonFenceLanguageToYamlGrammar(): void
@@ -84,6 +106,42 @@ final class DjotRendererTest extends TestCase
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertStringContainsString('language-Djot', $html);
         $this->assertStringContainsString('data-language="Djot"', $html);
+    }
+
+    /**
+     * Ensure code-group blocks render as tabbed panes with labels.
+     */
+    public function testRenderTransformsCodeGroupIntoTabbedHtml(): void
+    {
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $html = $renderer->render(
+            "::: code-group\n\n```js [config.js]\nconst config = {}\n```\n\n```ts [config.ts]\nconst config: Record<string, mixed> = {}\n```\n\n:::\n",
+        );
+
+        $this->assertStringContainsString('class="glaze-code-group"', $html);
+        $this->assertStringContainsString('class="glaze-code-group-tab"', $html);
+        $this->assertStringContainsString('role="tablist"', $html);
+        $this->assertStringContainsString('aria-label="config.js"', $html);
+        $this->assertStringContainsString('aria-label="config.ts"', $html);
+        $this->assertStringContainsString('class="phiki', $html);
+    }
+
+    /**
+     * Ensure code-group transformation still works when code highlighting is disabled.
+     */
+    public function testRenderTransformsCodeGroupWithoutPhikiWhenDisabled(): void
+    {
+        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $html = $renderer->render(
+            "::: code-group\n\n```php [example.php]\necho 1;\n```\n\n:::\n",
+            $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
+        );
+
+        $this->assertStringContainsString('class="glaze-code-group"', $html);
+        $this->assertStringContainsString('class="glaze-code-group-tab"', $html);
+        $this->assertStringContainsString('aria-label="example.php"', $html);
+        $this->assertStringContainsString('<pre><code class="language-php">echo 1;</code></pre>', $html);
+        $this->assertStringNotContainsString('class="phiki', $html);
     }
 
     /**
@@ -440,7 +498,7 @@ final class DjotRendererTest extends TestCase
     /**
      * Merge code highlighting overrides into default Djot options.
      *
-     * @param array{enabled: bool, theme: string, withGutter: bool} $codeHighlighting
+     * @param array{enabled: bool, theme: string, themes?: array<string, string>, withGutter: bool} $codeHighlighting
      * @return array<string, mixed>
      */
     protected function withCodeHighlighting(array $codeHighlighting): array
@@ -560,6 +618,7 @@ final class DjotRendererTest extends TestCase
             'codeHighlighting' => [
                 'enabled' => true,
                 'theme' => 'nord',
+                'themes' => [],
                 'withGutter' => false,
             ],
             'headerAnchors' => [

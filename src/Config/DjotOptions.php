@@ -24,6 +24,7 @@ final readonly class DjotOptions
      *
      * @param bool $codeHighlightingEnabled Whether Phiki highlighting is enabled.
      * @param string $codeHighlightingTheme Configured Phiki theme (lower-cased).
+     * @param array<string, string> $codeHighlightingThemes Optional named Phiki themes map (name => theme).
      * @param bool $codeHighlightingWithGutter Whether line-number gutter is enabled.
      * @param bool $headerAnchorsEnabled Whether heading permalinks are enabled.
      * @param string $headerAnchorsSymbol Permalink symbol.
@@ -54,6 +55,7 @@ final readonly class DjotOptions
     public function __construct(
         public bool $codeHighlightingEnabled = true,
         public string $codeHighlightingTheme = 'nord',
+        public array $codeHighlightingThemes = [],
         public bool $codeHighlightingWithGutter = false,
         public bool $headerAnchorsEnabled = false,
         public string $headerAnchorsSymbol = '#',
@@ -113,6 +115,7 @@ final readonly class DjotOptions
         return new self(
             codeHighlightingEnabled: self::boolVal($ch['enabled'] ?? null, true),
             codeHighlightingTheme: strtolower(self::strVal($ch['theme'] ?? null, 'nord')),
+            codeHighlightingThemes: self::parseCodeHighlightingThemes($ch['themes'] ?? null),
             codeHighlightingWithGutter: self::boolVal($ch['withGutter'] ?? null, false),
             headerAnchorsEnabled: self::boolVal($ha['enabled'] ?? null, false),
             headerAnchorsSymbol: self::strVal($ha['symbol'] ?? null, '#'),
@@ -218,6 +221,54 @@ final readonly class DjotOptions
         ), static fn(string $item): bool => $item !== ''));
 
         return $result !== [] ? $result : $default;
+    }
+
+    /**
+     * Parse named code-highlighting themes from config.
+     *
+     * Expected input shape:
+     *
+     * ```
+     * themes:
+     *   dark: github-dark
+     *   light: github-light
+     * ```
+     *
+     * Keys and values are trimmed and lower-cased; invalid entries are ignored.
+     *
+     * @param mixed $value Raw `codeHighlighting.themes` value.
+     * @return array<string, string>
+     */
+    private static function parseCodeHighlightingThemes(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $themes = [];
+        foreach ($value as $themeName => $themeValue) {
+            if (!is_string($themeName)) {
+                continue;
+            }
+
+            if (!is_string($themeValue)) {
+                continue;
+            }
+
+            $normalizedThemeName = strtolower(trim($themeName));
+            $normalizedThemeValue = strtolower(trim($themeValue));
+            if ($normalizedThemeName === '') {
+                continue;
+            }
+
+            if ($normalizedThemeValue === '') {
+                continue;
+            }
+
+            $themes[$normalizedThemeName] = $normalizedThemeValue;
+        }
+
+        return $themes;
     }
 
     /**

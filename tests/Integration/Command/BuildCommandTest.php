@@ -291,6 +291,63 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure build output includes Phiki multi-theme metadata when configured.
+     */
+    public function testBuildCommandCanRenderCodeHighlightingWithNamedThemes(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "djot:\n  codeHighlighting:\n    themes:\n      dark: github-dark\n      light: github-light\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "```php\necho 1;\n```\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $content |> raw() ?>',
+        );
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('class="phiki', $output);
+        $this->assertStringContainsString('phiki-themes', $output);
+        $this->assertStringContainsString('github-light', $output);
+        $this->assertStringContainsString('--phiki-light-background-color', $output);
+    }
+
+    /**
+     * Ensure build command renders Djot code-group blocks as tabbed code snippets.
+     */
+    public function testBuildCommandRendersCodeGroupBlocksAsTabs(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/code-group');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Build complete: 1 page(s) in ');
+
+        $output = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('class="glaze-code-group"', $output);
+        $this->assertStringContainsString('class="glaze-code-group-tab"', $output);
+        $this->assertStringContainsString('role="tablist"', $output);
+        $this->assertStringContainsString('aria-label="config.js"', $output);
+        $this->assertStringContainsString('aria-label="config.ts"', $output);
+        $this->assertStringContainsString('class="phiki', $output);
+        $this->assertStringContainsString('data-language="javascript"', $output);
+        $this->assertStringContainsString('data-language="typescript"', $output);
+    }
+
+    /**
      * Build a small JPEG image file for Glide integration tests.
      *
      * @param string $path Destination file path.

@@ -18,15 +18,32 @@ needed — just PHP and Composer, which you likely already have.
 
 Installing globally makes `glaze` available from any directory:
 
-```bash
+::: code-group
+
+```bash [Global]
 composer global require josbeir/glaze
 ```
 
+```bash [Project-local]
+composer require josbeir/glaze
+```
+
+:::
+
+
 Verify it works:
 
-```bash
+::: code-group
+
+```bash [Global]
 glaze --help
 ```
+
+```bash [Project-local]
+vendor/bin/glaze --help
+```
+
+:::
 
 If `glaze` is not found, Composer's global bin directory is not in your shell `$PATH`. Find it and add it:
 

@@ -28,40 +28,42 @@ version control.
 
 ## Running the dev server
 
-```bash
+::: code-group
+
+```bash [Standard]
 glaze serve
 ```
+
+```bash [With Vite]
+glaze serve --vite
+```
+
+:::
 
 Open `http://127.0.0.1:8080`. Pages render on each request — edit a `.dj` file or a
 template, refresh the browser, and you see the change. No rebuild step, no cache to
 flush.
-
-If you have Vite set up for CSS or JS assets, start both together:
-
-```bash
-glaze serve --vite
-```
 
 Glaze starts the PHP dev server and the Vite dev server side-by-side. Sugar's `s:vite`
 directive in your templates renders the correct HMR tags automatically.
 
 ## Creating new pages
 
-The interactive way:
+::: code-group
 
-```bash
+```bash [Interactive]
 glaze new
 ```
+
+```bash [Quick create]
+glaze new "My post title" --yes
+```
+
+:::
 
 Glaze prompts for a title, content type (if you have any configured), date, draft status,
 and whether to create a single file or an `index.dj` bundle. Answer or hit enter to
 accept the defaults.
-
-Skip all prompts by passing values directly:
-
-```bash
-glaze new "My post title" --yes
-```
 
 With a content type:
 
@@ -164,8 +166,12 @@ djot:
   codeHighlighting:
     enabled: true
     theme: github-dark
+    themes:
+      dark: github-dark
+      light: github-light
     withGutter: true
 ```
 
 Phiki ships with many themes. See the [Phiki README](https://github.com/phikiphp/phiki)
-for the full list.
+for the full list. Use `theme` for a single theme, or `themes` when you want light/dark
+switching via CSS.

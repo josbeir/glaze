@@ -40,6 +40,7 @@ final class BuildConfigTest extends TestCase
         $this->assertInstanceOf(DjotOptions::class, $config->djotOptions);
         $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
         $this->assertSame('nord', $config->djotOptions->codeHighlightingTheme);
+        $this->assertSame([], $config->djotOptions->codeHighlightingThemes);
         $this->assertFalse($config->djotOptions->headerAnchorsEnabled);
 
         // TemplateViteOptions defaults
@@ -269,13 +270,14 @@ final class BuildConfigTest extends TestCase
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
-            "djot:\n  codeHighlighting:\n    enabled: false\n    theme: DARK-PLUS\n    withGutter: true\n",
+            "djot:\n  codeHighlighting:\n    enabled: false\n    theme: DARK-PLUS\n    themes:\n      dark: DARK-PLUS\n      light: GITHUB-LIGHT\n    withGutter: true\n",
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertFalse($config->djotOptions->codeHighlightingEnabled);
         $this->assertSame('dark-plus', $config->djotOptions->codeHighlightingTheme);
+        $this->assertSame(['dark' => 'dark-plus', 'light' => 'github-light'], $config->djotOptions->codeHighlightingThemes);
         $this->assertTrue($config->djotOptions->codeHighlightingWithGutter);
     }
 
@@ -296,6 +298,7 @@ final class BuildConfigTest extends TestCase
 
         $this->assertTrue($config->djotOptions->codeHighlightingEnabled);
         $this->assertSame('nord', $config->djotOptions->codeHighlightingTheme);
+        $this->assertSame([], $config->djotOptions->codeHighlightingThemes);
         $this->assertFalse($config->djotOptions->codeHighlightingWithGutter);
     }
 

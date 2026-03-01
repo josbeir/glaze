@@ -58,6 +58,9 @@ djot:
   codeHighlighting:
     enabled: true
     theme: nord
+    themes:
+      dark: github-dark
+      light: github-light
     withGutter: false
   headerAnchors:
     enabled: false
@@ -256,12 +259,28 @@ djot:
   codeHighlighting:
     enabled: true
     theme: github-dark
+    themes:
+      dark: github-dark
+      light: github-light
     withGutter: true
 ```
 
 - `enabled` -- enable or disable highlighting (default `true`)
-- `theme` -- Phiki theme name (default `nord`); see [Phiki themes](https://github.com/phikiphp/phiki) for options
+- `theme` -- single Phiki theme name (default `nord`); used when `themes` is not set
+- `themes` -- optional named theme map (`name: theme`) for multi-theme output (for example `dark`/`light`)
 - `withGutter` -- show line-number gutter beside code (default `false`)
+
+When `themes` is configured, it takes precedence over `theme`. Glaze passes both named themes to Phiki, which emits CSS variables per named theme so you can switch colors in CSS.
+
+Example with explicit dark/light mapping:
+
+```neon
+djot:
+  codeHighlighting:
+    themes:
+      dark: github-dark
+      light: github-light
+```
 
 ### `djot.headerAnchors`
 

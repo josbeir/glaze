@@ -10,23 +10,25 @@ working Glaze site by the end.
 
 ## Scaffold a project
 
-With Glaze installed globally:
+Choose the scaffold mode that matches your workflow:
 
-```bash
+::: code-group
+
+```bash [Default]
 glaze init my-site
 ```
 
-To scaffold a Vite setup (`vite.config.js`, `package.json`, and Vite-enabled `glaze.neon` defaults), use the `vite` preset:
-
-```bash
+```bash [Vite preset]
 glaze init my-site --preset vite
 ```
 
-Glaze asks a few questions interactively (title, base URL, taxonomies). To skip all prompts:
-
-```bash
+```bash [Non-interactive]
 glaze init my-site --title "My Site" --yes
 ```
+
+:::
+
+Glaze asks a few questions interactively by default (title, base URL, taxonomies).
 
 This creates:
 
@@ -83,19 +85,22 @@ This is my site.
 
 ## Start the development server
 
-```bash
+::: code-group
+
+```bash [Standard]
 cd my-site
 glaze serve
 ```
 
-Open `http://127.0.0.1:8080`. The server renders each page on request -- edit content or templates and refresh to see changes immediately.
-
-If you used the Vite preset, install dependencies and start Glaze + Vite together:
-
-```bash
+```bash [With Vite]
+cd my-site
 npm install
 glaze serve --vite
 ```
+
+:::
+
+Open `http://127.0.0.1:8080`. The server renders each page on request -- edit content or templates and refresh to see changes immediately.
 
 Then reference assets in your layout template using Sugar's Vite directive:
 
@@ -105,17 +110,17 @@ Then reference assets in your layout template using Sugar's Vite directive:
 
 ## Add a page
 
-Create a new content page interactively:
+::: code-group
 
-```bash
+```bash [Interactive]
 glaze new
 ```
 
-Or skip the prompts:
-
-```bash
+```bash [One-shot]
 glaze new "My first post" --yes
 ```
+
+:::
 
 This writes `content/my-first-post.dj` with a frontmatter stub:
 

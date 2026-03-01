@@ -20,6 +20,7 @@ final class DjotOptionsTest extends TestCase
 
         $this->assertTrue($options->codeHighlightingEnabled);
         $this->assertSame('nord', $options->codeHighlightingTheme);
+        $this->assertSame([], $options->codeHighlightingThemes);
         $this->assertFalse($options->codeHighlightingWithGutter);
         $this->assertFalse($options->headerAnchorsEnabled);
         $this->assertSame('#', $options->headerAnchorsSymbol);
@@ -57,6 +58,7 @@ final class DjotOptionsTest extends TestCase
 
         $this->assertTrue($options->codeHighlightingEnabled);
         $this->assertSame('nord', $options->codeHighlightingTheme);
+        $this->assertSame([], $options->codeHighlightingThemes);
         $this->assertFalse($options->headerAnchorsEnabled);
         $this->assertFalse($options->autolinkEnabled);
         $this->assertFalse($options->externalLinksEnabled);
@@ -75,13 +77,38 @@ final class DjotOptionsTest extends TestCase
             'codeHighlighting' => [
                 'enabled' => false,
                 'theme' => 'GITHUB-DARK',
+                'themes' => [
+                    'Dark' => 'GITHUB-DARK',
+                    'Light' => 'GITHUB-LIGHT',
+                ],
                 'withGutter' => true,
             ],
         ]);
 
         $this->assertFalse($options->codeHighlightingEnabled);
         $this->assertSame('github-dark', $options->codeHighlightingTheme);
+        $this->assertSame(['dark' => 'github-dark', 'light' => 'github-light'], $options->codeHighlightingThemes);
         $this->assertTrue($options->codeHighlightingWithGutter);
+    }
+
+    /**
+     * Ensure invalid multi-theme map entries are filtered safely.
+     */
+    public function testInvalidCodeHighlightingThemesAreIgnored(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'codeHighlighting' => [
+                'themes' => [
+                    'dark' => 'github-dark',
+                    '' => 'github-light',
+                    'light' => '',
+                    1 => 'nord',
+                    'custom' => 123,
+                ],
+            ],
+        ]);
+
+        $this->assertSame(['dark' => 'github-dark'], $options->codeHighlightingThemes);
     }
 
     /**

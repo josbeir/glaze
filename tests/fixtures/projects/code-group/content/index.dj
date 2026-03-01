@@ -1,0 +1,17 @@
+# Code Group Demo
+
+::: code-group
+
+```js [config.js]
+const config = {
+  a: 1,
+}
+```
+
+```ts [config.ts]
+const config: Record<string, unknown> = {
+  a: 1,
+}
+```
+
+:::

@@ -77,4 +77,18 @@ final class PhikiCodeBlockRendererTest extends TestCase
         $this->assertStringContainsString('language-Djot', $html);
         $this->assertStringContainsString('+++', $html);
     }
+
+    /**
+     * Ensure named multi-theme configuration emits CSS variables for alternate themes.
+     */
+    public function testRenderSupportsNamedMultipleThemes(): void
+    {
+        $renderer = new PhikiCodeBlockRenderer(theme: ['dark' => 'github-dark', 'light' => 'github-light']);
+        $html = $renderer->render(new CodeBlock("echo 1;\n", 'php'));
+
+        $this->assertStringContainsString('class="phiki', $html);
+        $this->assertStringContainsString('phiki-themes', $html);
+        $this->assertStringContainsString('github-light', $html);
+        $this->assertStringContainsString('--phiki-light-background-color', $html);
+    }
 }

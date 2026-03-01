@@ -13,6 +13,7 @@ use Djot\Extension\SemanticSpanExtension;
 use Djot\Extension\SmartQuotesExtension;
 use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
+use Glaze\Render\Djot\CodeGroupExtension;
 use Glaze\Render\Djot\InternalDjotLinkExtension;
 use Glaze\Render\Djot\PhikiCodeBlockRenderer;
 use Glaze\Render\Djot\PhikiExtension;
@@ -160,20 +161,38 @@ final class DjotRenderer
             ));
         }
 
-        if (!$djot->codeHighlightingEnabled) {
-            return $converter;
+        $phikiCodeBlockRenderer = null;
+        if ($djot->codeHighlightingEnabled) {
+            $phikiCodeBlockRenderer = new PhikiCodeBlockRenderer(
+                theme: $this->resolveCodeHighlightingTheme($djot),
+                withGutter: $djot->codeHighlightingWithGutter,
+            );
+
+            $converter->addExtension(new PhikiExtension($phikiCodeBlockRenderer));
         }
 
-        $converter->addExtension(
-            new PhikiExtension(
-                new PhikiCodeBlockRenderer(
-                    theme: $this->resolveTheme($djot->codeHighlightingTheme),
-                    withGutter: $djot->codeHighlightingWithGutter,
-                ),
-            ),
-        );
+        $converter->addExtension(new CodeGroupExtension($phikiCodeBlockRenderer));
 
         return $converter;
+    }
+
+    /**
+     * Resolve final Phiki theme configuration from Djot options.
+     *
+     * When `codeHighlightingThemes` is configured, it takes precedence and returns a
+     * named map that enables Phiki multi-theme output. Otherwise a single theme value
+     * from `codeHighlightingTheme` is used.
+     *
+     * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
+     * @return \Phiki\Theme\Theme|array<string, string>|string
+     */
+    protected function resolveCodeHighlightingTheme(DjotOptions $djot): array|string|Theme
+    {
+        if ($djot->codeHighlightingThemes !== []) {
+            return $this->resolveNamedThemes($djot->codeHighlightingThemes);
+        }
+
+        return $this->resolveTheme($djot->codeHighlightingTheme);
     }
 
     /**
@@ -195,6 +214,23 @@ final class DjotRenderer
         }
 
         return $normalizedTheme;
+    }
+
+    /**
+     * Resolve configured named theme map values to normalized Phiki theme identifiers.
+     *
+     * @param array<string, string> $themes Named themes map (name => theme identifier).
+     * @return array<string, string>
+     */
+    protected function resolveNamedThemes(array $themes): array
+    {
+        $resolvedThemes = [];
+
+        foreach ($themes as $themeName => $themeValue) {
+            $resolvedThemes[$themeName] = strtolower(trim($themeValue));
+        }
+
+        return $resolvedThemes;
     }
 
     /**

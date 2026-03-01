@@ -356,6 +356,9 @@ final class ProjectScaffoldService
 #   codeHighlighting:
 #     enabled: true
 #     theme: github-dark
+#     themes:
+#       dark: github-dark
+#       light: github-light
 #     withGutter: false
 #   headerAnchors:
 #     enabled: false
