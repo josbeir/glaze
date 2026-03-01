@@ -20,12 +20,15 @@ use function Sugar\Core\Runtime\raw;
 
 <s-template s:block="content">
 	<section class="mb-10 sm:mb-12">
-		<div class="relative p-6 sm:p-8">
-			<div class="" aria-hidden="true"></div>
-			<div class="relative z-10 grid gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
-				<div>
-					<div class="badge badge-primary badge-outline mb-4" s:if="$page->hasMeta('hero.category')"><?= $page->meta('hero.category') ?></div>
-					<h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5"><?= $page->meta('hero.title', $title) ?></h1>
+		<div class="relative">
+			<div class="relative z-10 grid justify-between gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
+				<div class="px-6">
+					<div class="badge badge-primary badge-outline mb-4" s:if="$page->hasMeta('hero.category')">
+						<?= $page->meta('hero.category') ?>
+					</div>
+					<h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5">
+						<?= $page->meta('hero.title', $title) ?>
+					</h1>
 					<p class="text-base-content/75 text-lg lg:text-xl max-w-3xl" s:if="$page->hasMeta('hero.subtitle')">
 						<?= $page->meta('hero.subtitle') ?>
 					</p>
@@ -49,14 +52,12 @@ use function Sugar\Core\Runtime\raw;
 					</div>
 				</div>
 
-				<div class="hidden lg:flex justify-center">
-					<div class="hero-logo-glow">
-						<img
-							class="w-72 xl:w-80 2xl:w-88 h-auto"
-							src="<?= ($site->basePath ?? '') . '/glaze-logo.svg' ?>"
-							alt="<?= $site->title ?>"
-						/>
-					</div>
+				<div class="hidden lg:flex">
+					<img
+						class="w-72 xl:w-80 2xl:w-88 h-auto ml-auto"
+						src="<?= ($site->basePath ?? '') . '/glaze-logo.svg' ?>"
+						alt="<?= $site->title ?>"
+					/>
 				</div>
 			</div>
 
@@ -66,7 +67,7 @@ use function Sugar\Core\Runtime\raw;
 			</div>
 		</div>
 
-		<div class="grid gap-4 mt-6 mb-15 lg:mb-30 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
+		<div class="grid gap-4 my-15 lg:mb-30 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
 			<s-template s:foreach="$page->meta('hero.highlights', []) as $heroHighlight">
 				<s-hero-card s:bind="['icon' => $heroHighlight['icon'] ?? '']">
 					<h2 s:slot="header"><?= $heroHighlight['title'] ?></h2>
