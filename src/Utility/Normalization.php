@@ -86,9 +86,9 @@ final class Normalization
      */
     public static function path(string $path): string
     {
-        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        $normalized = str_replace('\\', '/', $path);
 
-        return rtrim($normalized, DIRECTORY_SEPARATOR);
+        return rtrim($normalized, '/');
     }
 
     /**
@@ -101,9 +101,7 @@ final class Normalization
      */
     public static function pathKey(string $path): string
     {
-        $normalized = self::path($path);
-
-        return strtolower(trim(str_replace(DIRECTORY_SEPARATOR, '/', $normalized), '/'));
+        return strtolower(trim(self::path($path), '/'));
     }
 
     /**
@@ -116,7 +114,7 @@ final class Normalization
      */
     public static function normalizePathSegments(string $path): string
     {
-        $segments = explode('/', str_replace(DIRECTORY_SEPARATOR, '/', self::path($path)));
+        $segments = explode('/', self::path($path));
         $normalized = [];
 
         foreach ($segments as $segment) {
@@ -166,9 +164,7 @@ final class Normalization
      */
     public static function pathFragment(string $path): string
     {
-        $normalized = self::path($path);
-
-        return trim(str_replace(DIRECTORY_SEPARATOR, '/', $normalized), '/');
+        return trim(self::path($path), '/');
     }
 
     /**

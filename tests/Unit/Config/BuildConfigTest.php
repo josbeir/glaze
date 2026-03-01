@@ -23,12 +23,12 @@ final class BuildConfigTest extends TestCase
     {
         $config = BuildConfig::fromProjectRoot('/tmp/glaze-project');
 
-        $this->assertSame('/tmp/glaze-project/content', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->contentPath())));
-        $this->assertSame('/tmp/glaze-project/templates', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->templatePath())));
-        $this->assertSame('/tmp/glaze-project/public', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->outputPath())));
-        $this->assertSame('/tmp/glaze-project/tmp/cache', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->cachePath())));
-        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->templateCachePath())));
-        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', str_replace(DIRECTORY_SEPARATOR, '/', Normalization::path($config->glideCachePath())));
+        $this->assertSame('/tmp/glaze-project/content', $config->contentPath());
+        $this->assertSame('/tmp/glaze-project/templates', $config->templatePath());
+        $this->assertSame('/tmp/glaze-project/public', $config->outputPath());
+        $this->assertSame('/tmp/glaze-project/tmp/cache', $config->cachePath());
+        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $config->templateCachePath());
+        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $config->glideCachePath());
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([], $config->contentTypes);

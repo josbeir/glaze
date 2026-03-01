@@ -217,8 +217,7 @@ final class BuildCommand extends AbstractGlazeCommand
                         $currentManifest->orphanedStaticAssetOutputPaths($previousManifest),
                     )));
                     foreach ($orphanedOutputPaths as $orphanedOutputPath) {
-                        $orphanedAbsolutePath = $config->outputPath() . DIRECTORY_SEPARATOR
-                            . str_replace('/', DIRECTORY_SEPARATOR, $orphanedOutputPath);
+                        $orphanedAbsolutePath = $config->outputPath() . '/' . $orphanedOutputPath;
                         $relativePath = $this->relativeToRoot($orphanedAbsolutePath, $config->projectRoot);
                         $io->out(sprintf('<error>removed</error> %s', $relativePath));
                     }

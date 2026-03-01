@@ -15,6 +15,7 @@ use Glaze\Scaffold\ScaffoldSchemaLoader;
 use Glaze\Scaffold\TemplateRenderer;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use RuntimeException;
@@ -164,7 +165,7 @@ final class InitCommandTest extends TestCase
         $options = $this->callProtected($command, 'resolveScaffoldOptions', $arguments, $io);
 
         $this->assertInstanceOf(ScaffoldOptions::class, $options);
-        $this->assertSame(getcwd() . DIRECTORY_SEPARATOR . 'relative-site', $options->targetDirectory);
+        $this->assertSame(Normalization::path(getcwd() . '/relative-site'), $options->targetDirectory);
         $this->assertSame('relative-site', $options->siteName);
         $this->assertSame('page', $options->pageTemplate);
         $this->assertSame('/docs', $options->basePath);
@@ -209,9 +210,18 @@ final class InitCommandTest extends TestCase
         $args = new Arguments([], ['preset' => './my-preset'], []);
 
         $preset = $this->callProtected($command, 'resolvePreset', $args, new ConsoleIo(), true);
+        $cwd = getcwd();
+        if ($cwd === false) {
+            throw new RuntimeException('Unable to resolve current working directory.');
+        }
+
+        $cwdPrefix = Normalization::path($cwd);
+        if ($cwdPrefix === '') {
+            throw new RuntimeException('Resolved current working directory cannot be empty.');
+        }
 
         $this->assertIsString($preset);
-        $this->assertStringStartsWith(getcwd() ?: '.', $preset);
+        $this->assertStringStartsWith($cwdPrefix, $preset);
         $this->assertStringEndsWith('my-preset', $preset);
     }
 

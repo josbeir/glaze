@@ -65,8 +65,8 @@ final readonly class TemplateViteOptions
             ? trim($buildVite['manifestPath'])
             : 'public/.vite/manifest.json';
 
-        if (!str_starts_with($manifestPath, '/') && !str_starts_with($manifestPath, DIRECTORY_SEPARATOR)) {
-            $manifestPath = $projectRoot . DIRECTORY_SEPARATOR . ltrim($manifestPath, '/\\');
+        if (!str_starts_with($manifestPath, '/')) {
+            $manifestPath = $projectRoot . '/' . ltrim($manifestPath, '/\\');
         }
 
         $devServerUrl = is_string($devVite['url'] ?? null) && trim($devVite['url']) !== ''

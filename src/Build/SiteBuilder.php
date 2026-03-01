@@ -154,7 +154,7 @@ final class SiteBuilder
                 continue;
             }
 
-            $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
+            $destination = $config->outputPath() . '/' . $page->outputRelativePath;
             $shouldRender = $fullBuild
                 || isset($changedOutputPaths[$page->outputRelativePath])
                 || !is_file($destination);
@@ -289,14 +289,13 @@ final class SiteBuilder
      */
     protected function pruneOrphanedOutputFiles(string $outputPath, array $orphanedOutputPaths): void
     {
-        $normalizedOutputPath = rtrim($outputPath, DIRECTORY_SEPARATOR);
+        $normalizedOutputPath = rtrim($outputPath, '/');
         foreach ($orphanedOutputPaths as $orphanedOutputPath) {
             if ($orphanedOutputPath === '') {
                 continue;
             }
 
-            $absolutePath = $normalizedOutputPath . DIRECTORY_SEPARATOR
-                . str_replace('/', DIRECTORY_SEPARATOR, ltrim($orphanedOutputPath, '/'));
+            $absolutePath = $normalizedOutputPath . '/' . ltrim($orphanedOutputPath, '/');
             if (is_file($absolutePath)) {
                 unlink($absolutePath);
                 $this->removeEmptyParentDirectories(dirname($absolutePath), $normalizedOutputPath);
@@ -312,8 +311,8 @@ final class SiteBuilder
      */
     protected function removeEmptyParentDirectories(string $directory, string $outputRoot): void
     {
-        $normalizedRoot = rtrim($outputRoot, DIRECTORY_SEPARATOR);
-        $current = rtrim($directory, DIRECTORY_SEPARATOR);
+        $normalizedRoot = rtrim($outputRoot, '/');
+        $current = rtrim($directory, '/');
 
         while ($current !== '' && $current !== $normalizedRoot) {
             if (!is_dir($current)) {

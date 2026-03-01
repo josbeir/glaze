@@ -43,7 +43,7 @@ final class BuildConfig
         public readonly string $templateDir = 'templates',
         public readonly string $staticDir = 'static',
         public readonly string $outputDir = 'public',
-        public readonly string $cacheDir = 'tmp' . DIRECTORY_SEPARATOR . 'cache',
+        public readonly string $cacheDir = 'tmp/cache',
         public readonly string $pageTemplate = 'page',
         public readonly string $extensionsDir = 'extensions',
         public readonly array $imagePresets = [],
@@ -147,7 +147,7 @@ final class BuildConfig
      */
     public function templateCachePath(): string
     {
-        return $this->cachePath() . DIRECTORY_SEPARATOR . 'sugar';
+        return $this->cachePath() . '/sugar';
     }
 
     /**
@@ -155,7 +155,7 @@ final class BuildConfig
      */
     public function glideCachePath(): string
     {
-        return $this->cachePath() . DIRECTORY_SEPARATOR . 'glide';
+        return $this->cachePath() . '/glide';
     }
 
     /**
@@ -163,7 +163,7 @@ final class BuildConfig
      */
     public function buildManifestPath(): string
     {
-        return $this->cachePath() . DIRECTORY_SEPARATOR . 'build-manifest.json';
+        return $this->cachePath() . '/build-manifest.json';
     }
 
     /**
@@ -174,7 +174,7 @@ final class BuildConfig
     protected function resolvePath(string $relativePath): string
     {
         return Normalization::path(
-            $this->projectRoot . DIRECTORY_SEPARATOR . ltrim($relativePath, DIRECTORY_SEPARATOR),
+            $this->projectRoot . '/' . ltrim($relativePath, '/'),
         );
     }
 

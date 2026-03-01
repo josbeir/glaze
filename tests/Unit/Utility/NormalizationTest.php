@@ -56,9 +56,8 @@ final class NormalizationTest extends TestCase
      */
     public function testPathNormalization(): void
     {
-        $normalized = Normalization::path('/tmp/glaze/site/');
-
-        $this->assertSame('/tmp/glaze/site', str_replace('\\', '/', $normalized));
+        $this->assertSame('/tmp/glaze/site', Normalization::path('/tmp/glaze/site/'));
+        $this->assertSame('/tmp/glaze/site', Normalization::path('\\tmp\\glaze\\site\\'));
     }
 
     /**
@@ -66,9 +65,7 @@ final class NormalizationTest extends TestCase
      */
     public function testOptionalPathNormalization(): void
     {
-        $normalized = Normalization::optionalPath(' /tmp/glaze/site/ ');
-
-        $this->assertSame('/tmp/glaze/site', str_replace('\\', '/', (string)$normalized));
+        $this->assertSame('/tmp/glaze/site', Normalization::optionalPath(' /tmp/glaze/site/ '));
         $this->assertNull(Normalization::optionalPath('   '));
         $this->assertNull(Normalization::optionalPath(null));
     }

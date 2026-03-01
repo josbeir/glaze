@@ -284,10 +284,10 @@ final readonly class BuildManifest
     protected static function buildGlobalSignature(BuildConfig $config, array $pages): string
     {
         $parts = [
-            'glaze=' . self::fileSignature($config->projectRoot . DIRECTORY_SEPARATOR . 'glaze.neon'),
+            'glaze=' . self::fileSignature($config->projectRoot . '/glaze.neon'),
             'templates=' . self::directorySignature($config->templatePath()),
             'extensions=' . self::directorySignature(
-                $config->projectRoot . DIRECTORY_SEPARATOR . $config->extensionsDir,
+                $config->projectRoot . '/' . $config->extensionsDir,
             ),
             'includeDrafts=' . ($config->includeDrafts ? '1' : '0'),
             'defaultTemplate=' . $config->pageTemplate,

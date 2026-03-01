@@ -426,6 +426,6 @@ final class InitCommand extends AbstractGlazeCommand
             return true;
         }
 
-        return preg_match('/^[A-Za-z]:\\\\/', $path) === 1;
+        return preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
     }
 }

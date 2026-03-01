@@ -20,6 +20,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Normalization;
 use PHPUnit\Framework\TestCase;
 use Sugar\Core\Extension\ExtensionInterface as SugarExtensionInterface;
 use Sugar\Core\Extension\RegistrationContext;
@@ -538,7 +539,7 @@ final class SiteBuilderTest extends TestCase
         $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
 
         $this->assertCount(1, $received);
-        $this->assertSame($projectRoot, $received[0]);
+        $this->assertSame(Normalization::path($projectRoot), Normalization::path($received[0]));
     }
 
     /**
@@ -801,7 +802,10 @@ final class SiteBuilderTest extends TestCase
         $secondWritten = $builder->build($config);
 
         $this->assertCount(1, $secondWritten);
-        $this->assertStringEndsWith('/public/docs/second/index.html', $secondWritten[0]);
+        $this->assertStringEndsWith(
+            '/public/docs/second/index.html',
+            $secondWritten[0],
+        );
     }
 
     /**
@@ -847,7 +851,10 @@ final class SiteBuilderTest extends TestCase
         $writtenFiles = $builder->build($config);
 
         $this->assertCount(1, $writtenFiles);
-        $this->assertStringEndsWith('/public/index.html', $writtenFiles[0]);
+        $this->assertStringEndsWith(
+            '/public/index.html',
+            $writtenFiles[0],
+        );
         $this->assertFileDoesNotExist($projectRoot . '/public/docs/second/index.html');
         $this->assertFileExists($projectRoot . '/public/index.html');
     }
