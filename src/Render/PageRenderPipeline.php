@@ -83,13 +83,9 @@ final class PageRenderPipeline
         );
 
         $htmlContent = $renderResult->html;
-        if (!$debug) {
-            $htmlContent = $this->buildGlideHtmlRewriter->rewrite($htmlContent, $config);
-        }
-
         $pageUrl = $this->resourcePathRewriter->applyBasePathToPath($page->urlPath, $config->site);
 
-        return $pageRenderer->render([
+        $output = $pageRenderer->render([
             'title' => $page->title,
             'url' => $pageUrl,
             'content' => $htmlContent,
@@ -100,5 +96,11 @@ final class PageRenderPipeline
             ),
             'site' => $config->site,
         ], $templateContext);
+
+        if (!$debug) {
+            $output = $this->buildGlideHtmlRewriter->rewrite($output, $config);
+        }
+
+        return $output;
     }
 }

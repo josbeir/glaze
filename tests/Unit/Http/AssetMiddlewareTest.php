@@ -81,7 +81,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/static/image.png', 'png-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class));
+        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/image.png');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -102,7 +102,7 @@ final class AssetMiddlewareTest extends TestCase
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class));
+        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/image.png');
 
         $response = $middleware->process($request, $this->fallbackHandler());
@@ -110,6 +110,47 @@ final class AssetMiddlewareTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('image/png', $response->getHeaderLine('Content-Type'));
         $this->assertSame('png-bytes', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure static asset middleware applies Glide transforms to static-folder images.
+     */
+    public function testStaticAssetMiddlewareUsesImageTransformerForImageRequests(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/static/images', 0755, true);
+        file_put_contents($projectRoot . '/static/images/logo.jpg', 'jpg-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $transformer = new class implements ImageTransformerInterface {
+            public function createResponse(
+                string $rootPath,
+                string $requestPath,
+                array $queryParams,
+                array $presets,
+                string $cachePath,
+                array $options = [],
+            ): ?ResponseInterface {
+                if (($queryParams['w'] ?? null) !== '200') {
+                    return null;
+                }
+
+                return (new Response(['charset' => 'UTF-8']))
+                    ->withStatus(206)
+                    ->withHeader('Content-Type', 'image/jpeg')
+                    ->withStringBody('transformed-static-jpg');
+            }
+        };
+
+        $middleware = new StaticAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('GET', '/images/logo.jpg')
+            ->withQueryParams(['w' => '200']);
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('transformed-static-jpg', (string)$response->getBody());
     }
 
     /**

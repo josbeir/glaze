@@ -20,6 +20,14 @@ djot:
 		withGutter: false
 	headerAnchors:
 		enabled: true
+images:
+	presets:
+		large:
+			fm: webp
+			w: 1200
+		medium:
+			fm: webp
+			w: 800
 build:
 	clean: false
 	vite:

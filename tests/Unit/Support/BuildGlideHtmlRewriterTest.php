@@ -50,6 +50,33 @@ final class BuildGlideHtmlRewriterTest extends TestCase
     }
 
     /**
+     * Ensure build-time Glide rewriting resolves images from the static directory when not found in content.
+     */
+    public function testRewriteRewritesImageSrcFromStaticDirectory(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/static/images', 0755, true);
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $this->createPng($projectRoot . '/static/images/logo.png');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $rewriter = $this->createRewriter();
+
+        $html = '<img src="/images/logo.png?w=80">';
+
+        $rewritten = $rewriter->rewrite($html, $config);
+
+        $hash = Hash::make('/images/logo.png?w=80');
+        $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
+        $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.png');
+    }
+
+    /**
      * Ensure srcset and source attributes are rewritten candidate-by-candidate.
      */
     public function testRewriteRewritesSrcsetAndSourceCandidates(): void
@@ -86,6 +113,33 @@ final class BuildGlideHtmlRewriterTest extends TestCase
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash100 . '.png');
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash200 . '.png');
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash300 . '.png');
+    }
+
+    /**
+     * Ensure format conversion params (e.g. fm=webp) produce the correct file extension in the published path.
+     */
+    public function testRewriteProducesCorrectExtensionForFormatConversion(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $this->createPng($projectRoot . '/content/images/hero.png');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $rewriter = $this->createRewriter();
+
+        $html = '<img src="/images/hero.png?fm=webp">';
+
+        $rewritten = $rewriter->rewrite($html, $config);
+
+        $hash = Hash::make('/images/hero.png?fm=webp');
+        $this->assertStringContainsString('/_glide/' . $hash . '.webp', $rewritten);
+        $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.webp');
     }
 
     /**
@@ -142,7 +196,7 @@ final class BuildGlideHtmlRewriterTest extends TestCase
     }
 
     /**
-     * Ensure publishing keeps extensionless hash names for extensionless source paths.
+     * Ensure publishing keeps extensionless hash names when source path has no extension and no fm param is set.
      */
     public function testPublishBuildGlideAssetSupportsExtensionlessSourcePath(): void
     {

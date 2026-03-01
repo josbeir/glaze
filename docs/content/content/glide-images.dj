@@ -7,6 +7,15 @@ weight: 60
 
 Glaze integrates [League Glide](https://glide.thephpleague.com/) for on-demand image transformation. Apply transforms by appending query parameters directly to local image URLs -- no separate build step required.
 
+## Supported image sources
+
+Glide transforms apply to images from **any local source**:
+
+- `content/` -- images co-located with Djot content
+- `static/` -- static root-served assets (e.g. `static/logo.png` → `/logo.png`)
+
+External URLs (`https://...`) always pass through unchanged.
+
 ## Basic usage in Djot content
 
 Pass Glide parameters as query string values on any local image URL:
@@ -56,7 +65,7 @@ Raw params and presets can be combined. Raw values take precedence over preset v
 
 ## Using Glide in Sugar templates
 
-The same URL patterns work in templates. Use the `basePath` prefix if your site is deployed to a subfolder:
+The same URL patterns work in templates, including images from `static/`. Use the `basePath` prefix if your site is deployed to a subfolder:
 
 ```php
 <?php
@@ -105,18 +114,24 @@ In `glaze serve`:
 
 In `glaze build`:
 
-- all image URLs with Glide params found in rendered HTML are rewritten
+- all image URLs with Glide params in rendered HTML are rewritten — this includes images in both Djot content and Sugar templates
 - transforms are computed and written to `public/_glide/`
 - the original source images are also copied to `public/` at their original paths
+- the output file extension reflects the actual output format: `fm=webp` produces a `.webp` file, `fm=jpg` produces a `.jpg`, and so on
 
-Example:
+Example without format conversion:
 
 - Source URL: `/images/cover.jpg?w=1200&h=500&fit=crop`
-- Output URL: `/_glide/abc123.jpg` (content-hash based name)
+- Output URL: `/_glide/abc123.jpg`
 - Output file: `public/_glide/abc123.jpg`
+
+Example with format conversion:
+
+- Source URL: `/static/hero.png?w=1200&fm=webp`
+- Output URL: `/_glide/def456.webp`
+- Output file: `public/_glide/def456.webp`
 
 ## Notes
 
-- Glide only processes local image URLs. External URLs (`https://...`) pass through unchanged.
 - If no Glide params are present in a URL, it is not transformed.
 - Glide supports many parameters beyond `w`, `h`, and `fit` -- see the [Glide docs](https://glide.thephpleague.com/2.0/api/quick-reference/) for the full list.

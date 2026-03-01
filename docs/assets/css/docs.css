@@ -239,11 +239,11 @@
 	}
 
 	html[data-theme="glaze-docs-dark"] .terminal-preview-dark {
-		@apply block²;
+		@apply block;
 	}
 
 	html[data-theme="glaze-docs-light"] .terminal-preview-light {
-		@apply block²;
+		@apply block;
 	}
 
 	@keyframes heroGlowAmbient {

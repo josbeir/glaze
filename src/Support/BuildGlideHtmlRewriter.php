@@ -151,14 +151,21 @@ final class BuildGlideHtmlRewriter
         }
 
         $sourcePath = $this->resourcePathRewriter->stripBasePathFromPath($path, $config->site);
-        $transformedPath = $this->glideImageTransformer->createTransformedPath(
-            rootPath: $config->contentPath(),
-            requestPath: $sourcePath,
-            queryParams: $normalizedQueryParams,
-            presets: $config->imagePresets,
-            cachePath: $config->glideCachePath(),
-            options: $config->imageOptions,
-        );
+        $transformedPath = null;
+        foreach ([$config->contentPath(), $config->staticPath()] as $candidateRoot) {
+            $transformedPath = $this->glideImageTransformer->createTransformedPath(
+                rootPath: $candidateRoot,
+                requestPath: $sourcePath,
+                queryParams: $normalizedQueryParams,
+                presets: $config->imagePresets,
+                cachePath: $config->glideCachePath(),
+                options: $config->imageOptions,
+            );
+            if (is_string($transformedPath)) {
+                break;
+            }
+        }
+
         if (!is_string($transformedPath)) {
             return $source;
         }
@@ -286,6 +293,10 @@ final class BuildGlideHtmlRewriter
     /**
      * Publish transformed Glide output to static build directory.
      *
+     * The output file extension is derived from the `fm` query parameter when
+     * present (e.g. `fm=webp` produces a `.webp` file), otherwise the source
+     * path extension is used so that non-converting operations keep the original type.
+     *
      * @param string $transformedPath Absolute transformed image path.
      * @param string $sourcePath Internal source image path.
      * @param string $queryString Original query string.
@@ -298,6 +309,12 @@ final class BuildGlideHtmlRewriter
         BuildConfig $config,
     ): string {
         $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
+        parse_str($queryString, $parsedQuery);
+        $fm = isset($parsedQuery['fm']) && is_string($parsedQuery['fm']) ? strtolower(trim($parsedQuery['fm'])) : null;
+        if ($fm !== null && $fm !== '') {
+            $extension = $fm;
+        }
+
         $hashedName = Hash::make($sourcePath . '?' . $queryString);
         $fileName = $extension === '' ? $hashedName : $hashedName . '.' . $extension;
         $relativePath = '_glide/' . $fileName;

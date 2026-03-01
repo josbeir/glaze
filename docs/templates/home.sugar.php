@@ -61,8 +61,8 @@ use function Sugar\Core\Runtime\raw;
 			</div>
 
 			<div class="mt-6 hidden lg:block">
-				<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png" alt="<?= $site->title ?>" />
-				<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png" alt="<?= $site->title ?>" />
+				<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png?p=large" alt="<?= $site->title ?>" />
+				<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png?p=large" alt="<?= $site->title ?>" />
 			</div>
 		</div>
 

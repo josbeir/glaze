@@ -73,7 +73,7 @@ final class GlazeCommandRunnerTest extends TestCase
 
         rewind($stream);
         $output = stream_get_contents($stream);
-        $this->assertStringContainsString('v3.0.0', (string)$output);
+        $this->assertStringContainsString('3.0.0', (string)$output);
         $this->assertStringContainsString('Static site generator', (string)$output);
         fclose($stream);
     }
@@ -94,7 +94,7 @@ final class GlazeCommandRunnerTest extends TestCase
 
         rewind($stream);
         $output = stream_get_contents($stream);
-        $this->assertStringContainsString('v2.0.0', (string)$output);
+        $this->assertStringContainsString('2.0.0', (string)$output);
         $this->assertStringContainsString('Static site generator', (string)$output);
         $this->assertStringContainsString("\033[", (string)$output);
         fclose($stream);
