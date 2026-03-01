@@ -5,6 +5,7 @@ namespace Glaze\Command;
 
 use Cake\Chronos\Chronos;
 use Cake\Console\Arguments;
+use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
@@ -21,7 +22,7 @@ use Throwable;
 /**
  * Create a new Djot content page with interactive prompts.
  */
-final class NewCommand extends AbstractGlazeCommand
+final class NewCommand extends BaseCommand
 {
     /**
      * Constructor.
@@ -116,8 +117,6 @@ final class NewCommand extends AbstractGlazeCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
-        $this->renderVersionHeader($io);
-
         try {
             $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
             $config = $this->buildConfigFactory->fromProjectRoot($projectRoot, true);

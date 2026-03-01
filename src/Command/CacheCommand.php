@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
+use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Config\BuildConfigFactory;
@@ -21,7 +22,7 @@ use Throwable;
  *   glaze cc --templates
  *   glaze cc --images
  */
-final class CacheCommand extends AbstractGlazeCommand
+final class CacheCommand extends BaseCommand
 {
     /**
      * Constructor.
@@ -75,8 +76,6 @@ final class CacheCommand extends AbstractGlazeCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
-        $this->renderVersionHeader($io);
-
         try {
             $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
             $config = $this->buildConfigFactory->fromProjectRoot($projectRoot);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
+use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
@@ -16,7 +17,7 @@ use RuntimeException;
 /**
  * Initialize a new Glaze project directory using a named scaffold preset.
  */
-final class InitCommand extends AbstractGlazeCommand
+final class InitCommand extends BaseCommand
 {
     /**
      * Constructor.
@@ -110,8 +111,6 @@ final class InitCommand extends AbstractGlazeCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
-        $this->renderVersionHeader($io);
-
         try {
             $options = $this->resolveScaffoldOptions($args, $io);
             $createdFiles = $this->scaffoldService->scaffold($options);

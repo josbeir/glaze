@@ -19,9 +19,9 @@ use function Sugar\Core\Runtime\raw;
 </s-template>
 
 <s-template s:block="content">
-	<section class="border-base-300 mb-10 sm:mb-12">
-		<div class="hero-surface relative overflow-hidden rounded-box border border-base-300 bg-base-100/55 p-6 sm:p-8 lg:p-10">
-			<div class="hero-mesh" aria-hidden="true"></div>
+	<section class="mb-10 sm:mb-12">
+		<div class="relative p-6 sm:p-8">
+			<div class="" aria-hidden="true"></div>
 			<div class="relative z-10 grid gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
 				<div>
 					<div class="badge badge-primary badge-outline mb-4" s:if="$page->hasMeta('hero.category')"><?= $page->meta('hero.category') ?></div>
@@ -47,7 +47,6 @@ use function Sugar\Core\Runtime\raw;
 							<?= $page->meta('hero.secondaryAction.label') ?>
 						</a>
 					</div>
-
 				</div>
 
 				<div class="hidden lg:flex justify-center">
@@ -60,9 +59,14 @@ use function Sugar\Core\Runtime\raw;
 					</div>
 				</div>
 			</div>
+
+			<div class="mt-6 hidden lg:block">
+				<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png" alt="<?= $site->title ?>" />
+				<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png" alt="<?= $site->title ?>" />
+			</div>
 		</div>
 
-		<div class="grid gap-4 mt-12 sm:grid-cols-2 lg:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
+		<div class="grid gap-4 mt-6 mb-15 lg:mb-30 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
 			<s-template s:foreach="$page->meta('hero.highlights', []) as $heroHighlight">
 				<s-hero-card s:bind="['icon' => $heroHighlight['icon'] ?? '']">
 					<h2 s:slot="header"><?= $heroHighlight['title'] ?></h2>
@@ -71,7 +75,7 @@ use function Sugar\Core\Runtime\raw;
 			</s-template>
 		</div>
 
-		<div class="card bg-base-200 border border-base-300 mt-12" x-data="scaffoldDemo({
+		<div class="card bg-base-200 border border-base-300" x-data="scaffoldDemo({
 			commands: [
 				'glaze init docs-site --vite --yes',
 				'cd docs-site',
@@ -122,9 +126,5 @@ use function Sugar\Core\Runtime\raw;
 				</div>
 			</div>
 		</article>
-
-		<div class="mt-8">
-			<s-template s:include="partials/pagenav" />
-		</div>
 	</s-template>
 </s-template>

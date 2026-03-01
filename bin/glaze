@@ -27,8 +27,8 @@ require $autoloadPath;
 
 putenv('GLAZE_CLI_ROOT=' . dirname(__DIR__));
 
-use Cake\Console\CommandRunner;
 use Glaze\Application;
+use Glaze\Command\GlazeCommandRunner;
 
-$runner = new CommandRunner(new Application(), 'glaze');
+$runner = new GlazeCommandRunner(new Application(), 'glaze');
 exit($runner->run($argv));

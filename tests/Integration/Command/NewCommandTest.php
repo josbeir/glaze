@@ -23,7 +23,7 @@ final class NewCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('new "My Post" --root "%s" --yes', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('version <success>');
+        $this->assertOutputContains('Glaze version');
         $this->assertOutputContains('<success>created</success>');
         $this->assertFileExists($projectRoot . '/content/my-post.dj');
     }

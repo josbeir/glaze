@@ -177,7 +177,7 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         ));
 
         $this->assertExitCode(1);
-        $this->assertOutputContains('version <success>');
+        $this->assertOutputContains('Glaze version');
         $this->assertOutputContains('Serving live templates/content from');
         $this->assertOutputContains('Press Ctrl+C to stop.');
     }

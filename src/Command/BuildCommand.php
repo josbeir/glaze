@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
+use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\BuildManifest;
@@ -18,7 +19,7 @@ use Throwable;
 /**
  * Build the static site from Djot content and Sugar templates.
  */
-final class BuildCommand extends AbstractGlazeCommand
+final class BuildCommand extends BaseCommand
 {
     /**
      * Constructor.
@@ -88,7 +89,6 @@ final class BuildCommand extends AbstractGlazeCommand
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
-        $this->renderVersionHeader($io);
         $startedAt = microtime(true);
         $pendingIcon = '<comment>✓ working</comment>';
         $doneIcon = '<success>✓ done</success>';

@@ -21,7 +21,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertOutputContains('version <success>');
+        $this->assertOutputContains('Glaze version');
         $this->assertOutputContains('Build complete: 1 page(s) in ');
         $this->assertFileExists($projectRoot . '/public/index.html');
     }

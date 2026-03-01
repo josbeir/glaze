@@ -234,6 +234,18 @@
 		animation: heroLogoFloat 8.4s ease-in-out infinite;
 	}
 
+	.terminal-preview {
+		@apply hidden;
+	}
+
+	html[data-theme="glaze-docs-dark"] .terminal-preview-dark {
+		@apply block²;
+	}
+
+	html[data-theme="glaze-docs-light"] .terminal-preview-light {
+		@apply block²;
+	}
+
 	@keyframes heroGlowAmbient {
 		0% {
 			transform: translate(-1%, -0.5%) scale(0.98);

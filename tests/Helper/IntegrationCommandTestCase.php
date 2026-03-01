@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Helper;
 
+use Cake\Console\CommandRunner;
 use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
 use Cake\Core\ConsoleApplicationInterface;
 use Glaze\Application;
+use Glaze\Command\GlazeCommandRunner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,5 +24,13 @@ abstract class IntegrationCommandTestCase extends TestCase
     protected function createApp(): ConsoleApplicationInterface
     {
         return new Application();
+    }
+
+    /**
+     * Build command runner used by integration tests.
+     */
+    protected function makeRunner(): CommandRunner
+    {
+        return new GlazeCommandRunner($this->createApp());
     }
 }

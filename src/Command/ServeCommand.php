@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Command;
 
 use Cake\Console\Arguments;
+use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\SiteBuilder;
@@ -19,7 +20,7 @@ use RuntimeException;
 /**
  * Serve generated static files using the PHP built-in web server.
  */
-final class ServeCommand extends AbstractGlazeCommand
+final class ServeCommand extends BaseCommand
 {
     /**
      * Constructor.
@@ -113,9 +114,6 @@ final class ServeCommand extends AbstractGlazeCommand
     public function execute(Arguments $args, ConsoleIo $io): int
     {
         $verbose = (bool)$args->getOption('verbose');
-        if ($verbose) {
-            $this->renderVersionHeader($io);
-        }
 
         $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
         if (!is_dir($projectRoot)) {
