@@ -19,21 +19,21 @@ use function Sugar\Core\Runtime\raw;
 </s-template>
 
 <s-template s:block="content">
-	<section class="sm:mb-12">
-		<div class="relative">
-			<div class="relative z-10 grid justify-between gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
-				<div>
+	<section class="mb-8 sm:mb-10 lg:mb-12">
+		<div class="relative py-2 sm:py-4">
+			<div class="relative z-10 grid gap-8 lg:gap-12 xl:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
+				<div class="max-w-3xl">
 					<div class="badge badge-primary badge-outline mb-4" s:if="$page->hasMeta('hero.category')">
 						<?= $page->meta('hero.category') ?>
 					</div>
-					<h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5">
+					<h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight mb-5">
 						<?= $page->meta('hero.title', $title) ?>
 					</h1>
-					<p class="text-base-content/75 text-lg lg:text-xl max-w-3xl" s:if="$page->hasMeta('hero.subtitle')">
+					<p class="text-base-content/75 text-lg lg:text-xl max-w-2xl" s:if="$page->hasMeta('hero.subtitle')">
 						<?= $page->meta('hero.subtitle') ?>
 					</p>
 
-					<div class="flex flex-wrap gap-4 mt-8">
+					<div class="flex flex-wrap gap-3 sm:gap-4 mt-8">
 						<a
 							class="btn btn-primary btn-md"
 							s:if="$page->hasMeta('hero.primaryAction.label')"
@@ -52,9 +52,9 @@ use function Sugar\Core\Runtime\raw;
 					</div>
 				</div>
 
-				<div class="hidden lg:flex">
+				<div class="hidden lg:flex lg:justify-end">
 					<img
-						class="w-72 xl:w-80 2xl:w-88 h-auto ml-auto"
+						class="w-64 xl:w-76 2xl:w-84 h-auto"
 						src="<?= ($site->basePath ?? '') . '/glaze-logo.svg' ?>"
 						alt="<?= $site->title ?>"
 					/>
@@ -62,7 +62,7 @@ use function Sugar\Core\Runtime\raw;
 			</div>
 		</div>
 
-		<div class="grid gap-4 mt-15 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
+		<div class="grid gap-4 mt-10 lg:mt-12 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
 			<s-template s:foreach="$page->meta('hero.highlights', []) as $heroHighlight">
 				<s-hero-card s:bind="['icon' => $heroHighlight['icon'] ?? '']">
 					<h2 s:slot="header"><?= $heroHighlight['title'] ?></h2>
@@ -71,7 +71,12 @@ use function Sugar\Core\Runtime\raw;
 			</s-template>
 		</div>
 
-		<div class="my-6 lg:my-15 lg:w-[80%] mx-auto">
+		<div
+			x-data="{ inView: false }"
+			x-intersect.once="inView = true"
+			class="my-8 lg:my-12 lg:w-[85%] xl:w-[80%] mx-auto transform-gpu transition-all duration-700 ease-out"
+			:class="inView ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.985]'"
+		>
 			<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png?p=large" alt="<?= $site->title ?>" />
 			<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png?p=large" alt="<?= $site->title ?>" />
 		</div>
