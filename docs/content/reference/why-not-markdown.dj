@@ -67,4 +67,3 @@ Glaze chooses Djot because it scales better for structured content pipelines whe
 - [Djot syntax reference](https://djot.net/)
 - [Djot rationale](https://johnmacfarlane.net/djot-rationale.html) -- John MacFarlane's explanation of the design decisions
 - [php-collective/djot-php](https://github.com/php-collective/djot-php) -- the parser used by Glaze
-

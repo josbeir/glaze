@@ -81,7 +81,7 @@ final class SiteBuilder
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param bool $cleanOutput Whether to clear output directory before build.
-     * @param callable(int, int, string, float):void|null $progressCallback Optional per-page progress callback. Receives completed count, total count, file path or virtual URL, and per-page duration in seconds.
+     * @param callable(int, int, string, float):void|null $progressCallback Optional per-page progress callback. Receives completed count, total count, file path or virtual URL, and per-page duration in seconds. Cached and virtual entries report a duration of `0.0`.
      * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional pre-configured dispatcher;
      *                                                             when null a fresh dispatcher is created.
      * @return array<string> Generated file paths.
@@ -116,6 +116,23 @@ final class SiteBuilder
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
+        $manifestPath = $config->buildManifestPath();
+        $currentManifest = BuildManifest::fromBuild($config, $pages);
+        $previousManifest = $cleanOutput ? null : BuildManifest::load($manifestPath);
+        $fullBuild = $cleanOutput || $currentManifest->requiresFullBuild($previousManifest);
+        $changedOutputPaths = [];
+        $orphanedPageOutputPaths = [];
+        $orphanedContentAssetOutputPaths = [];
+        $orphanedStaticAssetOutputPaths = [];
+        if (!$fullBuild && $previousManifest instanceof BuildManifest) {
+            $changedOutputPaths = $currentManifest->changedPageOutputPaths($previousManifest);
+        }
+
+        if ($previousManifest instanceof BuildManifest) {
+            $orphanedPageOutputPaths = $currentManifest->orphanedPageOutputPaths($previousManifest);
+            $orphanedContentAssetOutputPaths = $currentManifest->orphanedContentAssetOutputPaths($previousManifest);
+            $orphanedStaticAssetOutputPaths = $currentManifest->orphanedStaticAssetOutputPaths($previousManifest);
+        }
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex = new SiteIndex($realPages, $assetResolver);
@@ -137,6 +154,22 @@ final class SiteBuilder
                 continue;
             }
 
+            $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
+            $shouldRender = $fullBuild
+                || isset($changedOutputPaths[$page->outputRelativePath])
+                || !is_file($destination);
+
+            if (!$shouldRender) {
+                $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
+                $completedPages++;
+
+                if (is_callable($progressCallback)) {
+                    $progressCallback($completedPages, $totalPages, $destination, 0.0);
+                }
+
+                continue;
+            }
+
             $pageStartTime = hrtime(true);
 
             $html = $this->pageRenderPipeline->render(
@@ -153,7 +186,6 @@ final class SiteBuilder
             $dispatcher->dispatch(BuildEvent::PageRendered, $renderedEvent);
             $html = $renderedEvent->html;
 
-            $destination = $config->outputPath() . DIRECTORY_SEPARATOR . $page->outputRelativePath;
             $this->writeFile($destination, $html);
             $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
             $writtenFiles[] = $destination;
@@ -175,10 +207,20 @@ final class SiteBuilder
             outputPath: $config->outputPath(),
         );
 
+        $this->pruneOrphanedOutputFiles(
+            $config->outputPath(),
+            array_values(array_unique(array_merge(
+                $orphanedPageOutputPaths,
+                $orphanedContentAssetOutputPaths,
+                $orphanedStaticAssetOutputPaths,
+            ))),
+        );
+
         $dispatcher->dispatch(
             BuildEvent::BuildCompleted,
             new BuildCompletedEvent($writtenFiles, $config, (float)(hrtime(true) - $startTime) / 1e9),
         );
+        $currentManifest->save($manifestPath);
 
         return $writtenFiles;
     }
@@ -237,6 +279,65 @@ final class SiteBuilder
         }
 
         rmdir($directory);
+    }
+
+    /**
+     * Delete output files that no longer map to discovered content pages.
+     *
+     * @param string $outputPath Absolute output root path.
+     * @param array<string> $orphanedOutputPaths Output-relative orphan file paths.
+     */
+    protected function pruneOrphanedOutputFiles(string $outputPath, array $orphanedOutputPaths): void
+    {
+        $normalizedOutputPath = rtrim($outputPath, DIRECTORY_SEPARATOR);
+        foreach ($orphanedOutputPaths as $orphanedOutputPath) {
+            if ($orphanedOutputPath === '') {
+                continue;
+            }
+
+            $absolutePath = $normalizedOutputPath . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, ltrim($orphanedOutputPath, '/'));
+            if (is_file($absolutePath)) {
+                unlink($absolutePath);
+                $this->removeEmptyParentDirectories(dirname($absolutePath), $normalizedOutputPath);
+            }
+        }
+    }
+
+    /**
+     * Remove empty parent directories up to, but not including, output root.
+     *
+     * @param string $directory Absolute directory path to start from.
+     * @param string $outputRoot Absolute output root path.
+     */
+    protected function removeEmptyParentDirectories(string $directory, string $outputRoot): void
+    {
+        $normalizedRoot = rtrim($outputRoot, DIRECTORY_SEPARATOR);
+        $current = rtrim($directory, DIRECTORY_SEPARATOR);
+
+        while ($current !== '' && $current !== $normalizedRoot) {
+            if (!is_dir($current)) {
+                break;
+            }
+
+            $entries = scandir($current);
+            if (!is_array($entries)) {
+                break;
+            }
+
+            $children = array_values(array_diff($entries, ['.', '..']));
+            if ($children !== []) {
+                break;
+            }
+
+            rmdir($current);
+            $parent = dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+
+            $current = $parent;
+        }
     }
 
     /**

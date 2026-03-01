@@ -508,7 +508,7 @@ build:
     defaultEntry: assets/css/site.css
 ```
 
-- `clean` -- clean output directory before build (`true` by default; `--noclean` always disables)
+- `clean` -- clean output directory before build (`false` by default; `--noclean` always disables)
 - `drafts` -- include drafts during build (equivalent to `--drafts`)
 - `vite.enabled` -- opt-in default for Vite build integration (`false` by default)
 - `vite.command` -- command used to run Vite build in the project root

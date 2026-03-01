@@ -19,7 +19,7 @@ my-site/
   static/        Public assets — copied verbatim to public/ during build
   templates/     Sugar PHP templates (.sugar.php)
   public/        Generated static output (do not commit)
-  tmp/cache/     Template render cache (do not commit)
+  tmp/           Template/image caches + incremental build manifest (do not commit)
   glaze.neon     Project configuration
 ```
 
@@ -105,8 +105,17 @@ Generate static output with:
 glaze build
 ```
 
-Output lands in `public/`. Glaze cleans the output directory before writing by default.
-To skip cleaning (useful for incremental builds or debugging):
+Output lands in `public/`. Glaze uses incremental builds by default (`build.clean: false`),
+so unchanged pages are reused when possible.
+
+To force a clean rebuild every run, set this in `glaze.neon`:
+
+```neon
+build:
+  clean: true
+```
+
+To skip cleaning from the CLI when a project is configured with `build.clean: true`:
 
 ```bash
 glaze build --noclean
@@ -115,9 +124,16 @@ glaze build --noclean
 What happens during a build:
 
 1. All non-draft `.dj` files in `content/` are rendered to HTML in `public/`
+  (or reused from cache when unchanged)
 2. Non-Djot files inside `content/` are copied to matching paths in `public/`
 3. Everything in `static/` is copied verbatim to `public/`
 4. Glide image transforms are baked to static files under `public/_glide/`
+
+Verbose mode shows exactly what happened per page:
+
+- `generated ...` pages were re-rendered
+- `cached ...` pages were reused from previous output
+- `virtual ...` pages are extension-generated outputs (for example `sitemap.xml`)
 
 To include the Vite production build:
 

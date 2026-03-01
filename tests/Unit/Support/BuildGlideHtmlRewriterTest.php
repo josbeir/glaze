@@ -10,6 +10,7 @@ use Glaze\Image\ImagePresetResolver;
 use Glaze\Support\BuildGlideHtmlRewriter;
 use Glaze\Support\ResourcePathRewriter;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Hash;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -41,7 +42,7 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash = hash('xxh3', '/images/hero.png?w=100&h=50');
+        $hash = Hash::make('/images/hero.png?w=100&h=50');
         $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
         $this->assertStringContainsString('/images/plain.png', $rewritten);
         $this->assertStringContainsString('https://example.com/img.png?w=100', $rewritten);
@@ -75,9 +76,9 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash100 = hash('xxh3', '/images/hero.png?w=100');
-        $hash200 = hash('xxh3', '/images/hero.png?w=200');
-        $hash300 = hash('xxh3', '/images/hero.png?w=300');
+        $hash100 = Hash::make('/images/hero.png?w=100');
+        $hash200 = Hash::make('/images/hero.png?w=200');
+        $hash300 = Hash::make('/images/hero.png?w=300');
 
         $this->assertStringContainsString('/docs/_glide/' . $hash100 . '.png 1x', $rewritten);
         $this->assertStringContainsString('/docs/_glide/' . $hash200 . '.png 2x', $rewritten);
@@ -165,7 +166,7 @@ final class BuildGlideHtmlRewriterTest extends TestCase
             $config,
         );
 
-        $expectedHash = hash('xxh3', '/images/raw?w=100');
+        $expectedHash = Hash::make('/images/raw?w=100');
         $this->assertSame('/docs/_glide/' . $expectedHash, $publishedPath);
         $this->assertFileExists($projectRoot . '/public/_glide/' . $expectedHash);
     }

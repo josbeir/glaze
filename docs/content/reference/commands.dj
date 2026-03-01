@@ -80,12 +80,21 @@ glaze build
 Options:
 
 - `--root <path>` project root
-- `--clean` clean output directory before build
+- `--noclean` skip cleaning output directory before build
 - `--drafts` include draft pages
 - `--vite` run Vite build process after static build
 - `--vite-command <command>` custom Vite build command (defaults to `build.vite.command` or `npm run build`)
 
 Defaults for these options can be set in `glaze.neon` under `build` (`clean`, `drafts`, `vite.enabled`, `vite.command`).
+
+`build.clean` now defaults to `false`, so incremental builds are the default behavior when not configured.
+Set `build.clean: true` when you need a full clean rebuild each run.
+
+With `--verbose`, build output streams one line per page during the build:
+
+- `generated ... (n/total) 0.42s` — page rendered and written
+- `cached ... (n/total)` — page unchanged and reused from previous build output
+- `virtual ... (n/total)` — extension-injected virtual page (for example `sitemap.xml`)
 
 Vite build example:
 
@@ -236,6 +245,9 @@ Clear the compiled Sugar template cache and/or the Glide image transformation ca
 
 By default both caches are cleared. Run this whenever you change Vite or template configuration
 and the rendered output does not reflect your changes.
+
+When clearing both caches (no flags), Glaze also clears the incremental build manifest
+(`tmp/cache/build-manifest.json`).
 
 ```bash
 glaze cc

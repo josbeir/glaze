@@ -6,6 +6,7 @@ namespace Glaze\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Glaze\Build\BuildManifest;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\ProjectConfigurationReader;
@@ -111,6 +112,10 @@ final class BuildCommand extends AbstractGlazeCommand
                 $projectRoot,
                 $includeDrafts,
             );
+            $verbose = (bool)$args->getOption('verbose');
+            $manifestPath = $config->buildManifestPath();
+            $previousManifest = BuildManifest::load($manifestPath);
+            $cleanedOutput = false;
             $io->overwrite($formatStageMessage($doneIcon, 'Config', 'Resolving project configuration...'));
 
             if ($cleanOutput) {
@@ -118,6 +123,7 @@ final class BuildCommand extends AbstractGlazeCommand
                 $io->out($cleanMessage, 0);
                 $this->removeDirectory($config->outputPath());
                 $cleanOutput = false;
+                $cleanedOutput = true;
                 $io->overwrite($formatStageMessage($doneIcon, 'Clean', 'Cleaning output directory...'));
             } else {
                 $cleanMessage = $formatStageMessage($pendingIcon, 'Clean', 'Skipping output cleanup...');
@@ -136,7 +142,6 @@ final class BuildCommand extends AbstractGlazeCommand
                 $io->overwrite($formatStageMessage($doneIcon, 'Vite', 'Skipping Vite build (disabled)...'));
             }
 
-            $verbose = (bool)$args->getOption('verbose');
             $buildMessage = $formatStageMessage($pendingIcon, 'Build', 'Building pages...');
             $buildProgressMessage = $buildMessage;
             $io->out($buildMessage, 0);
@@ -165,13 +170,22 @@ final class BuildCommand extends AbstractGlazeCommand
                     if ($verbose && $file !== '') {
                         if (str_starts_with($file, $config->projectRoot)) {
                             $relativePath = $this->relativeToRoot($file, $config->projectRoot);
-                            $io->overwrite(sprintf(
-                                '<success>generated</success> %s <info>(%d/%d)</info> <comment>%s</comment>',
-                                $relativePath,
-                                $completedPages,
-                                $totalPages,
-                                $this->formatDuration($duration),
-                            ));
+                            if ($duration > 0.0) {
+                                $io->overwrite(sprintf(
+                                    '<success>generated</success> %s <info>(%d/%d)</info> <comment>%s</comment>',
+                                    $relativePath,
+                                    $completedPages,
+                                    $totalPages,
+                                    $this->formatDuration($duration),
+                                ));
+                            } else {
+                                $io->overwrite(sprintf(
+                                    '<comment>cached</comment>  %s <info>(%d/%d)</info>',
+                                    $relativePath,
+                                    $completedPages,
+                                    $totalPages,
+                                ));
+                            }
                         } else {
                             $io->overwrite(sprintf(
                                 '<comment>virtual</comment>  %s <info>(%d/%d)</info>',
@@ -192,6 +206,23 @@ final class BuildCommand extends AbstractGlazeCommand
             ) ?: $buildProgressMessage;
             if (!$verbose) {
                 $io->overwrite($completedBuildMessage);
+            }
+
+            if ($verbose && !$cleanedOutput && $previousManifest instanceof BuildManifest) {
+                $currentManifest = BuildManifest::load($manifestPath);
+                if ($currentManifest instanceof BuildManifest) {
+                    $orphanedOutputPaths = array_values(array_unique(array_merge(
+                        $currentManifest->orphanedPageOutputPaths($previousManifest),
+                        $currentManifest->orphanedContentAssetOutputPaths($previousManifest),
+                        $currentManifest->orphanedStaticAssetOutputPaths($previousManifest),
+                    )));
+                    foreach ($orphanedOutputPaths as $orphanedOutputPath) {
+                        $orphanedAbsolutePath = $config->outputPath() . DIRECTORY_SEPARATOR
+                            . str_replace('/', DIRECTORY_SEPARATOR, $orphanedOutputPath);
+                        $relativePath = $this->relativeToRoot($orphanedAbsolutePath, $config->projectRoot);
+                        $io->out(sprintf('<error>removed</error> %s', $relativePath));
+                    }
+                }
             }
         } catch (Throwable $throwable) {
             $io->err(sprintf('<error>%s</error>', $throwable->getMessage()));
@@ -281,7 +312,7 @@ final class BuildCommand extends AbstractGlazeCommand
             return $configuredValue;
         }
 
-        return true;
+        return false;
     }
 
     /**

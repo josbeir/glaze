@@ -24,7 +24,7 @@ final class LlmsTxtExtension
     /**
      * Collected pages keyed by URL path for uniqueness.
      *
-     * @var array<string, array{title: string, description: string, urlPath: string}>
+     * @var array<string, array{title: string, description: string, urlPath: string, source: string}>
      */
     protected array $pages = [];
 
@@ -51,6 +51,7 @@ final class LlmsTxtExtension
             'title' => $event->page->title,
             'description' => $this->resolveDescription($event),
             'urlPath' => $event->page->urlPath,
+            'source' => $event->page->source,
         ];
     }
 
@@ -65,22 +66,31 @@ final class LlmsTxtExtension
         $pages = array_values($this->pages);
         usort($pages, static fn(array $left, array $right): int => strcmp($left['urlPath'], $right['urlPath']));
 
-        $lines = [];
-        $title = $event->config->site->title ?? 'Glaze Site';
-        $lines[] = '# ' . $title;
+        $documentationPages = $pages;
 
-        if (is_string($event->config->site->description) && trim($event->config->site->description) !== '') {
-            $lines[] = '';
-            $lines[] = $event->config->site->description;
+        $lines = [];
+        $lines[] = '# ' . ($event->config->site->title ?? 'Glaze Site');
+        $lines[] = '';
+        $lines[] = '> ' . $this->resolveProjectPitch($event, $documentationPages);
+        $lines[] = '';
+        $lines[] = $this->resolveProjectContext($event, $documentationPages);
+        $lines[] = '';
+
+        $lines[] = '## Documentation';
+        if ($documentationPages === []) {
+            $lines[] = '- No documentation pages found.';
+        } else {
+            foreach ($documentationPages as $page) {
+                $lines[] = $this->formatPageEntry($page, $event);
+            }
         }
 
-        $lines[] = '';
-        $lines[] = '## Pages';
-
-        foreach ($pages as $page) {
-            $lines[] = '- ' . $page['title']
-                . ': ' . $this->absoluteUrl($page['urlPath'], $event)
-                . ' — ' . $page['description'];
+        if (is_file($event->config->outputPath() . '/llms-full.txt')) {
+            $lines[] = '';
+            $lines[] = '## Optional: llms-full.txt';
+            $lines[] = '- [Full Documentation]('
+                . $this->absoluteUrl('/llms-full.txt', $event)
+                . '): A single file containing all content for deep context.';
         }
 
         file_put_contents(
@@ -139,5 +149,141 @@ final class LlmsTxtExtension
         }
 
         return 'No description provided.';
+    }
+
+    /**
+     * Resolve a one-sentence project pitch for the llms.txt header quote.
+     *
+     * Reads `site.meta.llmsPitch` when configured and falls back to the site
+     * description or a generic project sentence.
+     *
+     * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
+     * @param array<array{title: string, description: string, urlPath: string, source: string}> $documentationPages Documentation pages.
+     */
+    protected function resolveProjectPitch(BuildCompletedEvent $event, array $documentationPages): string
+    {
+        $pitch = $event->config->site->siteMeta('llmsPitch');
+        if (is_string($pitch) && trim($pitch) !== '') {
+            return trim($pitch);
+        }
+
+        if (is_string($event->config->site->description) && trim($event->config->site->description) !== '') {
+            return trim($event->config->site->description);
+        }
+
+        $bestDescription = $this->bestDescription($documentationPages);
+        if ($bestDescription !== null) {
+            return $bestDescription;
+        }
+
+        return 'Documentation index for ' . ($event->config->site->title ?? 'this project') . '.';
+    }
+
+    /**
+     * Resolve the contextual project paragraph for llms.txt.
+     *
+     * Reads `site.meta.llmsContext` when configured and otherwise provides a
+     * default explanation of architecture and intended use.
+     *
+     * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
+     * @param array<array{title: string, description: string, urlPath: string, source: string}> $documentationPages Documentation pages.
+     */
+    protected function resolveProjectContext(BuildCompletedEvent $event, array $documentationPages): string
+    {
+        $context = $event->config->site->siteMeta('llmsContext');
+        if (is_string($context) && trim($context) !== '') {
+            return trim($context);
+        }
+
+        $descriptionSegments = [];
+        foreach ($documentationPages as $page) {
+            $description = trim($page['description']);
+            if ($description === '') {
+                continue;
+            }
+
+            if ($description === 'No description provided.') {
+                continue;
+            }
+
+            $descriptionSegments[] = $description;
+            if (count($descriptionSegments) >= 3) {
+                break;
+            }
+        }
+
+        if ($descriptionSegments !== []) {
+            return implode(' ', $descriptionSegments);
+        }
+
+        $sourceSummary = $this->bestSourceSummary($documentationPages);
+        if ($sourceSummary !== null) {
+            return $sourceSummary;
+        }
+
+        return 'Use the documentation links below for architecture, usage, and implementation details.';
+    }
+
+    /**
+     * Format a page as a structured markdown list entry.
+     *
+     * @param array{title: string, description: string, urlPath: string, source: string} $page Page data.
+     * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
+     */
+    protected function formatPageEntry(array $page, BuildCompletedEvent $event): string
+    {
+        return '- ['
+            . $page['title']
+            . ']('
+            . $this->absoluteUrl($page['urlPath'], $event)
+            . '): '
+            . $page['description'];
+    }
+
+    /**
+     * Resolve the best available page description for header pitch fallback.
+     *
+     * @param array<array{title: string, description: string, urlPath: string, source: string}> $pages Candidate pages.
+     */
+    protected function bestDescription(array $pages): ?string
+    {
+        foreach ($pages as $page) {
+            $description = trim($page['description']);
+            if ($description === '') {
+                continue;
+            }
+
+            if ($description === 'No description provided.') {
+                continue;
+            }
+
+            return $description;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve a compact contextual summary from page source content.
+     *
+     * @param array<array{title: string, description: string, urlPath: string, source: string}> $pages Candidate pages.
+     */
+    protected function bestSourceSummary(array $pages): ?string
+    {
+        foreach ($pages as $page) {
+            $source = trim(preg_replace('/\s+/', ' ', $page['source']) ?? '');
+            if ($source === '') {
+                continue;
+            }
+
+            $summary = mb_substr($source, 0, 260);
+            if ($summary === '') {
+                continue;
+            }
+
+            return rtrim($summary, ' .,;:') . '.';
+        }
+
+        return null;
     }
 }

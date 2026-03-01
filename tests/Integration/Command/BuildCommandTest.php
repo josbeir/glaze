@@ -462,9 +462,9 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
-     * Ensure output cleanup runs by default when build.clean is not configured.
+     * Ensure output cleanup is disabled by default when build.clean is not configured.
      */
-    public function testBuildCommandCleansOutputByDefault(): void
+    public function testBuildCommandDoesNotCleanOutputByDefault(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/public', 0755, true);
@@ -473,7 +473,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('build --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertFileDoesNotExist($projectRoot . '/public/stale.txt');
+        $this->assertFileExists($projectRoot . '/public/stale.txt');
     }
 
     /**
@@ -506,6 +506,49 @@ final class BuildCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertFileExists($projectRoot . '/public/stale.txt');
+    }
+
+    /**
+     * Ensure verbose output reports removed files when orphaned page outputs are pruned.
+     */
+    public function testBuildCommandVerboseReportsRemovedPrunedFiles(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+        $this->assertExitCode(0);
+        $this->assertFileExists($projectRoot . '/public/docs/second/index.html');
+
+        unlink($projectRoot . '/content/docs/second.dj');
+
+        $this->exec(sprintf('build --root "%s" --verbose', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('<error>removed</error> public/docs/second/index.html');
+        $this->assertFileDoesNotExist($projectRoot . '/public/docs/second/index.html');
+    }
+
+    /**
+     * Ensure verbose output reports removed files when orphaned content assets are pruned.
+     */
+    public function testBuildCommandVerboseReportsRemovedPrunedContentAssets(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents($projectRoot . '/content/my-image.png', 'img-bytes');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+        $this->assertExitCode(0);
+        $this->assertFileExists($projectRoot . '/public/my-image.png');
+
+        unlink($projectRoot . '/content/my-image.png');
+
+        $this->exec(sprintf('build --root "%s" --verbose', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('<error>removed</error> public/my-image.png');
+        $this->assertFileDoesNotExist($projectRoot . '/public/my-image.png');
     }
 
     /**

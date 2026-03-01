@@ -92,6 +92,10 @@ final class CacheCommand extends AbstractGlazeCommand
             if ($clearBoth || $imagesOnly) {
                 $this->clearDirectory($config->glideCachePath(), 'Images', $io);
             }
+
+            if ($clearBoth) {
+                $this->clearFile($config->buildManifestPath(), 'Build', $io);
+            }
         } catch (Throwable $throwable) {
             $io->error(sprintf('Cache clear failed: %s', $throwable->getMessage()));
 
@@ -156,6 +160,28 @@ final class CacheCommand extends AbstractGlazeCommand
 
             unlink($path);
         }
+    }
+
+    /**
+     * Remove a single cache file when present.
+     *
+     * @param string $path Absolute file path.
+     * @param string $label Human-readable label used in console output.
+     * @param \Cake\Console\ConsoleIo $io Console IO service.
+     */
+    protected function clearFile(string $path, string $label, ConsoleIo $io): void
+    {
+        if (!is_file($path)) {
+            $io->out(sprintf(
+                '<success>✓ skip</success> <info>[Cache/%s]</info> File does not exist, nothing to clear.',
+                $label,
+            ));
+
+            return;
+        }
+
+        unlink($path);
+        $io->out(sprintf('<success>✓ done</success> <info>[Cache/%s]</info> Cleared.', $label));
     }
 
     /**

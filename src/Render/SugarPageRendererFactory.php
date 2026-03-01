@@ -8,6 +8,7 @@ use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Support\ResourcePathRewriter;
+use Glaze\Utility\Hash;
 
 /**
  * Creates and caches page-level Sugar renderers.
@@ -95,10 +96,10 @@ final class SugarPageRendererFactory
      */
     protected function cacheKey(BuildConfig $config, string $template, bool $debug): string
     {
-        return hash('xxh3', implode('|', [
+        return Hash::makeFromParts([
             $config->projectRoot,
             $template,
             $debug ? '1' : '0',
-        ]));
+        ]);
     }
 }

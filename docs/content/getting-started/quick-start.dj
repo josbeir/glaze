@@ -142,15 +142,25 @@ When you are ready to ship:
 glaze build
 ```
 
-Output lands in `public/`. To clean before building:
+Output lands in `public/`. Incremental mode is the default (`build.clean: false`), so
+unchanged pages are reused automatically.
+
+To force a clean build each run, set:
+
+```neon
+build:
+  clean: true
+```
+
+To override that setting for one run and keep incremental behavior:
 
 ```bash
-glaze build --clean
+glaze build --noclean
 ```
 
 During build, Glaze:
 
-- renders all non-draft `.dj` files to HTML in `public/`
+- renders changed non-draft `.dj` files to HTML in `public/` (reuses unchanged pages)
 - copies non-Djot files from `content/` to matching paths in `public/`
 - copies everything in `static/` verbatim to `public/`
 - bakes Glide image transforms to static files under `public/_glide/`

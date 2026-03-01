@@ -5,6 +5,7 @@ namespace Glaze\Support;
 
 use Glaze\Config\BuildConfig;
 use Glaze\Image\GlideImageTransformer;
+use Glaze\Utility\Hash;
 use RuntimeException;
 
 /**
@@ -297,7 +298,7 @@ final class BuildGlideHtmlRewriter
         BuildConfig $config,
     ): string {
         $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
-        $hashedName = hash('xxh3', $sourcePath . '?' . $queryString);
+        $hashedName = Hash::make($sourcePath . '?' . $queryString);
         $fileName = $extension === '' ? $hashedName : $hashedName . '.' . $extension;
         $relativePath = '_glide/' . $fileName;
 

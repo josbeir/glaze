@@ -159,6 +159,14 @@ final class BuildConfig
     }
 
     /**
+     * Get absolute incremental build manifest path.
+     */
+    public function buildManifestPath(): string
+    {
+        return $this->cachePath() . DIRECTORY_SEPARATOR . 'build-manifest.json';
+    }
+
+    /**
      * Resolve a relative path against the project root.
      *
      * @param string $relativePath Relative path fragment.

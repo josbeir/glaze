@@ -783,6 +783,117 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure a stable global state performs incremental rebuilds for body-only page changes.
+     */
+    public function testBuildIncrementalRebuildsOnlyBodyChangedPage(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $firstWritten = $builder->build($config);
+        $this->assertCount(2, $firstWritten);
+
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second updated\n");
+        $secondWritten = $builder->build($config);
+
+        $this->assertCount(1, $secondWritten);
+        $this->assertStringEndsWith('/public/docs/second/index.html', $secondWritten[0]);
+    }
+
+    /**
+     * Ensure metadata changes force a full rebuild because templates can depend on global site index state.
+     */
+    public function testBuildIncrementalPerformsFullRebuildWhenMetadataChanges(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $builder->build($config);
+
+        file_put_contents(
+            $projectRoot . '/content/docs/second.dj',
+            "+++\ntitle: \"Second updated\"\n+++\n# Second\n",
+        );
+
+        $writtenFiles = $builder->build($config);
+
+        $this->assertCount(2, $writtenFiles);
+    }
+
+    /**
+     * Ensure incremental builds remove orphaned output files for deleted content pages.
+     */
+    public function testBuildIncrementalPrunesDeletedPageOutput(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $builder->build($config);
+        $this->assertFileExists($projectRoot . '/public/docs/second/index.html');
+
+        unlink($projectRoot . '/content/docs/second.dj');
+        $writtenFiles = $builder->build($config);
+
+        $this->assertCount(1, $writtenFiles);
+        $this->assertStringEndsWith('/public/index.html', $writtenFiles[0]);
+        $this->assertFileDoesNotExist($projectRoot . '/public/docs/second/index.html');
+        $this->assertFileExists($projectRoot . '/public/index.html');
+    }
+
+    /**
+     * Ensure incremental builds prune deleted content assets from public output.
+     */
+    public function testBuildIncrementalPrunesDeletedContentAssetOutput(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents($projectRoot . '/content/my-image.png', 'img-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $builder->build($config);
+        $this->assertFileExists($projectRoot . '/public/my-image.png');
+
+        unlink($projectRoot . '/content/my-image.png');
+        $builder->build($config);
+
+        $this->assertFileDoesNotExist($projectRoot . '/public/my-image.png');
+    }
+
+    /**
+     * Ensure incremental builds prune deleted static assets from public output.
+     */
+    public function testBuildIncrementalPrunesDeletedStaticAssetOutput(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/static/js', 0755, true);
+        file_put_contents($projectRoot . '/static/js/app.js', 'console.log("one");');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $builder->build($config);
+        $this->assertFileExists($projectRoot . '/public/js/app.js');
+
+        unlink($projectRoot . '/static/js/app.js');
+        $builder->build($config);
+
+        $this->assertFileDoesNotExist($projectRoot . '/public/js/app.js');
+    }
+
+    /**
      * Create a site builder instance with concrete dependencies.
      */
     protected function createSiteBuilder(): SiteBuilder
