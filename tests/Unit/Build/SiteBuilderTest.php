@@ -3,18 +3,25 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build;
 
+use Closure;
+use Djot\DjotConverter;
+use Djot\Extension\ExtensionInterface as DjotExtensionInterface;
 use Glaze\Build\Event\BuildCompletedEvent;
 use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\BuildStartedEvent;
 use Glaze\Build\Event\ContentDiscoveredEvent;
+use Glaze\Build\Event\DjotConverterCreatedEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\PageRenderedEvent;
 use Glaze\Build\Event\PageWrittenEvent;
+use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
+use Sugar\Core\Extension\ExtensionInterface as SugarExtensionInterface;
+use Sugar\Core\Extension\RegistrationContext;
 
 /**
  * Tests for site build orchestration.
@@ -569,6 +576,104 @@ final class SiteBuilderTest extends TestCase
 
         $output = file_get_contents($projectRoot . '/public/index.html');
         $this->assertSame('<!-- injected -->', $output);
+    }
+
+    /**
+     * Ensure DjotConverterCreated listeners can register Djot extensions.
+     */
+    public function testBuildDjotConverterCreatedSupportsDjotExtensionRegistration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $registerCalls = 0;
+
+        $dispatcher->on(BuildEvent::DjotConverterCreated, function (DjotConverterCreatedEvent $event) use (&$registerCalls): void {
+            $event->converter->addExtension(new class (function () use (&$registerCalls): void {
+                $registerCalls++;
+            }) implements DjotExtensionInterface {
+                /**
+                 * Constructor.
+                 *
+                 * @param \Closure $onRegister Callback invoked when extension registration runs.
+                 */
+                public function __construct(protected Closure $onRegister)
+                {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function register(DjotConverter $converter): void
+                {
+                    ($this->onRegister)();
+                }
+            });
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertGreaterThan(0, $registerCalls);
+    }
+
+    /**
+     * Ensure SugarRendererCreated listeners can register Sugar extensions.
+     */
+    public function testBuildSugarRendererCreatedSupportsSugarExtensionRegistration(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $registered = false;
+
+        $dispatcher->on(BuildEvent::SugarRendererCreated, function (SugarRendererCreatedEvent $event) use (&$registered): void {
+            $event->renderer->addExtension(new class (function () use (&$registered): void {
+                $registered = true;
+            }) implements SugarExtensionInterface {
+                /**
+                 * Constructor.
+                 *
+                 * @param \Closure $onRegister Callback invoked when extension registration runs.
+                 */
+                public function __construct(protected Closure $onRegister)
+                {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function register(RegistrationContext $context): void
+                {
+                    ($this->onRegister)();
+                }
+            });
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertTrue($registered);
+    }
+
+    /**
+     * Ensure SugarRendererCreated is dispatched only when a renderer is newly constructed.
+     */
+    public function testBuildSugarRendererCreatedDispatchedOnceForCachedTemplateRenderer(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+        $eventCount = 0;
+
+        $dispatcher->on(BuildEvent::SugarRendererCreated, function (SugarRendererCreatedEvent $event) use (&$eventCount): void {
+            $eventCount++;
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        $this->assertSame(1, $eventCount);
     }
 
     /**

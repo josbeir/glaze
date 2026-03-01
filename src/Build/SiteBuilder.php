@@ -58,7 +58,12 @@ final class SiteBuilder
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex = new SiteIndex($pages, $assetResolver);
-        $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
+        $dispatcher = new EventDispatcher();
+        $extensionRegistry = ExtensionLoader::loadFromProjectRoot(
+            $config->projectRoot,
+            $config->extensionsDir,
+            $dispatcher,
+        );
 
         return $this->pageRenderPipeline->render(
             config: $config,
@@ -67,6 +72,7 @@ final class SiteBuilder
             debug: true,
             siteIndex: $siteIndex,
             extensionRegistry: $extensionRegistry,
+            dispatcher: $dispatcher,
         );
     }
 
@@ -128,6 +134,7 @@ final class SiteBuilder
                 debug: false,
                 siteIndex: $siteIndex,
                 extensionRegistry: $extensionRegistry,
+                dispatcher: $dispatcher,
             );
 
             $renderedEvent = new PageRenderedEvent($page, $html, $config);

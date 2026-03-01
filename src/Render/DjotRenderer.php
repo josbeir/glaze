@@ -4,8 +4,13 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 use Djot\DjotConverter;
+use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Event\DjotConverterCreatedEvent;
+use Glaze\Build\Event\EventDispatcher;
+use Glaze\Config\BuildConfig;
 use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
+use Glaze\Content\ContentPage;
 use Glaze\Render\Djot\DjotConverterFactory;
 use Glaze\Render\Djot\TocExtension;
 
@@ -31,14 +36,28 @@ final class DjotRenderer
      * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
+     * @param \Glaze\Content\ContentPage|null $page Optional page currently being rendered.
+     * @param \Glaze\Config\BuildConfig|null $config Optional active build configuration.
      */
     public function render(
         string $source,
         ?DjotOptions $djot = null,
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
+        ?EventDispatcher $dispatcher = null,
+        ?ContentPage $page = null,
+        ?BuildConfig $config = null,
     ): string {
-        return $this->renderWithToc($source, $djot, $siteConfig, $relativePagePath)->html;
+        return $this->renderWithToc(
+            source: $source,
+            djot: $djot,
+            siteConfig: $siteConfig,
+            relativePagePath: $relativePagePath,
+            dispatcher: $dispatcher,
+            page: $page,
+            config: $config,
+        )->html;
     }
 
     /**
@@ -48,15 +67,33 @@ final class DjotRenderer
      * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
+     * @param \Glaze\Content\ContentPage|null $page Optional page currently being rendered.
+     * @param \Glaze\Config\BuildConfig|null $config Optional active build configuration.
      */
     public function renderWithToc(
         string $source,
         ?DjotOptions $djot = null,
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
+        ?EventDispatcher $dispatcher = null,
+        ?ContentPage $page = null,
+        ?BuildConfig $config = null,
     ): RenderResult {
         $toc = new TocExtension();
         $converter = $this->createConverter($djot ?? new DjotOptions(), $siteConfig, $relativePagePath);
+
+        if (
+            $dispatcher instanceof EventDispatcher
+            && $page instanceof ContentPage
+            && $config instanceof BuildConfig
+        ) {
+            $dispatcher->dispatch(
+                BuildEvent::DjotConverterCreated,
+                new DjotConverterCreatedEvent($converter, $page, $config),
+            );
+        }
+
         $converter->addExtension($toc);
 
         $html = $toc->injectToc($converter->convert($source));

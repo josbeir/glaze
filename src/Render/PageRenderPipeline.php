@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 use ArrayObject;
+use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\PageMetaResolver;
 use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentPage;
@@ -46,6 +47,7 @@ final class PageRenderPipeline
      * @param bool $debug Whether to enable template debug freshness checks.
      * @param \Glaze\Template\SiteIndex|null $siteIndex Optional pre-built site index.
      * @param \Glaze\Template\Extension\ExtensionRegistry|null $extensionRegistry Optional pre-built extension registry.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
     public function render(
         BuildConfig $config,
@@ -54,8 +56,9 @@ final class PageRenderPipeline
         bool $debug,
         ?SiteIndex $siteIndex = null,
         ?ExtensionRegistry $extensionRegistry = null,
+        ?EventDispatcher $dispatcher = null,
     ): string {
-        $pageRenderer = $this->sugarPageRendererFactory->createCached($config, $pageTemplate, $debug);
+        $pageRenderer = $this->sugarPageRendererFactory->createCached($config, $pageTemplate, $debug, $dispatcher);
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex ??= new SiteIndex([$page], $assetResolver);
@@ -65,6 +68,9 @@ final class PageRenderPipeline
             djot: $config->djotOptions,
             siteConfig: $config->site,
             relativePagePath: $page->relativePath,
+            dispatcher: $dispatcher,
+            page: $page,
+            config: $config,
         );
 
         $page = $page->withToc($renderResult->toc);

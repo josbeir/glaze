@@ -28,20 +28,18 @@ use Attribute;
  *
  * ```php
  * #[GlazeExtension]
- * class SitemapGenerator
+ * class BuildHooks
  * {
- *     private array $urls = [];
- *
- *     #[ListensTo(BuildEvent::PageWritten)]
- *     public function collect(PageWrittenEvent $event): void
+ *     #[ListensTo(BuildEvent::DjotConverterCreated)]
+ *     public function registerDjot(DjotConverterCreatedEvent $event): void
  *     {
- *         $this->urls[] = $event->page->urlPath;
+ *         $event->converter->addExtension(new MyDjotExtension());
  *     }
  *
- *     #[ListensTo(BuildEvent::BuildCompleted)]
- *     public function write(BuildCompletedEvent $event): void
+ *     #[ListensTo(BuildEvent::SugarRendererCreated)]
+ *     public function registerSugar(SugarRendererCreatedEvent $event): void
  *     {
- *         file_put_contents($event->config->outputPath() . '/sitemap.xml', $this->buildXml());
+ *         $event->renderer->addExtension(new MySugarExtension());
  *     }
  * }
  * ```

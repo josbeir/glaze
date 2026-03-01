@@ -9,6 +9,7 @@ use Glaze\Render\Sugar\Path\ResourcePathSugarExtension;
 use Glaze\Support\ResourcePathRewriter;
 use Sugar\Core\Cache\FileCache;
 use Sugar\Core\Engine;
+use Sugar\Core\Extension\ExtensionInterface;
 use Sugar\Core\Loader\FileTemplateLoader;
 use Sugar\Extension\Component\ComponentExtension;
 use Sugar\Extension\Vite\ViteExtension;
@@ -18,6 +19,23 @@ use Sugar\Extension\Vite\ViteExtension;
  */
 final class SugarPageRenderer
 {
+    /**
+     * Lazily-created template loader reused by this renderer.
+     */
+    protected ?FileTemplateLoader $loader = null;
+
+    /**
+     * Lazily-created template cache reused by this renderer.
+     */
+    protected ?FileCache $cache = null;
+
+    /**
+     * Additional Sugar extensions registered at runtime.
+     *
+     * @var array<\Sugar\Core\Extension\ExtensionInterface>
+     */
+    protected array $additionalExtensions = [];
+
     /**
      * Constructor.
      *
@@ -68,6 +86,40 @@ final class SugarPageRenderer
     }
 
     /**
+     * Register an additional Sugar extension for this renderer instance.
+     *
+     * @param \Sugar\Core\Extension\ExtensionInterface $extension Sugar extension to register.
+     */
+    public function addExtension(ExtensionInterface $extension): void
+    {
+        $this->additionalExtensions[] = $extension;
+    }
+
+    /**
+     * Return the template loader used by this renderer.
+     */
+    public function getLoader(): FileTemplateLoader
+    {
+        if (!$this->loader instanceof FileTemplateLoader) {
+            $this->loader = new FileTemplateLoader($this->templatePath);
+        }
+
+        return $this->loader;
+    }
+
+    /**
+     * Return the template cache used by this renderer.
+     */
+    public function getCache(): FileCache
+    {
+        if (!$this->cache instanceof FileCache) {
+            $this->cache = new FileCache($this->cachePath);
+        }
+
+        return $this->cache;
+    }
+
+    /**
      * Create a configured Sugar engine.
      *
      * @param object|null $templateContext Template context available as `$this`.
@@ -79,13 +131,17 @@ final class SugarPageRenderer
         }
 
         $builder = Engine::builder()
-            ->withTemplateLoader(new FileTemplateLoader($this->templatePath))
-            ->withCache(new FileCache($this->cachePath))
+            ->withTemplateLoader($this->getLoader())
+            ->withCache($this->getCache())
             ->withDebug($this->debug)
             ->withTemplateContext($templateContext)
             ->withExtension(new ComponentExtension(['components']));
 
         $builder->withExtension(new ResourcePathSugarExtension($this->siteConfig, $this->resourcePathRewriter));
+
+        foreach ($this->additionalExtensions as $extension) {
+            $builder->withExtension($extension);
+        }
 
         $viteConfiguration = $this->resolveViteConfiguration();
         if ($viteConfiguration !== null) {

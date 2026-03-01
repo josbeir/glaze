@@ -20,6 +20,8 @@ use Glaze\Build\Event\BuildEvent;
  * |-----------------------|----------------------------|
  * | `BuildStarted`        | `BuildStartedEvent`        |
  * | `ContentDiscovered`   | `ContentDiscoveredEvent`   |
+ * | `DjotConverterCreated`| `DjotConverterCreatedEvent`|
+ * | `SugarRendererCreated`| `SugarRendererCreatedEvent`|
  * | `PageRendered`        | `PageRenderedEvent`        |
  * | `PageWritten`         | `PageWrittenEvent`         |
  * | `BuildCompleted`      | `BuildCompletedEvent`      |

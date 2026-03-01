@@ -143,6 +143,8 @@ final class StatsExtension
 | --- | --- | --- | --- |
 | `BuildEvent::BuildStarted` | `BuildStartedEvent` | — | Before content discovery |
 | `BuildEvent::ContentDiscovered` | `ContentDiscoveredEvent` | `$pages` | After discovery, before rendering |
+| `BuildEvent::DjotConverterCreated` | `DjotConverterCreatedEvent` | `converter` object | After Djot converter creation, before convert |
+| `BuildEvent::SugarRendererCreated` | `SugarRendererCreatedEvent` | `renderer` object | When Sugar renderer instance is created |
 | `BuildEvent::PageRendered` | `PageRenderedEvent` | `$html` | After each page renders, before writing |
 | `BuildEvent::PageWritten` | `PageWrittenEvent` | — | After each page is written to disk |
 | `BuildEvent::BuildCompleted` | `BuildCompletedEvent` | — | After all pages and assets are written |
@@ -165,6 +167,42 @@ $event->config    — BuildConfig
 ```
 
 Mutate `$pages` to inject virtual pages, reorder, augment metadata, or filter the list.
+
+#### `DjotConverterCreatedEvent`
+
+```
+$event->converter — DjotConverter
+$event->page      — ContentPage
+$event->config    — BuildConfig
+```
+
+Useful for registering custom Djot extensions per page render:
+
+```php
+#[ListensTo(BuildEvent::DjotConverterCreated)]
+public function registerDjot(DjotConverterCreatedEvent $event): void
+{
+    $event->converter->addExtension(new MyDjotExtension());
+}
+```
+
+#### `SugarRendererCreatedEvent`
+
+```
+$event->renderer — SugarPageRenderer
+$event->template — string
+$event->config   — BuildConfig
+```
+
+Useful for registering custom Sugar extensions on newly-created page renderers:
+
+```php
+#[ListensTo(BuildEvent::SugarRendererCreated)]
+public function registerSugar(SugarRendererCreatedEvent $event): void
+{
+    $event->renderer->addExtension(new MySugarExtension());
+}
+```
 
 #### `PageRenderedEvent`
 

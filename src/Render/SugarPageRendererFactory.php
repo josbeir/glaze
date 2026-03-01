@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace Glaze\Render;
 
+use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Event\EventDispatcher;
+use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Support\ResourcePathRewriter;
 
@@ -33,10 +36,15 @@ final class SugarPageRendererFactory
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param string $template Sugar template name.
      * @param bool $debug Whether to enable debug freshness checks.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
-    public function create(BuildConfig $config, string $template, bool $debug = false): SugarPageRenderer
-    {
-        return new SugarPageRenderer(
+    public function create(
+        BuildConfig $config,
+        string $template,
+        bool $debug = false,
+        ?EventDispatcher $dispatcher = null,
+    ): SugarPageRenderer {
+        $renderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->templateCachePath(),
             template: $template,
@@ -45,6 +53,13 @@ final class SugarPageRendererFactory
             templateVite: $config->templateViteOptions,
             debug: $debug,
         );
+
+        $dispatcher?->dispatch(
+            BuildEvent::SugarRendererCreated,
+            new SugarRendererCreatedEvent($renderer, $template, $config),
+        );
+
+        return $renderer;
     }
 
     /**
@@ -53,15 +68,20 @@ final class SugarPageRendererFactory
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param string $template Sugar template name.
      * @param bool $debug Whether to enable debug freshness checks.
+     * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
-    public function createCached(BuildConfig $config, string $template, bool $debug = false): SugarPageRenderer
-    {
+    public function createCached(
+        BuildConfig $config,
+        string $template,
+        bool $debug = false,
+        ?EventDispatcher $dispatcher = null,
+    ): SugarPageRenderer {
         $cacheKey = $this->cacheKey($config, $template, $debug);
         if (isset($this->cache[$cacheKey])) {
             return $this->cache[$cacheKey];
         }
 
-        $this->cache[$cacheKey] = $this->create($config, $template, $debug);
+        $this->cache[$cacheKey] = $this->create($config, $template, $debug, $dispatcher);
 
         return $this->cache[$cacheKey];
     }
