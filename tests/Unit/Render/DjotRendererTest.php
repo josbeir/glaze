@@ -4,7 +4,10 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Render;
 
 use Djot\Extension\SemanticSpanExtension;
+use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
+use Glaze\Render\Djot\DjotConverterFactory;
+use Glaze\Render\Djot\PhikiThemeResolver;
 use Glaze\Render\DjotRenderer;
 use Glaze\Render\RenderResult;
 use Glaze\Support\ResourcePathRewriter;
@@ -20,7 +23,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderHighlightsCodeBlocksByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("```php\necho 1;\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -33,7 +36,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderCanDisableCodeHighlighting(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "```php\necho 1;\n```\n",
             $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
@@ -48,7 +51,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderFallsBackToTxtGrammarForUnknownLanguage(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "```unknownlang\nhello\n```\n",
             $this->withCodeHighlighting(['enabled' => true, 'theme' => 'nord', 'withGutter' => true]),
@@ -65,7 +68,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderSupportsMultipleCodeHighlightingThemes(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "```php\necho 1;\n```\n",
             $this->withCodeHighlighting([
@@ -87,7 +90,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderMapsNeonFenceLanguageToYamlGrammar(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("```neon\nsite:\n  title: Glaze\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -100,7 +103,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderUsesCustomDjotFenceGrammar(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("```djot\n# Intro\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
@@ -113,7 +116,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderTransformsCodeGroupIntoTabbedHtml(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "::: code-group\n\n```js [config.js]\nconst config = {}\n```\n\n```ts [config.ts]\nconst config: Record<string, mixed> = {}\n```\n\n:::\n",
         );
@@ -131,7 +134,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderTransformsCodeGroupWithoutPhikiWhenDisabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "::: code-group\n\n```php [example.php]\necho 1;\n```\n\n:::\n",
             $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
@@ -149,7 +152,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderRewritesInternalDjotLinksToExtensionlessPaths(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render('[Quick start](quick-start.dj)');
 
         $this->assertStringContainsString('href="quick-start"', $html);
@@ -161,7 +164,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderPreservesSuffixWhenRewritingDjotLinks(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render('[Guide](guide.dj?mode=full#top)');
 
         $this->assertStringContainsString('href="guide?mode=full#top"', $html);
@@ -172,7 +175,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderUsesConfiguredInternalLinkExtensionForPageRelativeLink(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             '[Logo](../images/logo.png)',
             $this->defaultDjotOptions(),
@@ -188,7 +191,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderUsesConfiguredInternalLinkExtensionForImageSource(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             '![Hero](../images/hero.jpg)',
             $this->defaultDjotOptions(),
@@ -205,7 +208,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotInjectHeadingAnchorsByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("# Intro\n");
 
         $this->assertStringNotContainsString('class="header-anchor"', $html);
@@ -216,7 +219,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderCanInjectHeadingAnchorsWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "## Setup\n",
             $this->withHeaderAnchors([
@@ -241,7 +244,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderWithTocReturnsTocEntriesForHeadings(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $result = $renderer->renderWithToc("# Intro\n\n## Setup\n\n### Requirements\n");
 
         $this->assertInstanceOf(RenderResult::class, $result);
@@ -262,7 +265,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderWithTocInjectsTocHtmlForTocDirective(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $result = $renderer->renderWithToc("[[toc]]\n\n## Setup\n\n## Usage\n");
 
         $this->assertStringNotContainsString('[[toc]]', $result->html);
@@ -276,7 +279,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderWithTocReturnsEmptyTocForPageWithNoHeadings(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $result = $renderer->renderWithToc("Just a paragraph.\n");
 
         $this->assertInstanceOf(RenderResult::class, $result);
@@ -289,7 +292,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderWithTocAssignsHeadingIdAttributes(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $result = $renderer->renderWithToc("## Getting Started\n");
 
         $this->assertStringContainsString('id="Getting-Started"', $result->html);
@@ -301,7 +304,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotAutolinkUrlsByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("Visit https://example.com today.\n");
 
         $this->assertStringNotContainsString('<a href="https://example.com">', $html);
@@ -312,7 +315,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderAutolinksUrlsWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "Visit https://example.com today.\n",
             $this->withAutolink(['enabled' => true, 'allowedSchemes' => ['https', 'http', 'mailto']]),
@@ -326,7 +329,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotAddExternalLinkAttributesByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("[link](https://external.com)\n");
 
         $this->assertStringNotContainsString('target="_blank"', $html);
@@ -337,7 +340,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderAddsExternalLinkAttributesWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "[link](https://external.com)\n",
             $this->withExternalLinks([
@@ -358,7 +361,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotModifyInternalHostLinks(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "[link](https://example.com/page)\n",
             $this->withExternalLinks([
@@ -378,7 +381,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotApplySmartQuotesByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("She said \"hello\".\n");
 
         // Djot already outputs English curly quotes by default; German opening quote should not appear
@@ -390,7 +393,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderAppliesSmartQuotesWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "She said \"hello\".\n",
             $this->withSmartQuotes([
@@ -412,7 +415,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotExpandMentionsByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("Hello @johndoe!\n");
 
         $this->assertStringNotContainsString('/users/view/johndoe', $html);
@@ -423,7 +426,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderExpandsMentionsToLinksWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "Hello @johndoe!\n",
             $this->withMentions([
@@ -443,7 +446,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotApplySemanticSpansByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("[text]{kbd=Enter}\n");
 
         $this->assertStringNotContainsString('<kbd>', $html);
@@ -458,7 +461,7 @@ final class DjotRendererTest extends TestCase
             $this->markTestSkipped('SemanticSpanExtension is not available in this Djot version.');
         }
 
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "[text]{kbd=Enter}\n",
             $this->withSemanticSpan(['enabled' => true]),
@@ -472,7 +475,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderDoesNotAddDefaultAttributesByDefault(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render("# Heading\n");
 
         $this->assertStringNotContainsString('class="my-heading"', $html);
@@ -483,7 +486,7 @@ final class DjotRendererTest extends TestCase
      */
     public function testRenderAddsDefaultAttributesToElementsWhenEnabled(): void
     {
-        $renderer = new DjotRenderer(new ResourcePathRewriter());
+        $renderer = $this->createRenderer();
         $html = $renderer->render(
             "# Heading\n",
             $this->withDefaultAttributes([
@@ -496,123 +499,133 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
+     * Build a renderer instance with concrete dependencies.
+     */
+    protected function createRenderer(): DjotRenderer
+    {
+        return new DjotRenderer(
+            new DjotConverterFactory(new ResourcePathRewriter(), new PhikiThemeResolver()),
+        );
+    }
+
+    /**
      * Merge code highlighting overrides into default Djot options.
      *
      * @param array{enabled: bool, theme: string, themes?: array<string, string>, withGutter: bool} $codeHighlighting
-     * @return array<string, mixed>
      */
-    protected function withCodeHighlighting(array $codeHighlighting): array
+    protected function withCodeHighlighting(array $codeHighlighting): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['codeHighlighting'] = $codeHighlighting;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge heading anchor overrides into default Djot options.
      *
      * @param array{enabled: bool, symbol: string, position: string, cssClass: string, ariaLabel: string, levels: array<int>} $headerAnchors
-     * @return array<string, mixed>
      */
-    protected function withHeaderAnchors(array $headerAnchors): array
+    protected function withHeaderAnchors(array $headerAnchors): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['headerAnchors'] = $headerAnchors;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge autolink overrides into default Djot options.
      *
      * @param array{enabled: bool, allowedSchemes: array<string>} $autolink
-     * @return array<string, mixed>
      */
-    protected function withAutolink(array $autolink): array
+    protected function withAutolink(array $autolink): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['autolink'] = $autolink;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge external links overrides into default Djot options.
      *
      * @param array{enabled: bool, internalHosts: array<string>, target: string, rel: string, nofollow: bool} $externalLinks
-     * @return array<string, mixed>
      */
-    protected function withExternalLinks(array $externalLinks): array
+    protected function withExternalLinks(array $externalLinks): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['externalLinks'] = $externalLinks;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge smart quotes overrides into default Djot options.
      *
      * @param array{enabled: bool, locale: string|null, openDouble: string|null, closeDouble: string|null, openSingle: string|null, closeSingle: string|null} $smartQuotes
-     * @return array<string, mixed>
      */
-    protected function withSmartQuotes(array $smartQuotes): array
+    protected function withSmartQuotes(array $smartQuotes): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['smartQuotes'] = $smartQuotes;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge mentions overrides into default Djot options.
      *
      * @param array{enabled: bool, urlTemplate: string, cssClass: string} $mentions
-     * @return array<string, mixed>
      */
-    protected function withMentions(array $mentions): array
+    protected function withMentions(array $mentions): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['mentions'] = $mentions;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge semantic span overrides into default Djot options.
      *
      * @param array{enabled: bool} $semanticSpan
-     * @return array<string, mixed>
      */
-    protected function withSemanticSpan(array $semanticSpan): array
+    protected function withSemanticSpan(array $semanticSpan): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['semanticSpan'] = $semanticSpan;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Merge default attributes overrides into default Djot options.
      *
      * @param array{enabled: bool, defaults: array<string, array<string, string>>} $defaultAttributes
-     * @return array<string, mixed>
      */
-    protected function withDefaultAttributes(array $defaultAttributes): array
+    protected function withDefaultAttributes(array $defaultAttributes): DjotOptions
     {
-        $defaults = $this->defaultDjotOptions();
+        $defaults = $this->defaultDjotOptionsConfig();
         $defaults['defaultAttributes'] = $defaultAttributes;
 
-        return $defaults;
+        return DjotOptions::fromProjectConfig($defaults);
     }
 
     /**
      * Get default Djot renderer options used in tests.
+     */
+    protected function defaultDjotOptions(): DjotOptions
+    {
+        return DjotOptions::fromProjectConfig($this->defaultDjotOptionsConfig());
+    }
+
+    /**
+     * Get default raw Djot renderer options map used in tests.
      *
      * @return array<string, mixed>
      */
-    protected function defaultDjotOptions(): array
+    protected function defaultDjotOptionsConfig(): array
     {
         return [
             'codeHighlighting' => [

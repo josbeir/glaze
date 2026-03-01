@@ -14,6 +14,8 @@ namespace Glaze\Build\Event;
  * |---------------------|----------------------------|---------------------|
  * | BuildStarted        | BuildStartedEvent          | —                   |
  * | ContentDiscovered   | ContentDiscoveredEvent     | `$pages`            |
+ * | DjotConverterCreated| DjotConverterCreatedEvent  | `converter` object  |
+ * | SugarRendererCreated| SugarRendererCreatedEvent  | `renderer` object   |
  * | PageRendered        | PageRenderedEvent          | `$html`             |
  * | PageWritten         | PageWrittenEvent           | —                   |
  * | BuildCompleted      | BuildCompletedEvent        | —                   |
@@ -32,6 +34,18 @@ enum BuildEvent
      * augment metadata, or filter the page list.
      */
     case ContentDiscovered;
+
+    /**
+     * Fired after a Djot converter is created for a page and before conversion runs.
+     * Listeners may register custom Djot extensions on the converter instance.
+     */
+    case DjotConverterCreated;
+
+    /**
+     * Fired when a Sugar page renderer instance is created and before first use.
+     * Listeners may register custom Sugar extensions on the renderer instance.
+     */
+    case SugarRendererCreated;
 
     /**
      * Fired after each page is rendered to HTML, before it is written to disk.

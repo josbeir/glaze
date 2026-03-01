@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Glaze\Build;
 
-use ArrayObject;
 use Glaze\Build\Event\BuildCompletedEvent;
 use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\BuildStartedEvent;
@@ -14,14 +13,9 @@ use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
-use Glaze\Render\DjotRenderer;
-use Glaze\Render\SugarPageRenderer;
-use Glaze\Support\BuildGlideHtmlRewriter;
-use Glaze\Support\ResourcePathRewriter;
+use Glaze\Render\PageRenderPipeline;
 use Glaze\Template\ContentAssetResolver;
 use Glaze\Template\Extension\ExtensionLoader;
-use Glaze\Template\Extension\ExtensionRegistry;
-use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
 use RuntimeException;
 
@@ -34,19 +28,13 @@ final class SiteBuilder
      * Constructor.
      *
      * @param \Glaze\Content\ContentDiscoveryService $discoveryService Content discovery service.
-     * @param \Glaze\Render\DjotRenderer $djotRenderer Djot renderer service.
+     * @param \Glaze\Render\PageRenderPipeline $pageRenderPipeline Shared page render pipeline.
      * @param \Glaze\Build\ContentAssetPublisher $assetPublisher Asset publishing service.
-     * @param \Glaze\Build\PageMetaResolver $pageMetaResolver Page meta resolver.
-     * @param \Glaze\Support\BuildGlideHtmlRewriter $buildGlideHtmlRewriter Build-time Glide source rewriter.
-     * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared resource path rewriter.
      */
     public function __construct(
         protected ContentDiscoveryService $discoveryService,
-        protected DjotRenderer $djotRenderer,
+        protected PageRenderPipeline $pageRenderPipeline,
         protected ContentAssetPublisher $assetPublisher,
-        protected PageMetaResolver $pageMetaResolver,
-        protected BuildGlideHtmlRewriter $buildGlideHtmlRewriter,
-        protected ResourcePathRewriter $resourcePathRewriter,
     ) {
     }
 
@@ -72,7 +60,14 @@ final class SiteBuilder
         $siteIndex = new SiteIndex($pages, $assetResolver);
         $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
 
-        return $this->renderPage($config, $page, true, null, $siteIndex, $extensionRegistry);
+        return $this->pageRenderPipeline->render(
+            config: $config,
+            page: $page,
+            pageTemplate: $this->resolvePageTemplate($page, $config),
+            debug: true,
+            siteIndex: $siteIndex,
+            extensionRegistry: $extensionRegistry,
+        );
     }
 
     /**
@@ -115,19 +110,8 @@ final class SiteBuilder
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
 
-        $pageRenderer = new SugarPageRenderer(
-            templatePath: $config->templatePath(),
-            cachePath: $config->templateCachePath(),
-            template: $config->pageTemplate,
-            siteConfig: $config->site,
-            resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: $config->templateViteOptions,
-        );
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex = new SiteIndex($pages, $assetResolver);
-        $rendererCache = [
-            $config->pageTemplate => $pageRenderer,
-        ];
 
         $writtenFiles = [];
         $totalPages = count($pages);
@@ -137,22 +121,11 @@ final class SiteBuilder
         }
 
         foreach ($pages as $page) {
-            $pageTemplate = $this->resolvePageTemplate($page, $config);
-            $activeRenderer = $rendererCache[$pageTemplate] ?? new SugarPageRenderer(
-                templatePath: $config->templatePath(),
-                cachePath: $config->templateCachePath(),
-                template: $pageTemplate,
-                siteConfig: $config->site,
-                resourcePathRewriter: $this->resourcePathRewriter,
-                templateVite: $config->templateViteOptions,
-            );
-            $rendererCache[$pageTemplate] = $activeRenderer;
-
-            $html = $this->renderPage(
+            $html = $this->pageRenderPipeline->render(
                 config: $config,
                 page: $page,
+                pageTemplate: $this->resolvePageTemplate($page, $config),
                 debug: false,
-                pageRenderer: $activeRenderer,
                 siteIndex: $siteIndex,
                 extensionRegistry: $extensionRegistry,
             );
@@ -244,82 +217,6 @@ final class SiteBuilder
         }
 
         rmdir($directory);
-    }
-
-    /**
-     * Render a content page using shared Djot and Sugar pipeline.
-     *
-     * @param \Glaze\Config\BuildConfig $config Build configuration.
-     * @param \Glaze\Content\ContentPage $page Page to render.
-     * @param bool $debug Whether to enable template debug freshness checks.
-     * @param \Glaze\Render\SugarPageRenderer|null $pageRenderer Optional pre-built renderer.
-     * @param \Glaze\Template\SiteIndex|null $siteIndex Optional pre-built site index.
-     * @param \Glaze\Template\Extension\ExtensionRegistry|null $extensionRegistry Optional pre-built extension registry.
-     */
-    protected function renderPage(
-        BuildConfig $config,
-        ContentPage $page,
-        bool $debug,
-        ?SugarPageRenderer $pageRenderer = null,
-        ?SiteIndex $siteIndex = null,
-        ?ExtensionRegistry $extensionRegistry = null,
-    ): string {
-        $pageTemplate = $this->resolvePageTemplate($page, $config);
-        $activeRenderer = $pageRenderer;
-
-        if (
-            !$activeRenderer instanceof SugarPageRenderer
-            || $activeRenderer->templateName() !== $pageTemplate
-            || $activeRenderer->isDebugEnabled() !== $debug
-        ) {
-            $activeRenderer = new SugarPageRenderer(
-                templatePath: $config->templatePath(),
-                cachePath: $config->templateCachePath(),
-                template: $pageTemplate,
-                siteConfig: $config->site,
-                resourcePathRewriter: $this->resourcePathRewriter,
-                templateVite: $config->templateViteOptions,
-                debug: $debug,
-            );
-        }
-
-        $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
-        $siteIndex ??= new SiteIndex([$page], $assetResolver);
-
-        $renderResult = $this->djotRenderer->renderWithToc(
-            source: $page->source,
-            djot: $config->djotOptions,
-            siteConfig: $config->site,
-            relativePagePath: $page->relativePath,
-        );
-
-        $page = $page->withToc($renderResult->toc);
-
-        $templateContext = new SiteContext(
-            siteIndex: $siteIndex,
-            currentPage: $page,
-            extensions: $extensionRegistry ?? new ExtensionRegistry(),
-            assetResolver: $assetResolver,
-        );
-
-        $htmlContent = $renderResult->html;
-        if (!$debug) {
-            $htmlContent = $this->buildGlideHtmlRewriter->rewrite($htmlContent, $config);
-        }
-
-        $pageUrl = $this->resourcePathRewriter->applyBasePathToPath($page->urlPath, $config->site);
-
-        return $activeRenderer->render([
-            'title' => $page->title,
-            'url' => $pageUrl,
-            'content' => $htmlContent,
-            'page' => $page,
-            'meta' => new ArrayObject(
-                $this->pageMetaResolver->resolve($page, $config->site),
-                ArrayObject::ARRAY_AS_PROPS,
-            ),
-            'site' => $config->site,
-        ], $templateContext);
     }
 
     /**
