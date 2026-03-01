@@ -69,6 +69,38 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
+     * Ensure build command renders content asset helpers and copies assets from fixture project.
+     */
+    public function testBuildCommandRendersTemplateAssetHelpersAndCopiesAssets(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/template-assets');
+
+        $this->exec(sprintf('build --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('Build complete: 4 page(s) in ');
+
+        $output = file_get_contents($projectRoot . '/public/blog/post-a/index.html');
+        $this->assertIsString($output);
+        $this->assertStringContainsString('<p class="assets-root-count">1</p>', $output);
+        $this->assertStringContainsString('<p class="assets-root-first">/docs/shared/logo.svg</p>', $output);
+        $this->assertStringContainsString('<p class="section-direct-count">1</p>', $output);
+        $this->assertStringContainsString('<p class="section-recursive-count">4</p>', $output);
+        $this->assertStringContainsString('<p class="section-recursive-first">/docs/blog/gallery/a.jpg</p>', $output);
+        $this->assertStringContainsString('<p class="section-recursive-last">/docs/blog/post-a/detail.png</p>', $output);
+        $this->assertStringContainsString('<p class="current-page-gallery-first">blog/post-a/detail.png</p>', $output);
+        $this->assertStringContainsString('<p class="post-a-gallery-first">blog/post-a/detail.png</p>', $output);
+        $this->assertStringContainsString('<p class="loop-gallery-count">2</p>', $output);
+        $this->assertStringContainsString('<p class="collection-take-reverse">cover.png</p>', $output);
+
+        $this->assertFileExists($projectRoot . '/public/shared/logo.svg');
+        $this->assertFileExists($projectRoot . '/public/blog/cover.png');
+        $this->assertFileExists($projectRoot . '/public/blog/gallery/a.jpg');
+        $this->assertFileExists($projectRoot . '/public/blog/post-a/detail.png');
+        $this->assertFileExists($projectRoot . '/public/blog/post-b/detail.jpg');
+    }
+
+    /**
      * Ensure custom-taxonomies fixture uses custom glaze configuration for root taxonomies.
      */
     public function testBuildCommandCustomTaxonomiesFixtureWithCustomTaxonomyConfig(): void
