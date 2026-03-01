@@ -3,10 +3,13 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Template;
 
+use Glaze\Content\ContentAsset;
 use Glaze\Content\ContentPage;
+use Glaze\Template\ContentAssetResolver;
 use Glaze\Template\Extension\ExtensionRegistry;
 use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
+use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -15,6 +18,8 @@ use RuntimeException;
  */
 final class SiteContextTest extends TestCase
 {
+    use FilesystemTestTrait;
+
     /**
      * Validate context query and pagination helpers.
      */
@@ -195,6 +200,83 @@ final class SiteContextTest extends TestCase
 
         $this->assertSame('docs/visible', $introContext->next($isNavigable)?->slug);
         $this->assertSame('intro', $visibleContext->previous($isNavigable)?->slug);
+    }
+
+    /**
+     * Validate content asset helpers for root, page, and section-level access.
+     */
+    public function testContextExposesContentAssetHelpers(): void
+    {
+        $contentPath = $this->createTempDirectory();
+        mkdir($contentPath . '/blog/gallery', 0755, true);
+        mkdir($contentPath . '/blog/posts/first', 0755, true);
+        mkdir($contentPath . '/shared', 0755, true);
+
+        file_put_contents($contentPath . '/blog/index.dj', '# Blog');
+        file_put_contents($contentPath . '/blog/cover.png', 'cover');
+        file_put_contents($contentPath . '/blog/gallery/a.png', 'gallery');
+        file_put_contents($contentPath . '/blog/posts/first/index.dj', '# First');
+        file_put_contents($contentPath . '/blog/posts/first/hero.jpg', 'hero');
+        file_put_contents($contentPath . '/shared/logo.svg', '<svg></svg>');
+
+        $blogPage = new ContentPage(
+            sourcePath: $contentPath . '/blog/index.dj',
+            relativePath: 'blog/index.dj',
+            slug: 'blog',
+            urlPath: '/blog/',
+            outputRelativePath: 'blog/index.html',
+            title: 'Blog',
+            source: '# Blog',
+            draft: false,
+            meta: [],
+            taxonomies: [],
+        );
+        $firstPostPage = new ContentPage(
+            sourcePath: $contentPath . '/blog/posts/first/index.dj',
+            relativePath: 'blog/posts/first/index.dj',
+            slug: 'blog/posts/first',
+            urlPath: '/blog/posts/first/',
+            outputRelativePath: 'blog/posts/first/index.html',
+            title: 'First',
+            source: '# First',
+            draft: false,
+            meta: [],
+            taxonomies: [],
+        );
+
+        $assetResolver = new ContentAssetResolver($contentPath, '/docs');
+        $index = new SiteIndex([$blogPage, $firstPostPage], $assetResolver);
+        $context = new SiteContext($index, $blogPage, new ExtensionRegistry(), $assetResolver);
+
+        $this->assertCount(1, $context->assets('shared'));
+        $this->assertSame('/docs/shared/logo.svg', $context->assets('shared')->first()?->urlPath);
+
+        $this->assertCount(1, $context->pageAssets());
+        $this->assertSame('blog/cover.png', $context->pageAssets()->first()?->relativePath);
+        $this->assertCount(1, $context->pageAssets('gallery'));
+        $this->assertSame('blog/gallery/a.png', $context->pageAssets('gallery')->first()?->relativePath);
+
+        $this->assertCount(1, $context->assetsFor($firstPostPage));
+        $this->assertSame('blog/posts/first/hero.jpg', $context->assetsFor($firstPostPage)->first()?->relativePath);
+
+        $blogSection = $context->section('blog') ?? $this->fail('Missing blog section');
+        $this->assertCount(1, $blogSection->assets());
+        $this->assertSame('blog/cover.png', $blogSection->assets()->first()?->relativePath);
+
+        $this->assertCount(3, $blogSection->allAssets());
+        $allAssetPaths = array_map(
+            static fn(ContentAsset $asset): string => $asset->relativePath,
+            $blogSection->allAssets()->sortByName()->all(),
+        );
+        $this->assertSame([
+            'blog/gallery/a.png',
+            'blog/cover.png',
+            'blog/posts/first/hero.jpg',
+        ], $allAssetPaths);
+
+        $noResolverContext = new SiteContext($index, $blogPage);
+        $this->assertCount(0, $noResolverContext->assets());
+        $this->assertCount(0, $noResolverContext->pageAssets());
     }
 
     /**

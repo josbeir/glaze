@@ -5,6 +5,8 @@ namespace Glaze\Template;
 
 use Countable;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Collection\ContentAssetCollection;
+use Glaze\Template\Collection\PageCollection;
 use IteratorAggregate;
 use Traversable;
 
@@ -25,8 +27,9 @@ final class Section implements IteratorAggregate, Countable
      * @param string $label Human-readable section label.
      * @param int $weight Section ordering weight.
      * @param \Glaze\Content\ContentPage|null $indexPage Section index page (`index.dj`) when present.
-     * @param \Glaze\Template\PageCollection $pages Direct pages that belong to this section.
+     * @param \Glaze\Template\Collection\PageCollection $pages Direct pages that belong to this section.
      * @param array<string, \Glaze\Template\Section> $children Ordered child sections by child key.
+     * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      */
     public function __construct(
         protected string $path,
@@ -35,6 +38,7 @@ final class Section implements IteratorAggregate, Countable
         protected ?ContentPage $indexPage,
         protected PageCollection $pages,
         protected array $children,
+        protected ?ContentAssetResolver $assetResolver = null,
     ) {
     }
 
@@ -110,6 +114,51 @@ final class Section implements IteratorAggregate, Countable
     public function pages(): PageCollection
     {
         return $this->pages;
+    }
+
+    /**
+     * Return direct assets for this section path.
+     *
+     * Scans only direct files in the section directory unless a subdirectory is
+     * provided. Djot source files are excluded.
+     *
+     * @param string|null $subdirectory Optional child path relative to this section.
+     */
+    public function assets(?string $subdirectory = null): ContentAssetCollection
+    {
+        if (!$this->assetResolver instanceof ContentAssetResolver) {
+            return new ContentAssetCollection([]);
+        }
+
+        $targetPath = $this->path;
+        if (is_string($subdirectory) && trim($subdirectory) !== '') {
+            $targetPath = $targetPath === ''
+                ? $subdirectory
+                : $targetPath . '/' . $subdirectory;
+        }
+
+        return $this->assetResolver->forDirectory($targetPath);
+    }
+
+    /**
+     * Return all assets for this section subtree recursively.
+     *
+     * @param string|null $subdirectory Optional child path relative to this section.
+     */
+    public function allAssets(?string $subdirectory = null): ContentAssetCollection
+    {
+        if (!$this->assetResolver instanceof ContentAssetResolver) {
+            return new ContentAssetCollection([]);
+        }
+
+        $targetPath = $this->path;
+        if (is_string($subdirectory) && trim($subdirectory) !== '') {
+            $targetPath = $targetPath === ''
+                ? $subdirectory
+                : $targetPath . '/' . $subdirectory;
+        }
+
+        return $this->assetResolver->forDirectoryRecursive($targetPath);
     }
 
     /**

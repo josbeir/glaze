@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Template;
+namespace Glaze\Template\Collection;
 
 use ArrayIterator;
 use Cake\Chronos\Chronos;
@@ -22,6 +22,8 @@ use Traversable;
  */
 final class PageCollection implements IteratorAggregate, Countable
 {
+    use CollectionArrayTrait;
+
     /**
      * Ascending sort direction.
      */
@@ -89,22 +91,6 @@ final class PageCollection implements IteratorAggregate, Countable
     }
 
     /**
-     * Return collection size.
-     */
-    public function count(): int
-    {
-        return count($this->pages);
-    }
-
-    /**
-     * Return whether collection is empty.
-     */
-    public function isEmpty(): bool
-    {
-        return $this->count() === 0;
-    }
-
-    /**
      * Return first page in collection.
      */
     public function first(): ?ContentPage
@@ -122,39 +108,6 @@ final class PageCollection implements IteratorAggregate, Countable
         }
 
         return $this->pages[array_key_last($this->pages)];
-    }
-
-    /**
-     * Return first N pages.
-     *
-     * @param int $limit Maximum number of pages.
-     */
-    public function take(int $limit): self
-    {
-        return new self(array_slice($this->pages, 0, max(0, $limit)));
-    }
-
-    /**
-     * Return a sub-slice of pages.
-     *
-     * @param int $offset Start offset.
-     * @param int|null $length Slice length.
-     */
-    public function slice(int $offset, ?int $length = null): self
-    {
-        if ($length === null) {
-            return new self(array_slice($this->pages, $offset));
-        }
-
-        return new self(array_slice($this->pages, $offset, $length));
-    }
-
-    /**
-     * Return pages in reversed order.
-     */
-    public function reverse(): self
-    {
-        return new self(array_reverse($this->pages));
     }
 
     /**
@@ -281,7 +234,7 @@ final class PageCollection implements IteratorAggregate, Countable
      *
      * @param string $key Field key to group by.
      * @param string|null $direction Optional group-key sort direction (`asc`, `desc`) or `null` to preserve insertion order.
-     * @return array<string, \Glaze\Template\PageCollection>
+     * @return array<string, \Glaze\Template\Collection\PageCollection>
      */
     public function groupBy(string $key, ?string $direction = null): array
     {
@@ -322,7 +275,7 @@ final class PageCollection implements IteratorAggregate, Countable
      * @param string $format Date format.
      * @param string $direction Group order (`asc` or `desc`).
      * @param string $dateKey Date field key.
-     * @return array<string, \Glaze\Template\PageCollection>
+     * @return array<string, \Glaze\Template\Collection\PageCollection>
      */
     public function groupByDate(
         string $format = 'Y-m',
@@ -345,6 +298,26 @@ final class PageCollection implements IteratorAggregate, Countable
         }
 
         return array_map(static fn(array $items): PageCollection => new PageCollection($items), $groups);
+    }
+
+    /**
+     * Return collection items.
+     *
+     * @return array<\Glaze\Content\ContentPage>
+     */
+    protected function collectionItems(): array
+    {
+        return $this->pages;
+    }
+
+    /**
+     * Rebuild collection from normalized items.
+     *
+     * @param array<\Glaze\Content\ContentPage> $items Collection items.
+     */
+    protected function withCollectionItems(array $items): static
+    {
+        return new self($items);
     }
 
     /**

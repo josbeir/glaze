@@ -18,6 +18,7 @@ use Glaze\Render\DjotRenderer;
 use Glaze\Render\SugarPageRenderer;
 use Glaze\Support\BuildGlideHtmlRewriter;
 use Glaze\Support\ResourcePathRewriter;
+use Glaze\Template\ContentAssetResolver;
 use Glaze\Template\Extension\ExtensionLoader;
 use Glaze\Template\Extension\ExtensionRegistry;
 use Glaze\Template\SiteContext;
@@ -67,7 +68,8 @@ final class SiteBuilder
             return null;
         }
 
-        $siteIndex = new SiteIndex($pages);
+        $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
+        $siteIndex = new SiteIndex($pages, $assetResolver);
         $extensionRegistry = ExtensionLoader::loadFromProjectRoot($config->projectRoot, $config->extensionsDir);
 
         return $this->renderPage($config, $page, true, null, $siteIndex, $extensionRegistry);
@@ -121,7 +123,8 @@ final class SiteBuilder
             resourcePathRewriter: $this->resourcePathRewriter,
             templateVite: $config->templateViteOptions,
         );
-        $siteIndex = new SiteIndex($pages);
+        $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
+        $siteIndex = new SiteIndex($pages, $assetResolver);
         $rendererCache = [
             $config->pageTemplate => $pageRenderer,
         ];
@@ -280,7 +283,8 @@ final class SiteBuilder
             );
         }
 
-        $siteIndex ??= new SiteIndex([$page]);
+        $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
+        $siteIndex ??= new SiteIndex([$page], $assetResolver);
 
         $renderResult = $this->djotRenderer->renderWithToc(
             source: $page->source,
@@ -295,6 +299,7 @@ final class SiteBuilder
             siteIndex: $siteIndex,
             currentPage: $page,
             extensions: $extensionRegistry ?? new ExtensionRegistry(),
+            assetResolver: $assetResolver,
         );
 
         $htmlContent = $renderResult->html;

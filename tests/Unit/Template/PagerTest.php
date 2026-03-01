@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Template;
 
 use Glaze\Content\ContentPage;
-use Glaze\Template\PageCollection;
+use Glaze\Template\Collection\PageCollection;
 use Glaze\Template\Pager;
 use PHPUnit\Framework\TestCase;
 

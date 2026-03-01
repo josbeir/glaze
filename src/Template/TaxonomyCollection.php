@@ -5,20 +5,21 @@ namespace Glaze\Template;
 
 use ArrayIterator;
 use Countable;
+use Glaze\Template\Collection\PageCollection;
 use IteratorAggregate;
 use Traversable;
 
 /**
  * Immutable taxonomy term map for template usage.
  *
- * @implements \IteratorAggregate<string, \Glaze\Template\PageCollection>
+ * @implements \IteratorAggregate<string, \Glaze\Template\Collection\PageCollection>
  */
 final class TaxonomyCollection implements IteratorAggregate, Countable
 {
     /**
      * Constructor.
      *
-     * @param array<string, \Glaze\Template\PageCollection> $terms Taxonomy term collections.
+     * @param array<string, \Glaze\Template\Collection\PageCollection> $terms Taxonomy term collections.
      */
     public function __construct(protected array $terms)
     {
@@ -28,7 +29,7 @@ final class TaxonomyCollection implements IteratorAggregate, Countable
     /**
      * Return all term collections.
      *
-     * @return array<string, \Glaze\Template\PageCollection>
+     * @return array<string, \Glaze\Template\Collection\PageCollection>
      */
     public function all(): array
     {
@@ -80,7 +81,7 @@ final class TaxonomyCollection implements IteratorAggregate, Countable
     /**
      * Return iterator for term loops.
      *
-     * @return \Traversable<string, \Glaze\Template\PageCollection>
+     * @return \Traversable<string, \Glaze\Template\Collection\PageCollection>
      */
     public function getIterator(): Traversable
     {

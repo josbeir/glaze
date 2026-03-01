@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Template;
 
+use Glaze\Template\Collection\PageCollection;
+
 /**
  * Immutable pager object for paginated template rendering.
  */
@@ -11,7 +13,7 @@ final class Pager
     /**
      * Constructor.
      *
-     * @param \Glaze\Template\PageCollection $source Full source collection.
+     * @param \Glaze\Template\Collection\PageCollection $source Full source collection.
      * @param int $pageSize Number of elements per page.
      * @param int $pageNumber Current page number.
      * @param string $basePath Base path for pager URLs.

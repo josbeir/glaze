@@ -5,6 +5,7 @@ namespace Glaze\Template;
 
 use Cake\Utility\Inflector;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Collection\PageCollection;
 use Glaze\Utility\Normalization;
 
 /**
@@ -16,12 +17,13 @@ final class SectionTree
      * Build root section from a page list.
      *
      * @param array<\Glaze\Content\ContentPage> $pages Pages in deterministic order.
+     * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      */
-    public static function build(array $pages): Section
+    public static function build(array $pages, ?ContentAssetResolver $assetResolver = null): Section
     {
         /** @var array<string, array{index: \Glaze\Content\ContentPage|null, pages: array<\Glaze\Content\ContentPage>, children: array<string, string>}> $nodes */
         $nodes = [
-            '' => self::newNode(),
+        '' => self::newNode(),
         ];
 
         foreach ($pages as $page) {
@@ -49,22 +51,30 @@ final class SectionTree
             $nodes[$parentPath]['children'][$childKey] = $path;
         }
 
-        return self::buildSection($nodes, '');
+        return self::buildSection($nodes, '', $assetResolver);
     }
 
     /**
      * Build a section node recursively.
      *
-     * @param array<string, array{index: \Glaze\Content\ContentPage|null, pages: array<\Glaze\Content\ContentPage>, children: array<string, string>}> $nodes Node map.
+     * @param array<string, array{
+     *     index: \Glaze\Content\ContentPage|null,
+     *     pages: array<\Glaze\Content\ContentPage>,
+     *     children: array<string, string>
+     * }> $nodes Node map.
      * @param string $path Current section path.
+     * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      */
-    protected static function buildSection(array $nodes, string $path): Section
-    {
+    protected static function buildSection(
+        array $nodes,
+        string $path,
+        ?ContentAssetResolver $assetResolver = null,
+    ): Section {
         $node = $nodes[$path] ?? self::newNode();
 
         $children = [];
         foreach ($node['children'] as $key => $childPath) {
-            $children[$key] = self::buildSection($nodes, $childPath);
+            $children[$key] = self::buildSection($nodes, $childPath, $assetResolver);
         }
 
         uasort($children, static function (Section $left, Section $right): int {
@@ -86,6 +96,7 @@ final class SectionTree
             indexPage: $node['index'],
             pages: new PageCollection($node['pages']),
             children: $children,
+            assetResolver: $assetResolver,
         );
     }
 

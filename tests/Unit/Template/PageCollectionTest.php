@@ -6,7 +6,7 @@ namespace Glaze\Tests\Unit\Template;
 use Closure;
 use DateTimeImmutable;
 use Glaze\Content\ContentPage;
-use Glaze\Template\PageCollection;
+use Glaze\Template\Collection\PageCollection;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 

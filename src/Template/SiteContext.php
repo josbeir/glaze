@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Glaze\Template;
 
 use Glaze\Content\ContentPage;
+use Glaze\Template\Collection\ContentAssetCollection;
+use Glaze\Template\Collection\PageCollection;
 use Glaze\Template\Extension\ExtensionRegistry;
 
 /**
@@ -17,11 +19,13 @@ final class SiteContext
      * @param \Glaze\Template\SiteIndex $siteIndex Site-wide page index.
      * @param \Glaze\Content\ContentPage $currentPage Current page being rendered.
      * @param \Glaze\Template\Extension\ExtensionRegistry $extensions Registered project extensions.
+     * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
         protected ContentPage $currentPage,
         protected ExtensionRegistry $extensions = new ExtensionRegistry(),
+        protected ?ContentAssetResolver $assetResolver = null,
     ) {
     }
 
@@ -124,9 +128,48 @@ final class SiteContext
     }
 
     /**
+     * Return assets from content root or an optional content-relative subdirectory.
+     *
+     * @param string|null $subdirectory Optional content-relative subdirectory.
+     */
+    public function assets(?string $subdirectory = null): ContentAssetCollection
+    {
+        if (!$this->assetResolver instanceof ContentAssetResolver) {
+            return new ContentAssetCollection([]);
+        }
+
+        return $this->assetResolver->forDirectory($subdirectory);
+    }
+
+    /**
+     * Return assets for a specific content page.
+     *
+     * @param \Glaze\Content\ContentPage $page Page whose directory should be scanned.
+     * @param string|null $subdirectory Optional child path relative to page directory.
+     */
+    public function assetsFor(ContentPage $page, ?string $subdirectory = null): ContentAssetCollection
+    {
+        if (!$this->assetResolver instanceof ContentAssetResolver) {
+            return new ContentAssetCollection([]);
+        }
+
+        return $this->assetResolver->forPage($page, $subdirectory);
+    }
+
+    /**
+     * Return assets for the current page.
+     *
+     * @param string|null $subdirectory Optional child path relative to current page directory.
+     */
+    public function pageAssets(?string $subdirectory = null): ContentAssetCollection
+    {
+        return $this->assetsFor($this->currentPage, $subdirectory);
+    }
+
+    /**
      * Filter a collection with where semantics.
      *
-     * @param \Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Collection to filter.
+     * @param \Glaze\Template\Collection\PageCollection|array<\Glaze\Content\ContentPage> $collection Collection to filter.
      * @param string $key Field key.
      * @param mixed $operatorOrValue Operator or expected value.
      * @param mixed $value Optional expected value when using operator.
@@ -170,7 +213,7 @@ final class SiteContext
     /**
      * Paginate a page collection.
      *
-     * @param \Glaze\Template\Section|\Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Source collection.
+     * @param \Glaze\Template\Section|\Glaze\Template\Collection\PageCollection|array<\Glaze\Content\ContentPage> $collection Source collection.
      * @param int $pageSize Page size.
      * @param int $currentPage Current page number.
      * @param string|null $basePath Base pager path.
@@ -264,7 +307,7 @@ final class SiteContext
     /**
      * Normalize collections to `PageCollection`.
      *
-     * @param \Glaze\Template\Section|\Glaze\Template\PageCollection|array<\Glaze\Content\ContentPage> $collection Input collection.
+     * @param \Glaze\Template\Section|\Glaze\Template\Collection\PageCollection|array<\Glaze\Content\ContentPage> $collection Input collection.
      */
     protected function toCollection(Section|PageCollection|array $collection): PageCollection
     {

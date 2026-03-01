@@ -43,6 +43,42 @@ $page->meta['weight']        // int (when set)
 $page->meta['featured']      // bool (when set)
 ```
 
+Or use dotted helper methods on `ContentPage`:
+
+```php
+$page->meta('hero.title')                // nested lookup by dotted path
+$page->meta('hero.cta.href', '/contact') // fallback when missing
+$page->hasMeta('hero.highlights')        // true when key exists
+```
+
+- `$page->meta(string $path, mixed $default = null): mixed`
+    - Returns the full metadata map when `$path` is empty.
+- `$page->hasMeta(string $path): bool`
+    - For empty `$path`, returns whether metadata is non-empty.
+
+When iterating pages, use the site context to query related content assets:
+
+```php
+<ul>
+    <li s:foreach="$this->section('blog')?->pages() ?? [] as $item">
+        <?= $item->title ?>
+
+        <img
+            s:if="!$this->assetsFor($item, 'gallery')->isEmpty()"
+            src="<?= $this->assetsFor($item, 'gallery')->images()->first()?->urlPath ?>"
+            alt="<?= $item->title ?>"
+        >
+    </li>
+</ul>
+```
+
+For section-level assets, use:
+
+```php
+$this->section('blog')?->assets()      // direct assets only
+$this->section('blog')?->allAssets()   // includes child section assets recursively
+```
+
 ## Iterating
 
 ```php

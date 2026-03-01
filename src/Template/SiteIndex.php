@@ -6,6 +6,7 @@ namespace Glaze\Template;
 use Cake\Chronos\Chronos;
 use Cake\Utility\Hash;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Collection\PageCollection;
 use Glaze\Utility\Normalization;
 use Throwable;
 
@@ -42,9 +43,12 @@ final class SiteIndex
      * Constructor.
      *
      * @param array<\Glaze\Content\ContentPage> $pages All discoverable pages.
+     * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      */
-    public function __construct(protected array $pages)
-    {
+    public function __construct(
+        protected array $pages,
+        protected ?ContentAssetResolver $assetResolver = null,
+    ) {
         $this->pages = array_values($this->pages);
     }
 
@@ -178,7 +182,7 @@ final class SiteIndex
             return $this->treeCache;
         }
 
-        $this->treeCache = SectionTree::build($this->regularPages()->all());
+        $this->treeCache = SectionTree::build($this->regularPages()->all(), $this->assetResolver);
 
         return $this->treeCache;
     }

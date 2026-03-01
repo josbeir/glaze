@@ -93,6 +93,18 @@ $page->meta('hero.primaryAction.href', '/') // dotted access with default fallba
 $page->hasMeta('hero.highlights')          // existence check
 ```
 
+#### Metadata helper methods
+
+`ContentPage` provides dotted metadata helpers for nested frontmatter values:
+
+- `$page->meta(string $path, mixed $default = null): mixed`
+    - Returns the metadata value at the dotted path.
+    - Returns `$default` when the path does not exist.
+    - Returns the full metadata map when `$path` is empty.
+- `$page->hasMeta(string $path): bool`
+    - Returns `true` when metadata exists at the dotted path.
+    - Returns whether metadata is non-empty when `$path` is empty.
+
 ### `$site` properties
 
 ```php
@@ -118,6 +130,9 @@ $this->section('blog')                  // ?Section for a path (supports nesting
 $this->type('blog')                     // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
 $this->isCurrent('/blog/')              // bool
+$this->assets(?string $subdirectory = null)             // ContentAssetCollection from content root
+$this->pageAssets(?string $subdirectory = null)         // ContentAssetCollection for current page
+$this->assetsFor($page, ?string $subdirectory = null)   // ContentAssetCollection for arbitrary page
 $this->sections()                       // array<string, Section> — top-level sections, ordered by weight
 $this->rootPages()                     // PageCollection — root-level pages (no section)
 $this->previous(?callable $predicate = null)          // ?ContentPage — previous page in global display order
@@ -125,6 +140,44 @@ $this->next(?callable $predicate = null)              // ?ContentPage — next p
 $this->previousInSection(?callable $predicate = null) // ?ContentPage
 $this->nextInSection(?callable $predicate = null)     // ?ContentPage
 $this->extension('name')               // call a project extension (see Extensions)
+```
+
+### Content assets in templates
+
+Use content asset helpers to discover non-Djot files from content directories:
+
+```php
+$this->pageAssets()                         // assets next to current page source
+$this->pageAssets('gallery')                // assets in current page subfolder
+$this->assets('shared')                     // assets from content/shared/
+$this->assetsFor($item, 'gallery')          // assets for a page in a loop
+
+$this->section('blog')?->assets()           // direct assets in content/blog/
+$this->section('blog')?->allAssets()        // recursive assets in content/blog/**
+```
+
+When iterating a page collection, use `$this->assetsFor($item, ...)`:
+
+```php
+<ul>
+    <li s:foreach="$this->section('blog')?->pages() ?? [] as $item">
+        <h3><?= $item->title ?></h3>
+
+        <img
+            s:if="!$this->assetsFor($item, 'gallery')->images()->isEmpty()"
+            src="<?= $this->assetsFor($item, 'gallery')->images()->first()?->urlPath ?>"
+            alt="<?= $item->title ?>"
+        >
+    </li>
+</ul>
+```
+
+Each item is a `ContentAsset` with fields like `relativePath`, `urlPath`, `filename`,
+`extension`, and `size`, plus helper checks:
+
+```php
+$asset->is('png', 'jpg')
+$asset->isImage()
 ```
 
 See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For custom PHP logic callable from templates, see [Extensions](extensions.dj).
