@@ -29,13 +29,17 @@
 
 Glaze is a fast, modern static site generator for PHP developers who want content-first authoring without a heavy framework in the way.
 
-It gives you a clean workflow:
+> 📚 **Documentation:** https://josbeir.github.io/glaze/
+
+[![Glaze command](docs/static/terminal_dark.png)](https://josbeir.github.io/sugar)
+
+### Quick workflow
 
 - write content in Djot
 - shape output with Sugar templates
 - generate static files for reliable, simple deployment
 
-Under the hood, Glaze stays intentionally lightweight while still giving you practical features like frontmatter, taxonomy-aware content discovery, template context helpers, and an ergonomic CLI (`glaze init`, `glaze build`, `glaze serve`).
+Glaze stays lightweight while still giving you practical features like frontmatter, taxonomy-aware discovery, template context helpers, and an ergonomic CLI (`glaze init`, `glaze build`, `glaze serve`).
 
 Glaze is built around:
 
@@ -45,9 +49,9 @@ Glaze is built around:
 
 If you like clean files, modern templating, and quick iteration, Glaze is made for you.
 
-## Documentation and more information
+## Documentation
 
-Read the [Documentation](https://josbeir.github.io/glaze/)
+Start here: [https://josbeir.github.io/glaze/](https://josbeir.github.io/glaze/)
 
 ## License
 
@@ -55,4 +59,4 @@ Glaze is licensed under the MIT License. See [LICENSE](LICENSE.md).
 
 ## Contributing
 
-Contributions are welcome. Please read [Contributing](https://josbeir.github.io/sugar/guide/reference/contributing.html) for setup steps and guidelines.
+Contributions are welcome. Please read [Contributing](https://josbeir.github.io/sugar) for setup steps and guidelines.
