@@ -5,6 +5,7 @@ namespace Glaze\Support;
 
 use Glaze\Config\BuildConfig;
 use Glaze\Image\GlideImageTransformer;
+use Glaze\Image\ImagePresetResolver;
 use Glaze\Utility\Hash;
 use RuntimeException;
 
@@ -18,10 +19,12 @@ final class BuildGlideHtmlRewriter
      *
      * @param \Glaze\Image\GlideImageTransformer $glideImageTransformer Glide image transformer service.
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter service.
+     * @param \Glaze\Image\ImagePresetResolver $presetResolver Preset resolver for expanding named presets.
      */
     public function __construct(
         protected GlideImageTransformer $glideImageTransformer,
         protected ResourcePathRewriter $resourcePathRewriter,
+        protected ImagePresetResolver $presetResolver = new ImagePresetResolver(),
     ) {
     }
 
@@ -151,6 +154,7 @@ final class BuildGlideHtmlRewriter
         }
 
         $sourcePath = $this->resourcePathRewriter->stripBasePathFromPath($path, $config->site);
+        $resolvedManipulations = $this->presetResolver->resolve($normalizedQueryParams, $config->imagePresets);
         $transformedPath = null;
         foreach ([$config->contentPath(), $config->staticPath()] as $candidateRoot) {
             $transformedPath = $this->glideImageTransformer->createTransformedPath(
@@ -174,6 +178,7 @@ final class BuildGlideHtmlRewriter
             transformedPath: $transformedPath,
             sourcePath: $sourcePath,
             queryString: $queryString,
+            resolvedManipulations: $resolvedManipulations,
             config: $config,
         );
     }
@@ -293,24 +298,26 @@ final class BuildGlideHtmlRewriter
     /**
      * Publish transformed Glide output to static build directory.
      *
-     * The output file extension is derived from the `fm` query parameter when
-     * present (e.g. `fm=webp` produces a `.webp` file), otherwise the source
-     * path extension is used so that non-converting operations keep the original type.
+     * The output file extension is derived from the resolved `fm` manipulation when
+     * present — this includes format values from expanded presets (e.g. a preset
+     * defining `fm: webp` produces a `.webp` file). Falls back to the source path
+     * extension for non-converting operations.
      *
      * @param string $transformedPath Absolute transformed image path.
      * @param string $sourcePath Internal source image path.
-     * @param string $queryString Original query string.
+     * @param string $queryString Original query string (used for hash computation).
+     * @param array<string, string> $resolvedManipulations Fully resolved Glide manipulations including preset expansion.
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      */
     protected function publishBuildGlideAsset(
         string $transformedPath,
         string $sourcePath,
         string $queryString,
+        array $resolvedManipulations,
         BuildConfig $config,
     ): string {
         $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
-        parse_str($queryString, $parsedQuery);
-        $fm = isset($parsedQuery['fm']) && is_string($parsedQuery['fm']) ? strtolower(trim($parsedQuery['fm'])) : null;
+        $fm = isset($resolvedManipulations['fm']) ? strtolower(trim($resolvedManipulations['fm'])) : null;
         if ($fm !== null && $fm !== '') {
             $extension = $fm;
         }

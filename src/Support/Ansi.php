@@ -21,7 +21,7 @@ class Ansi
     /**
      * ESC character used in all ANSI sequences.
      */
-    public const string ESC = "\033";
+    public const ESC = "\033";
 
     /**
      * Output stream for write operations.

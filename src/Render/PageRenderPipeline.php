@@ -98,7 +98,7 @@ final class PageRenderPipeline
         ], $templateContext);
 
         if (!$debug) {
-            $output = $this->buildGlideHtmlRewriter->rewrite($output, $config);
+            return $this->buildGlideHtmlRewriter->rewrite($output, $config);
         }
 
         return $output;

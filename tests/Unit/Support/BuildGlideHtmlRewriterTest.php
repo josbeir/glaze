@@ -217,12 +217,42 @@ final class BuildGlideHtmlRewriterTest extends TestCase
             $transformedPath,
             '/images/raw',
             'w=100',
+            [],
             $config,
         );
 
         $expectedHash = Hash::make('/images/raw?w=100');
         $this->assertSame('/docs/_glide/' . $expectedHash, $publishedPath);
         $this->assertFileExists($projectRoot . '/public/_glide/' . $expectedHash);
+    }
+
+    /**
+     * Ensure preset-defined format (e.g. fm: webp) produces the correct file extension in the published path.
+     */
+    public function testRewriteProducesCorrectExtensionForPresetFormatConversion(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $this->createPng($projectRoot . '/content/images/hero.png');
+
+        file_put_contents($projectRoot . '/glaze.neon', "images:\n  presets:\n    large:\n      fm: webp\n      w: 1200\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $rewriter = $this->createRewriter();
+
+        $html = '<img src="/images/hero.png?p=large">';
+
+        $rewritten = $rewriter->rewrite($html, $config);
+
+        $hash = Hash::make('/images/hero.png?p=large');
+        $this->assertStringContainsString('/_glide/' . $hash . '.webp', $rewritten);
+        $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.webp');
     }
 
     /**

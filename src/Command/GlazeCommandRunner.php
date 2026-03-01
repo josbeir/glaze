@@ -27,7 +27,7 @@ class GlazeCommandRunner extends CommandRunner
      *
      * @var list<string>
      */
-    protected const array LOGO_LINES = [
+    protected const LOGO_LINES = [
         '  ██████╗ ██╗      █████╗ ███████╗███████╗',
         ' ██╔════╝ ██║     ██╔══██╗╚══███╔╝██╔════╝',
         ' ██║  ███╗██║     ███████║  ███╔╝ █████╗  ',
@@ -41,14 +41,14 @@ class GlazeCommandRunner extends CommandRunner
      *
      * @var array{int, int, int}
      */
-    protected const array GRADIENT_FROM = [255, 160, 40];
+    protected const GRADIENT_FROM = [255, 160, 40];
 
     /**
      * Ending RGB color for the logo gradient (cool cyan).
      *
      * @var array{int, int, int}
      */
-    protected const array GRADIENT_TO = [60, 180, 255];
+    protected const GRADIENT_TO = [60, 180, 255];
 
     /**
      * Resolve the command name, falling through to `help` silently
