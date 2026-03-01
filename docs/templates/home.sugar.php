@@ -7,7 +7,7 @@ use function Sugar\Core\Runtime\raw;
  * @var Glaze\Template\SiteContext $this
  */
 ?>
-<s-template s:extends="layout/page">
+<s-template s:extends="layout/base">
 
 <title s:prepend="title"><?= $title ?></title>
 
@@ -19,10 +19,10 @@ use function Sugar\Core\Runtime\raw;
 </s-template>
 
 <s-template s:block="content">
-	<section class="mb-10 sm:mb-12">
+	<section class="sm:mb-12">
 		<div class="relative">
 			<div class="relative z-10 grid justify-between gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
-				<div class="px-6">
+				<div>
 					<div class="badge badge-primary badge-outline mb-4" s:if="$page->hasMeta('hero.category')">
 						<?= $page->meta('hero.category') ?>
 					</div>
@@ -60,20 +60,20 @@ use function Sugar\Core\Runtime\raw;
 					/>
 				</div>
 			</div>
-
-			<div class="mt-6 hidden lg:block">
-				<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png?p=large" alt="<?= $site->title ?>" />
-				<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png?p=large" alt="<?= $site->title ?>" />
-			</div>
 		</div>
 
-		<div class="grid gap-4 my-15 lg:mb-30 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
+		<div class="grid gap-4 mt-15 md:grid-cols-3" s:if="$page->hasMeta('hero.highlights')">
 			<s-template s:foreach="$page->meta('hero.highlights', []) as $heroHighlight">
 				<s-hero-card s:bind="['icon' => $heroHighlight['icon'] ?? '']">
 					<h2 s:slot="header"><?= $heroHighlight['title'] ?></h2>
 					<?= $heroHighlight['description'] ?>
 				</s-hero-card>
 			</s-template>
+		</div>
+
+		<div class="my-6 lg:my-15 lg:w-[80%] mx-auto">
+			<img class="w-full terminal-preview terminal-preview-light" src="terminal_light.png?p=large" alt="<?= $site->title ?>" />
+			<img class="w-full terminal-preview terminal-preview-dark" src="terminal_dark.png?p=large" alt="<?= $site->title ?>" />
 		</div>
 
 		<div class="card bg-base-200 border border-base-300" x-data="scaffoldDemo({

@@ -9,7 +9,7 @@ use function Sugar\Core\Runtime\raw;
 ?>
 <title s:prepend="title"><?= $title ?></title>
 
-<s-template s:extends="layout/page" />
+<s-template s:extends="layout/base" />
 
 <s-template
 	s:include="partials/toc"
