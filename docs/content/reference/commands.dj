@@ -1,5 +1,6 @@
 ---
 title: Commands
+description: "CLI command reference for init, build, serve, cache, and related options."
 weight: 100
 ---
 # Commands

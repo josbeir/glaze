@@ -1,5 +1,6 @@
 ---
 title: Why Not Markdown?
+description: "Why Glaze uses Djot instead of Markdown, with practical differences and tradeoffs."
 weight: 110
 ---
 # Why not Markdown?

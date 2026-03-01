@@ -1,5 +1,6 @@
 ---
 title: Glide Images
+description: "Use Glide image transformations in Glaze content and templates with query parameters and presets."
 weight: 60
 ---
 # Glide images

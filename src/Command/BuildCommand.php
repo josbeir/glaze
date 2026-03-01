@@ -136,13 +136,25 @@ final class BuildCommand extends AbstractGlazeCommand
                 $io->overwrite($formatStageMessage($doneIcon, 'Vite', 'Skipping Vite build (disabled)...'));
             }
 
+            $verbose = (bool)$args->getOption('verbose');
             $buildMessage = $formatStageMessage($pendingIcon, 'Build', 'Building pages...');
             $buildProgressMessage = $buildMessage;
             $io->out($buildMessage, 0);
             $writtenFiles = $this->siteBuilder->build(
                 $config,
                 $cleanOutput,
-                function (int $completedPages, int $totalPages) use ($io, &$buildProgressMessage, $pendingIcon): void {
+                function (
+                    int $completedPages,
+                    int $totalPages,
+                    string $file,
+                    float $duration,
+                ) use (
+                    $io,
+                    &$buildProgressMessage,
+                    $pendingIcon,
+                    $config,
+                    $verbose,
+                ): void {
                     $message = sprintf(
                         '%s <info>[Build]</info> Building pages... %d/%d',
                         $pendingIcon,
@@ -150,7 +162,27 @@ final class BuildCommand extends AbstractGlazeCommand
                         $totalPages,
                     );
                     $buildProgressMessage = $message;
-                    $io->overwrite($message, 0);
+                    if ($verbose && $file !== '') {
+                        if (str_starts_with($file, $config->projectRoot)) {
+                            $relativePath = $this->relativeToRoot($file, $config->projectRoot);
+                            $io->overwrite(sprintf(
+                                '<success>generated</success> %s <info>(%d/%d)</info> <comment>%s</comment>',
+                                $relativePath,
+                                $completedPages,
+                                $totalPages,
+                                $this->formatDuration($duration),
+                            ));
+                        } else {
+                            $io->overwrite(sprintf(
+                                '<comment>virtual</comment>  %s <info>(%d/%d)</info>',
+                                $file,
+                                $completedPages,
+                                $totalPages,
+                            ));
+                        }
+                    } else {
+                        $io->overwrite($message, 0);
+                    }
                 },
             );
             $completedBuildMessage = preg_replace(
@@ -158,18 +190,13 @@ final class BuildCommand extends AbstractGlazeCommand
                 $doneIcon,
                 $buildProgressMessage,
             ) ?: $buildProgressMessage;
-            $io->overwrite($completedBuildMessage);
+            if (!$verbose) {
+                $io->overwrite($completedBuildMessage);
+            }
         } catch (Throwable $throwable) {
             $io->err(sprintf('<error>%s</error>', $throwable->getMessage()));
 
             return self::CODE_ERROR;
-        }
-
-        if ((bool)$args->getOption('verbose')) {
-            foreach ($writtenFiles as $filePath) {
-                $relativePath = $this->relativeToRoot($filePath, $config->projectRoot);
-                $io->out(sprintf('<success>generated</success> %s', $relativePath));
-            }
         }
 
         $elapsedTime = max(0.0, microtime(true) - $startedAt);

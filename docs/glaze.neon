@@ -3,6 +3,7 @@ site:
 	title: Glaze
 	description: PHP templating engine documentation
 	basePath: /glaze
+	baseUrl: https://josbeir.github.io/
 	repository: 'https://github.com/josbeir/glaze'
 	footer: 'Created by Jasper Smet.'
 	license: 'MIT License'

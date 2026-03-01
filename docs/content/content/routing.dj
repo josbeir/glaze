@@ -1,5 +1,6 @@
 ---
 title: Content & Routing
+description: "Learn how Glaze maps content files to URLs, slugs, and generated output paths."
 weight: 45
 ---
 # Content & routing

@@ -1,5 +1,6 @@
 ---
 title: Templating
+description: "Glaze templating fundamentals with Sugar layouts, blocks, components, and context."
 weight: 80
 ---
 # Templating

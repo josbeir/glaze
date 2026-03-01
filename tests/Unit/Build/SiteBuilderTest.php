@@ -17,6 +17,7 @@ use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
+use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -717,6 +718,68 @@ final class SiteBuilderTest extends TestCase
         $this->assertCount(1, $completedEvents);
         $this->assertGreaterThan(0.0, $completedEvents[0]->duration);
         $this->assertSame($writtenFiles, $completedEvents[0]->writtenFiles);
+    }
+
+    /**
+     * Ensure virtual pages injected via ContentDiscovered are counted in the progress
+     * callback total but are not included in the returned written files list.
+     */
+    public function testBuildVirtualPagesAreCountedInProgressAndExcludedFromWrittenFiles(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+
+        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+            $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+        });
+
+        $progressItems = [];
+        $writtenFiles = $this->createSiteBuilder()->build(
+            $config,
+            progressCallback: function (int $done, int $total, string $file, float $duration) use (&$progressItems): void {
+                $progressItems[] = ['done' => $done, 'total' => $total, 'file' => $file];
+            },
+            dispatcher: $dispatcher,
+        );
+
+        // Virtual page URL should appear in the progress callback
+        $files = array_column($progressItems, 'file');
+        $this->assertContains('/sitemap.xml', $files);
+
+        // Total page count includes the virtual page (1 real + 1 virtual = 2)
+        $totals = array_unique(array_column($progressItems, 'total'));
+        $this->assertSame([2], $totals);
+
+        // Virtual pages are not written by the builder and must not be in writtenFiles
+        $this->assertNotContains($config->outputPath() . '/sitemap.xml', $writtenFiles);
+        $this->assertCount(1, $writtenFiles);
+    }
+
+    /**
+     * Ensure virtual pages are excluded from the SiteIndex so they do not appear
+     * in navigation, sections, or regular page collections visible to templates.
+     */
+    public function testBuildVirtualPagesAreExcludedFromSiteIndex(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $dispatcher = new EventDispatcher();
+
+        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+            $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+        });
+
+        // Collect every page URL that Sugar templates "see" via PageRendered events
+        $renderedUrls = [];
+        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$renderedUrls): void {
+            $renderedUrls[] = $event->page->urlPath;
+        });
+
+        $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
+
+        // The virtual page must never reach the render pipeline
+        $this->assertNotContains('/sitemap.xml', $renderedUrls);
     }
 
     /**

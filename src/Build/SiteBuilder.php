@@ -81,7 +81,7 @@ final class SiteBuilder
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param bool $cleanOutput Whether to clear output directory before build.
-     * @param callable(int, int, string):void|null $progressCallback Optional per-page progress callback.
+     * @param callable(int, int, string, float):void|null $progressCallback Optional per-page progress callback. Receives completed count, total count, file path or virtual URL, and per-page duration in seconds.
      * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional pre-configured dispatcher;
      *                                                             when null a fresh dispatcher is created.
      * @return array<string> Generated file paths.
@@ -115,18 +115,30 @@ final class SiteBuilder
         );
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
+        $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
-        $siteIndex = new SiteIndex($pages, $assetResolver);
+        $siteIndex = new SiteIndex($realPages, $assetResolver);
 
         $writtenFiles = [];
         $totalPages = count($pages);
         $completedPages = 0;
         if (is_callable($progressCallback)) {
-            $progressCallback($completedPages, $totalPages, '');
+            $progressCallback($completedPages, $totalPages, '', 0.0);
         }
 
         foreach ($pages as $page) {
+            if ($page->virtual) {
+                $completedPages++;
+                if (is_callable($progressCallback)) {
+                    $progressCallback($completedPages, $totalPages, $page->urlPath, 0.0);
+                }
+
+                continue;
+            }
+
+            $pageStartTime = hrtime(true);
+
             $html = $this->pageRenderPipeline->render(
                 config: $config,
                 page: $page,
@@ -146,9 +158,10 @@ final class SiteBuilder
             $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
             $writtenFiles[] = $destination;
             $completedPages++;
+            $pageDuration = (float)(hrtime(true) - $pageStartTime) / 1e9;
 
             if (is_callable($progressCallback)) {
-                $progressCallback($completedPages, $totalPages, $destination);
+                $progressCallback($completedPages, $totalPages, $destination, $pageDuration);
             }
         }
 

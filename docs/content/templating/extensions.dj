@@ -1,5 +1,6 @@
 ---
 title: Extensions
+description: "Create template helpers and build-event subscribers using Glaze extension auto-discovery."
 weight: 85
 ---
 # Extensions
@@ -167,6 +168,46 @@ $event->config    — BuildConfig
 ```
 
 Mutate `$pages` to inject virtual pages, reorder, augment metadata, or filter the list.
+
+### Virtual pages
+
+A **virtual page** is a synthetic entry you inject into the page list via `ContentDiscovered`.
+Virtual pages participate in build progress output (the counter and label) but are completely invisible to the site index — they do not appear in navigation, sections, or template collections.
+The builder skips the Djot/Sugar render pipeline for them entirely; writing the actual file is the extension's own responsibility, typically inside `BuildCompleted`.
+
+Create one with the `ContentPage::virtual()` named constructor:
+
+```php
+ContentPage::virtual(
+    urlPath: '/sitemap.xml',           // canonical public URL
+    outputRelativePath: 'sitemap.xml', // path under the output directory
+    title: 'Sitemap',                  // label shown in build progress
+    meta: [],                          // optional arbitrary metadata
+)
+```
+
+A complete pattern — register in `ContentDiscovered`, write in `BuildCompleted`:
+
+```php
+#[GlazeExtension]
+final class SitemapExtension
+{
+    #[ListensTo(BuildEvent::ContentDiscovered)]
+    public function registerVirtualPage(ContentDiscoveredEvent $event): void
+    {
+        $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+    }
+
+    #[ListensTo(BuildEvent::BuildCompleted)]
+    public function write(BuildCompletedEvent $event): void
+    {
+        $xml = $this->buildXml($event->config->site->baseUrl);
+        file_put_contents($event->config->outputPath() . '/sitemap.xml', $xml);
+    }
+}
+```
+
+The virtual page appears in the build progress counter alongside regular pages (`3 / 18`) and shows its `urlPath` as the label. It is never passed to `PageRendered` or `PageWritten` listeners.
 
 #### `DjotConverterCreatedEvent`
 

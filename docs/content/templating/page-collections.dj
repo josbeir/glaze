@@ -1,5 +1,6 @@
 ---
 title: Page Collections
+description: "Query and render content with PageCollection APIs, sections, taxonomies, and pagination."
 weight: 90
 ---
 # Page collections

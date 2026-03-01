@@ -7,6 +7,23 @@ use Glaze\Support\HasDottedMetadataAccessTrait;
 
 /**
  * Value object representing a discoverable content page.
+ *
+ * A page can be either a real content page discovered from the file system, or a
+ * virtual page injected by an extension via the `ContentDiscovered` event. Virtual
+ * pages participate in build progress reporting but are excluded from the site index
+ * and skip the normal Djot/Sugar render pipeline — their output is produced by the
+ * injecting extension, typically during `BuildCompleted`.
+ *
+ * Example — register virtual output pages from an extension:
+ *
+ * ```php
+ * #[ListensTo(BuildEvent::ContentDiscovered)]
+ * public function registerVirtualPages(ContentDiscoveredEvent $event): void
+ * {
+ *     $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+ *     $event->pages[] = ContentPage::virtual('/llms.txt', 'llms.txt', 'LLMs index');
+ * }
+ * ```
  */
 final class ContentPage
 {
@@ -27,6 +44,7 @@ final class ContentPage
      * @param array<string, array<string>> $taxonomies Parsed taxonomy terms by taxonomy key.
      * @param string|null $type Resolved content type name.
      * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries collected during the render pass.
+     * @param bool $virtual Whether this is a virtual page injected by an extension.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -41,7 +59,42 @@ final class ContentPage
         public readonly array $taxonomies = [],
         public readonly ?string $type = null,
         public readonly array $toc = [],
+        public readonly bool $virtual = false,
     ) {
+    }
+
+    /**
+     * Create a virtual page that participates in build progress but skips the render pipeline.
+     *
+     * Virtual pages are injected by extensions via the `ContentDiscovered` event. They
+     * are excluded from `SiteIndex` (navigation, sections, collections) and their content
+     * is written by the extension itself, typically during the `BuildCompleted` event.
+     *
+     * @param string $urlPath Public URL path (e.g. `/sitemap.xml`).
+     * @param string $outputRelativePath Relative path under the output directory (e.g. `sitemap.xml`).
+     * @param string $title Human-readable label shown in build progress output.
+     * @param array<string, mixed> $meta Optional arbitrary metadata available to the extension.
+     */
+    public static function virtual(
+        string $urlPath,
+        string $outputRelativePath,
+        string $title = '',
+        array $meta = [],
+    ): self {
+        $slug = trim($urlPath, '/');
+
+        return new self(
+            sourcePath: '',
+            relativePath: $outputRelativePath,
+            slug: $slug,
+            urlPath: $urlPath,
+            outputRelativePath: $outputRelativePath,
+            title: $title !== '' ? $title : $slug,
+            source: '',
+            draft: false,
+            meta: $meta,
+            virtual: true,
+        );
     }
 
     /**
@@ -67,6 +120,7 @@ final class ContentPage
             taxonomies: $this->taxonomies,
             type: $this->type,
             toc: $toc,
+            virtual: $this->virtual,
         );
     }
 

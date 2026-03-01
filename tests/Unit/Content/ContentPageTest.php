@@ -102,6 +102,56 @@ final class ContentPageTest extends TestCase
         $this->assertSame($page->source, $enriched->source);
         $this->assertSame($page->draft, $enriched->draft);
         $this->assertSame($page->meta, $enriched->meta);
+        $this->assertSame($page->virtual, $enriched->virtual);
+    }
+
+    /**
+     * Ensure ContentPage::virtual() creates a page with the expected defaults.
+     */
+    public function testVirtualPageFactory(): void
+    {
+        $page = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+
+        $this->assertTrue($page->virtual);
+        $this->assertFalse($page->draft);
+        $this->assertSame('/sitemap.xml', $page->urlPath);
+        $this->assertSame('sitemap.xml', $page->outputRelativePath);
+        $this->assertSame('sitemap.xml', $page->relativePath);
+        $this->assertSame('Sitemap', $page->title);
+        $this->assertSame('sitemap.xml', $page->slug);
+        $this->assertSame('', $page->sourcePath);
+        $this->assertSame('', $page->source);
+    }
+
+    /**
+     * Ensure ContentPage::virtual() falls back to the slug as title when no title is given.
+     */
+    public function testVirtualPageFactoryFallsBackToSlugAsTitle(): void
+    {
+        $page = ContentPage::virtual('/llms.txt', 'llms.txt');
+
+        $this->assertSame('llms.txt', $page->title);
+    }
+
+    /**
+     * Ensure ContentPage::virtual() forwards custom metadata to the page object.
+     */
+    public function testVirtualPageFactoryForwardsMetadata(): void
+    {
+        $page = ContentPage::virtual('/feed.xml', 'feed.xml', 'Feed', ['type' => 'rss']);
+
+        $this->assertSame(['type' => 'rss'], $page->meta);
+    }
+
+    /**
+     * Ensure withToc() preserves the virtual flag on virtual pages.
+     */
+    public function testWithTocPreservesVirtualFlag(): void
+    {
+        $page = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
+        $enriched = $page->withToc([]);
+
+        $this->assertTrue($enriched->virtual);
     }
 
     /**
