@@ -1,0 +1,144 @@
+---
+title: Core extensions
+description: "Built-in opt-in extensions that ship with Glaze: sitemap, llms-txt, and how to configure them."
+weight: 80
+---
+# Core extensions
+
+Glaze ships with built-in extensions that are **opt-in** — they do nothing unless explicitly enabled in `glaze.neon`. This keeps every project lean: no sitemap, no extra files, unless you ask for them.
+
+## Enabling core extensions
+
+Add an `extensions` key to `glaze.neon` with the names of the extensions you want:
+
+```neon
+extensions:
+    - sitemap
+    - llms-txt
+```
+
+Each entry matches the `name` declared in the extension's `#[GlazeExtension]` attribute.
+
+You can mix core names, project extension names (from your `extensions/` directory), and fully-qualified class names in the same list:
+
+```neon
+extensions:
+    - sitemap
+    - my-project-hook
+    - App\Extensions\AnalyticsExtension
+```
+
+### Passing options
+
+Extensions that implement `ConfigurableExtension` accept per-extension options. Switch from list to map syntax for any extension that needs them:
+
+```neon
+extensions:
+    - llms-txt
+    my-extension:
+        apiKey: abc123
+        endpoint: https://example.com/hook
+```
+
+List and map entries can be mixed freely.
+
+---
+
+## Available extensions
+
+### `sitemap`
+
+Generates a `sitemap.xml` file in the output directory after each successful build.
+
+The sitemap is built from all written pages. Last-modified dates are resolved from frontmatter keys (`lastmod`, `lastModified`, `updatedAt`, `date`), falling back to the source file's modification time.
+
+```neon
+extensions:
+    - sitemap
+```
+
+The sitemap URL is constructed from `site.baseUrl` and `site.basePath` in `glaze.neon`. Configure your site metadata for correct absolute URLs:
+
+```neon
+site:
+    baseUrl: https://example.com
+    basePath: /docs
+```
+
+#### Options
+
+Switch to map syntax to pass options:
+
+```neon
+extensions:
+    sitemap:
+        changefreq: weekly
+        priority: 0.8
+        exclude:
+            - /drafts
+```
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `changefreq` | string | `<changefreq>` value added to every URL entry. One of: `always`, `hourly`, `daily`, `weekly`, `monthly`, `yearly`, `never`. |
+| `priority` | float | `<priority>` value added to every URL entry. Clamped to the range `0.0`–`1.0`. |
+| `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the sitemap. |
+
+---
+
+### `llms-txt`
+
+Generates an `llms.txt` file in the output directory — a lightweight machine-readable index intended for LLM ingestion workflows.
+
+The file lists all built pages with their title, description, and canonical URL, following the [llms.txt convention](https://llmstxt.org/).
+
+```neon
+extensions:
+    - llms-txt
+```
+
+Page descriptions are resolved from the `description` frontmatter field, falling back to the first paragraph of the page body.
+
+#### Options
+
+Switch to map syntax to pass options:
+
+```neon
+extensions:
+    llms-txt:
+        title: My Project
+        pitch: A static site generator for PHP developers.
+        context: Browse the links below for complete documentation.
+        exclude:
+            - /drafts
+```
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `title` | string | Overrides the `# heading` line. Falls back to `site.title`. |
+| `pitch` | string | Overrides the `> quote` line. Falls back to the auto-resolved project pitch. |
+| `context` | string | Overrides the context paragraph below the quote. |
+| `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the listing. |
+
+---
+
+## Writing your own named extension
+
+Any extension class in your `extensions/` directory with a `name` in its `#[GlazeExtension]` attribute can be opted into from `glaze.neon` the same way:
+
+```php
+// extensions/Analytics.php
+#[GlazeExtension('analytics')]
+final class Analytics
+{
+    #[ListensTo(BuildEvent::BuildCompleted)]
+    public function run(BuildCompletedEvent $event): void { ... }
+}
+```
+
+```neon
+extensions:
+    - analytics
+```
+
+See [Extensions](../templating/extensions.dj) for the full extension authoring guide.

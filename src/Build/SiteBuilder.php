@@ -59,11 +59,7 @@ final class SiteBuilder
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex = new SiteIndex($pages, $assetResolver);
         $dispatcher = new EventDispatcher();
-        $extensionRegistry = ExtensionLoader::loadFromProjectRoot(
-            $config->projectRoot,
-            $config->extensionsDir,
-            $dispatcher,
-        );
+        $extensionRegistry = ExtensionLoader::load($config, $dispatcher);
 
         return $this->pageRenderPipeline->render(
             config: $config,
@@ -98,11 +94,7 @@ final class SiteBuilder
 
         $startTime = hrtime(true);
         $dispatcher ??= new EventDispatcher();
-        $extensionRegistry = ExtensionLoader::loadFromProjectRoot(
-            $config->projectRoot,
-            $config->extensionsDir,
-            $dispatcher,
-        );
+        $extensionRegistry = ExtensionLoader::load($config, $dispatcher);
 
         $dispatcher->dispatch(BuildEvent::BuildStarted, new BuildStartedEvent($config));
 

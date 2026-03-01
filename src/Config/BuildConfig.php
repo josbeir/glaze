@@ -28,6 +28,7 @@ final class BuildConfig
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param string $extensionsDir Relative directory scanned for auto-discoverable extension classes.
+     * @param array<string, array<string, mixed>> $enabledExtensions Explicitly enabled extension definitions keyed by extension identifier.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
@@ -46,6 +47,7 @@ final class BuildConfig
         public readonly string $cacheDir = 'tmp/cache',
         public readonly string $pageTemplate = 'page',
         public readonly string $extensionsDir = 'extensions',
+        public readonly array $enabledExtensions = [],
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
         public readonly array $contentTypes = [],
@@ -91,6 +93,7 @@ final class BuildConfig
             projectRoot: $root,
             pageTemplate: self::extractPageTemplate($config),
             extensionsDir: self::extractExtensionsDir($config),
+            enabledExtensions: self::extractEnabledExtensions($config),
             imagePresets: self::extractImagePresets($config),
             imageOptions: self::extractImageOptions($config),
             contentTypes: self::extractContentTypes($config),
@@ -200,6 +203,109 @@ final class BuildConfig
         $value = $config['extensionsDir'] ?? null;
 
         return is_string($value) && trim($value) !== '' ? trim($value) : 'extensions';
+    }
+
+    /**
+     * Extract explicitly enabled extension definitions from project configuration.
+     *
+     * Supports both list-style and map-style declarations:
+     *
+     * ```neon
+     * extensions:
+     *   - version
+     *   - sitemap:
+     *       includeDrafts: false
+     * ```
+     *
+     * ```neon
+     * extensions:
+     *   version: []
+     *   sitemap:
+     *     includeDrafts: false
+     * ```
+     *
+     * @param array<string, mixed> $config Raw project configuration.
+     * @return array<string, array<string, mixed>>
+     */
+    private static function extractEnabledExtensions(array $config): array
+    {
+        $raw = $config['extensions'] ?? null;
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $extensions = [];
+        foreach ($raw as $key => $value) {
+            if (is_string($key)) {
+                $name = trim($key);
+                if ($name === '') {
+                    continue;
+                }
+
+                $extensions[$name] = self::normalizeExtensionOptions($value);
+                continue;
+            }
+
+            if (is_string($value)) {
+                $name = trim($value);
+                if ($name === '') {
+                    continue;
+                }
+
+                $extensions[$name] = [];
+                continue;
+            }
+
+            if (!is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $name => $options) {
+                if (!is_string($name)) {
+                    continue;
+                }
+
+                $normalizedName = trim($name);
+                if ($normalizedName === '') {
+                    continue;
+                }
+
+                $extensions[$normalizedName] = self::normalizeExtensionOptions($options);
+            }
+        }
+
+        return $extensions;
+    }
+
+    /**
+     * Normalize extension option payloads to string-keyed maps.
+     *
+     * Non-map values are normalized to an empty option map.
+     *
+     * @param mixed $options Raw extension option payload.
+     * @return array<string, mixed>
+     */
+    private static function normalizeExtensionOptions(mixed $options): array
+    {
+        if (!is_array($options)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($options as $optionName => $optionValue) {
+            if (!is_string($optionName)) {
+                continue;
+            }
+
+            $trimmed = trim($optionName);
+            if ($trimmed === '') {
+                continue;
+            }
+
+            $normalized[$trimmed] = $optionValue;
+        }
+
+        return $normalized;
     }
 
     /**

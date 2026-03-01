@@ -6,9 +6,9 @@ namespace Glaze\Tests\Fixture\Extension;
 use Glaze\Template\Extension\GlazeExtension;
 
 /**
- * Invalid extension fixture: carries the attribute with an empty name.
+ * Invalid extension fixture: carries the attribute with an empty name and helper: true.
  */
-#[GlazeExtension('')]
+#[GlazeExtension('', helper: true)]
 final class EmptyNameExtension
 {
     /**

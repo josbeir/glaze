@@ -44,7 +44,28 @@ final class GlazeExtensionTest extends TestCase
     }
 
     /**
-     * Validate the attribute is readable via reflection on a decorated class.
+     * Validate that helper defaults to false.
+     */
+    public function testHelperDefaultsToFalse(): void
+    {
+        $attribute = new GlazeExtension('my-extension');
+
+        $this->assertFalse($attribute->helper);
+    }
+
+    /**
+     * Validate that helper: true is stored correctly.
+     */
+    public function testHelperCanBeSetToTrue(): void
+    {
+        $attribute = new GlazeExtension('my-extension', helper: true);
+
+        $this->assertTrue($attribute->helper);
+    }
+
+    /**
+     * Validate the attribute is readable via reflection on a decorated class,
+     * and that the fixture has helper: true set.
      */
     public function testAttributeIsReadableViaReflection(): void
     {
@@ -57,6 +78,7 @@ final class GlazeExtensionTest extends TestCase
         $instance = $attributes[0]->newInstance();
 
         $this->assertSame('test-extension', $instance->name);
+        $this->assertTrue($instance->helper);
     }
 
     /**

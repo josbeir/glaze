@@ -445,7 +445,27 @@ Directory Glaze scans for classes decorated with `#[GlazeExtension]`. Relative t
 extensionsDir: extensions
 ```
 
-Any invokable class carrying the `#[GlazeExtension('name')]` attribute found in this directory is auto-registered and callable from templates as `$this->extension('name')`. See [Extensions](extensions) for full details.
+Classes carrying `#[GlazeExtension('name', helper: true)]` in this directory are auto-registered as template helpers callable from templates as `$this->extension('name')`. Classes with only `#[ListensTo]` methods are registered as event subscribers. See [Extensions](../templating/extensions.dj) for full details.
+
+## `extensions`
+
+Opt-in list of named extensions to activate. Entries can be a core extension name, a project extension name (matching the `name` in its `#[GlazeExtension]` attribute), or a fully-qualified class name.
+
+```neon
+extensions:
+    - sitemap
+    - llms-txt
+```
+
+Pass options to configurable extensions using the map form:
+
+```neon
+extensions:
+    my-extension:
+        apiKey: abc123
+```
+
+See [Core extensions](core-extensions.dj) for the full list of built-in extensions and their configuration options.
 
 ## `devServer.php`
 

@@ -8,7 +8,7 @@
 <nav aria-label="On this page">
 	<p class="text-xs font-semibold uppercase tracking-wider text-base-content/50 mb-3 px-1">On this page</p>
 	<ul class="space-y-px text-sm" s:foreach="$page->toc as $entry">
-		<li style="padding-left: <?= max(0, ($entry->level - 2) * 12) ?>px">
+		<li s:if="$entry->level <= 3" style="padding-left: <?= max(0, ($entry->level - 2) * 12) ?>px">
 			<a
 				href="#<?= $entry->id ?>"
 				:class="{ 'text-primary bg-base-200': activeToc === '<?= $entry->id ?>' }"

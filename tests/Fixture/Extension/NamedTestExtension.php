@@ -6,9 +6,9 @@ namespace Glaze\Tests\Fixture\Extension;
 use Glaze\Template\Extension\GlazeExtension;
 
 /**
- * Valid extension fixture: carries the attribute and implements __invoke.
+ * Valid extension fixture: carries the attribute, declares itself as a template helper, and implements __invoke.
  */
-#[GlazeExtension('test-extension')]
+#[GlazeExtension('test-extension', helper: true)]
 final class NamedTestExtension
 {
     /**

@@ -12,6 +12,17 @@ Extensions let you attach custom PHP logic to your Glaze project. There are two 
 
 A single class can do both at the same time.
 
+## The `#[GlazeExtension]` attribute
+
+The attribute accepts two parameters:
+
+| Parameter | Type | Purpose |
+| --- | --- | --- |
+| `name` | `string\|null` | Extension identity. Used as the config key for opt-in and as the template helper name. `null` for anonymous auto-discovered-only classes. |
+| `helper` | `bool` | When `true`, registers the class as a named template helper. Requires a non-empty `name` and `__invoke()`. Defaults to `false`. |
+
+Having a `name` alone does **not** register a template helper — you must opt in explicitly with `helper: true`. This means a named class without `helper: true` is addressable from `glaze.neon` but invisible to templates.
+
 ## Auto-discovery
 
 Create an `extensions/` directory at your project root. Any class decorated with `#[GlazeExtension]` placed there is discovered and registered automatically.
@@ -28,7 +39,7 @@ Classes that do **not** carry `#[GlazeExtension]` are silently skipped, so helpe
 
 ## Template helpers
 
-A template helper is a named, invokable class. Provide a non-empty name in the attribute and implement `__invoke()`.
+A template helper is a named, invokable class. Provide a non-empty name, set `helper: true`, and implement `__invoke()`.
 
 `extensions/LatestRelease.php`:
 
@@ -37,7 +48,7 @@ A template helper is a named, invokable class. Provide a non-empty name in the a
 
 use Glaze\Template\Extension\GlazeExtension;
 
-#[GlazeExtension('version')]
+#[GlazeExtension('version', helper: true)]
 final class LatestRelease
 {
     public function __invoke(): string
@@ -58,7 +69,7 @@ Extension results are **memoized per build** -- however many templates call the 
 Arguments are forwarded to `__invoke()` on its first invocation:
 
 ```php
-#[GlazeExtension('asset')]
+#[GlazeExtension('asset', helper: true)]
 final class AssetExtension
 {
     public function __invoke(string $path): string
@@ -86,7 +97,7 @@ Glaze extension "versin" is not registered. Available: version, asset
 
 Extensions can also listen to events fired during the static build. Add one or more public methods decorated with `#[ListensTo(BuildEvent::X)]`.
 
-A class that only subscribes to events does not need a name or `__invoke()` -- omit the name argument entirely:
+An anonymous subscriber needs no name — omit the argument entirely:
 
 ```php
 <?php
@@ -117,10 +128,21 @@ final class SitemapGenerator
 }
 ```
 
-A class with both a name and event listeners is valid -- it registers as both a template helper and a subscriber:
+A **named subscriber** has a `name` but no `helper: true`. It is auto-discovered and can be opted into from `glaze.neon` (see [Core extensions](#core-extensions) below), but it never registers as a template helper:
 
 ```php
-#[GlazeExtension('stats')]
+#[GlazeExtension('my-subscriber')]
+final class MySubscriber
+{
+    #[ListensTo(BuildEvent::BuildCompleted)]
+    public function run(BuildCompletedEvent $event): void { ... }
+}
+```
+
+A class with `helper: true` and event listeners registers as both a template helper and a subscriber:
+
+```php
+#[GlazeExtension('stats', helper: true)]
 final class StatsExtension
 {
     private int $pageCount = 0;
@@ -189,7 +211,7 @@ ContentPage::virtual(
 A complete pattern — register in `ContentDiscovered`, write in `BuildCompleted`:
 
 ```php
-#[GlazeExtension]
+#[GlazeExtension('my-sitemap')]
 final class SitemapExtension
 {
     #[ListensTo(BuildEvent::ContentDiscovered)]
@@ -274,3 +296,9 @@ $event->duration     — float  (seconds)
 ```
 
 Useful for writing derived files (sitemap, search index, RSS feed) and triggering post-build hooks.
+
+---
+
+## Core extensions
+
+Glaze ships with built-in opt-in extensions (`sitemap`, `llms-txt`) that are activated via the `extensions` key in `glaze.neon`. See [Core extensions](../getting-started/core-extensions.dj) for the full reference.

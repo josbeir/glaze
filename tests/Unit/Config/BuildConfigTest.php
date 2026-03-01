@@ -32,6 +32,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([], $config->contentTypes);
+        $this->assertSame([], $config->enabledExtensions);
         $this->assertSame(['tags'], $config->taxonomies);
         $this->assertSame('extensions', $config->extensionsDir);
         $this->assertFalse($config->includeDrafts);
@@ -95,6 +96,72 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame('extensions', $config->extensionsDir);
+    }
+
+    /**
+     * Ensure enabled extension declarations are normalized from list and map entries.
+     */
+    public function testEnabledExtensionsCanBeConfigured(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "extensions:\n"
+            . "  - extension1\n"
+            . "  - extension2:\n"
+            . "      option1: value\n"
+            . "      option2: 10\n"
+            . "  extension3:\n"
+            . "    enabled: true\n"
+            . "  - [ignored]\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame([
+            'extension1' => [],
+            'extension2' => [
+                'option1' => 'value',
+                'option2' => 10,
+            ],
+            'extension3' => [
+                'enabled' => true,
+            ],
+        ], $config->enabledExtensions);
+    }
+
+    /**
+     * Ensure invalid extension configuration values safely normalize to an empty map.
+     */
+    public function testEnabledExtensionsNormalizationIsOptionalAndSafe(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+
+        file_put_contents($projectRoot . '/glaze.neon', "extensions: true\n");
+        $fallback = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame([], $fallback->enabledExtensions);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "extensions:\n"
+            . "  - ''\n"
+            . "  - extension-a: true\n"
+            . "  - extension-b:\n"
+            . "      '': ignored\n"
+            . "      ok: yes\n"
+            . "  5:\n"
+            . "    bad: key\n",
+        );
+        $normalized = BuildConfig::fromProjectRoot($projectRoot);
+        $this->assertSame([
+            'extension-a' => [],
+            'extension-b' => [
+                'ok' => true,
+            ],
+            'bad' => [],
+        ], $normalized->enabledExtensions);
     }
 
     /**

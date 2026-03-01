@@ -1,4 +1,7 @@
 pageTemplate: page
+extensions:
+	- sitemap
+	- llms-txt
 site:
 	title: Glaze
 	description: PHP templating engine documentation
@@ -8,7 +11,6 @@ site:
 	footer: 'Created by Jasper Smet.'
 	license: 'MIT License'
 	licenseLink: 'https://github.com/josbeir/glaze/blob/main/LICENSE.md'
-
 djot:
 	codeHighlighting:
 		enabled: true
@@ -18,12 +20,10 @@ djot:
 		withGutter: false
 	headerAnchors:
 		enabled: true
-
 build:
 	clean: false
 	vite:
 		enabled: true
-
 devServer:
 	vite:
 		enabled: true

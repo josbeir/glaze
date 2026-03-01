@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Docs\Extensions;
+namespace Glaze\Extension;
 
 use DateTimeImmutable;
 use Glaze\Build\Event\BuildCompletedEvent;
@@ -9,18 +9,37 @@ use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\ContentDiscoveredEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Extension\ConfigurableExtension;
 use Glaze\Template\Extension\GlazeExtension;
 use Glaze\Template\Extension\ListensTo;
+use InvalidArgumentException;
 use SimpleXMLElement;
+use Throwable;
 
 /**
  * Generates a simple sitemap.xml file after a successful build.
  *
  * The extension collects page URLs as pages are written and emits a sitemap
  * document in the project's output directory using SimpleXML.
+ *
+ * Opt in via `glaze.neon`:
+ * ```neon
+ * extensions:
+ *     - sitemap
+ * ```
+ *
+ * Optional configuration:
+ * ```neon
+ * extensions:
+ *     sitemap:
+ *         changefreq: weekly
+ *         priority: 0.8
+ *         exclude:
+ *             - /drafts
+ * ```
  */
-#[GlazeExtension]
-final class SitemapExtension
+#[GlazeExtension('sitemap')]
+final class SitemapExtension implements ConfigurableExtension
 {
     /**
      * Collected sitemap entries keyed by URL path.
@@ -28,6 +47,66 @@ final class SitemapExtension
      * @var array<string, array{path: string, lastmod: string|null}>
      */
     protected array $entries = [];
+
+    /**
+     * Constructor.
+     *
+     * @param string|null $changefreq Optional `<changefreq>` value added to every URL entry.
+     *        Must be one of: always, hourly, daily, weekly, monthly, yearly, never.
+     * @param float|null $priority Optional `<priority>` value added to every URL entry (0.0–1.0).
+     * @param list<string> $exclude URL path prefixes to skip from the sitemap.
+     */
+    public function __construct(
+        protected readonly ?string $changefreq = null,
+        protected readonly ?float $priority = null,
+        protected readonly array $exclude = [],
+    ) {
+    }
+
+    /**
+     * Create an instance from configuration options.
+     *
+     * Accepted keys: `changefreq` (string), `priority` (float), `exclude` (list of strings).
+     *
+     * @param array<string, mixed> $options Per-extension option map.
+     * @throws \InvalidArgumentException When `changefreq` is not a recognised sitemap value.
+     */
+    public static function fromConfig(array $options): static
+    {
+        $validFrequencies = ['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'];
+
+        $changefreq = null;
+        if (isset($options['changefreq'])) {
+            $rawFreq = $options['changefreq'];
+            $changefreq = is_string($rawFreq) ? trim($rawFreq) : '';
+            if ($changefreq !== '' && !in_array($changefreq, $validFrequencies, true)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Invalid sitemap changefreq "%s". Allowed values: %s.',
+                    $changefreq,
+                    implode(', ', $validFrequencies),
+                ));
+            }
+
+            $changefreq = $changefreq === '' ? null : $changefreq;
+        }
+
+        $priority = null;
+        if (isset($options['priority'])) {
+            $rawPriority = $options['priority'];
+            $priority = is_numeric($rawPriority) ? max(0.0, min(1.0, (float)$rawPriority)) : null;
+        }
+
+        $exclude = [];
+        if (is_array($options['exclude'] ?? null)) {
+            foreach ($options['exclude'] as $prefix) {
+                if (is_string($prefix) && $prefix !== '') {
+                    $exclude[] = $prefix;
+                }
+            }
+        }
+
+        return new self($changefreq, $priority, $exclude);
+    }
 
     /**
      * Register the sitemap.xml virtual page so it appears in build progress output.
@@ -43,11 +122,19 @@ final class SitemapExtension
     /**
      * Collect URL paths for written pages.
      *
+     * Pages whose URL path starts with one of the configured `exclude` prefixes are skipped.
+     *
      * @param \Glaze\Build\Event\PageWrittenEvent $event Event payload.
      */
     #[ListensTo(BuildEvent::PageWritten)]
     public function collect(PageWrittenEvent $event): void
     {
+        foreach ($this->exclude as $prefix) {
+            if (str_starts_with($event->page->urlPath, $prefix)) {
+                return;
+            }
+        }
+
         $this->entries[$event->page->urlPath] = [
             'path' => $event->page->urlPath,
             'lastmod' => $this->resolveLastModified($event),
@@ -156,6 +243,14 @@ final class SitemapExtension
             $urlElement = $root->addChild('url');
             $urlElement->addChild('loc', $url['loc']);
             $urlElement->addChild('lastmod', $url['lastmod']);
+
+            if ($this->changefreq !== null) {
+                $urlElement->addChild('changefreq', $this->changefreq);
+            }
+
+            if ($this->priority !== null) {
+                $urlElement->addChild('priority', number_format($this->priority, 1));
+            }
         }
 
         $xml = $root->asXML();
@@ -177,7 +272,7 @@ final class SitemapExtension
 
         try {
             return (new DateTimeImmutable($trimmed))->format(DATE_ATOM);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

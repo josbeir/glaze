@@ -1,13 +1,14 @@
 <?php
 declare(strict_types=1);
 
-namespace Docs\Extensions;
+namespace Glaze\Extension;
 
 use Glaze\Build\Event\BuildCompletedEvent;
 use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\ContentDiscoveredEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Content\ContentPage;
+use Glaze\Template\Extension\ConfigurableExtension;
 use Glaze\Template\Extension\GlazeExtension;
 use Glaze\Template\Extension\ListensTo;
 
@@ -17,9 +18,26 @@ use Glaze\Template\Extension\ListensTo;
  * The generated file is intended as a lightweight machine-readable index for
  * LLM ingestion workflows and includes page titles, descriptions, and
  * canonical URLs.
+ *
+ * Opt in via `glaze.neon`:
+ * ```neon
+ * extensions:
+ *     - llms-txt
+ * ```
+ *
+ * Optional configuration:
+ * ```neon
+ * extensions:
+ *     llms-txt:
+ *         title: My Project
+ *         pitch: A static site generator for PHP developers.
+ *         context: Use the links below for full documentation.
+ *         exclude:
+ *             - /drafts
+ * ```
  */
-#[GlazeExtension]
-final class LlmsTxtExtension
+#[GlazeExtension('llms-txt')]
+final class LlmsTxtExtension implements ConfigurableExtension
 {
     /**
      * Collected pages keyed by URL path for uniqueness.
@@ -27,6 +45,51 @@ final class LlmsTxtExtension
      * @var array<string, array{title: string, description: string, urlPath: string, source: string}>
      */
     protected array $pages = [];
+
+    /**
+     * Constructor.
+     *
+     * @param string|null $title Override the `# heading` line (falls back to `site.title`).
+     * @param string|null $pitch Override the `> quote` line (falls back to `site.description`).
+     * @param string|null $context Override the context paragraph (omits auto-resolved text when set).
+     * @param list<string> $exclude URL path prefixes whose pages are excluded from the listing.
+     */
+    public function __construct(
+        protected readonly ?string $title = null,
+        protected readonly ?string $pitch = null,
+        protected readonly ?string $context = null,
+        protected readonly array $exclude = [],
+    ) {
+    }
+
+    /**
+     * Create an instance from configuration options.
+     *
+     * Accepted keys: `title` (string), `pitch` (string), `context` (string),
+     * `exclude` (list of URL-path prefix strings).
+     *
+     * @param array<string, mixed> $options Per-extension option map from `glaze.neon`.
+     */
+    public static function fromConfig(array $options): static
+    {
+        $rawTitle = $options['title'] ?? null;
+        $title = is_string($rawTitle) ? (trim($rawTitle) ?: null) : null;
+        $rawPitch = $options['pitch'] ?? null;
+        $pitch = is_string($rawPitch) ? (trim($rawPitch) ?: null) : null;
+        $rawContext = $options['context'] ?? null;
+        $context = is_string($rawContext) ? (trim($rawContext) ?: null) : null;
+
+        $exclude = [];
+        if (is_array($options['exclude'] ?? null)) {
+            foreach ($options['exclude'] as $prefix) {
+                if (is_string($prefix) && $prefix !== '') {
+                    $exclude[] = $prefix;
+                }
+            }
+        }
+
+        return new self($title, $pitch, $context, $exclude);
+    }
 
     /**
      * Register the llms.txt virtual page so it appears in build progress output.
@@ -42,11 +105,19 @@ final class LlmsTxtExtension
     /**
      * Collect page metadata as each page is written.
      *
+     * Pages whose URL path starts with one of the configured `exclude` prefixes are skipped.
+     *
      * @param \Glaze\Build\Event\PageWrittenEvent $event Event payload.
      */
     #[ListensTo(BuildEvent::PageWritten)]
     public function collect(PageWrittenEvent $event): void
     {
+        foreach ($this->exclude as $prefix) {
+            if (str_starts_with($event->page->urlPath, $prefix)) {
+                return;
+            }
+        }
+
         $this->pages[$event->page->urlPath] = [
             'title' => $event->page->title,
             'description' => $this->resolveDescription($event),
@@ -69,11 +140,11 @@ final class LlmsTxtExtension
         $documentationPages = $pages;
 
         $lines = [];
-        $lines[] = '# ' . ($event->config->site->title ?? 'Glaze Site');
+        $lines[] = '# ' . ($this->title ?? $event->config->site->title ?? 'Glaze Site');
         $lines[] = '';
-        $lines[] = '> ' . $this->resolveProjectPitch($event, $documentationPages);
+        $lines[] = '> ' . ($this->pitch ?? $this->resolveProjectPitch($event, $documentationPages));
         $lines[] = '';
-        $lines[] = $this->resolveProjectContext($event, $documentationPages);
+        $lines[] = $this->context ?? $this->resolveProjectContext($event, $documentationPages);
         $lines[] = '';
 
         $lines[] = '## Documentation';
@@ -264,7 +335,7 @@ final class LlmsTxtExtension
     }
 
     /**
-     * Resolve a compact contextual summary from page source content.
+     * Resolve a brief source-based fallback context sentence.
      *
      * @param array<array{title: string, description: string, urlPath: string, source: string}> $pages Candidate pages.
      */

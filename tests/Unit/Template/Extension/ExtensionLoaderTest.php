@@ -7,8 +7,10 @@ use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\BuildStartedEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Config\BuildConfig;
+use Glaze\Extension\SitemapExtension;
 use Glaze\Template\Extension\ExtensionLoader;
 use Glaze\Template\Extension\ExtensionRegistry;
+use Glaze\Tests\Fixture\Extension\NamedTestExtension;
 use Glaze\Tests\Fixture\Extension\NoAttributeExtension;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use InvalidArgumentException;
@@ -37,7 +39,7 @@ final class ExtensionLoaderTest extends TestCase
     public function testEmptyProjectRootReturnsEmptyRegistry(): void
     {
         $dir = $this->createTempDirectory();
-        $registry = ExtensionLoader::loadFromProjectRoot($dir);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
 
         $this->assertInstanceOf(ExtensionRegistry::class, $registry);
         $this->assertSame([], $registry->names());
@@ -51,7 +53,7 @@ final class ExtensionLoaderTest extends TestCase
         $dir = $this->createTempDirectory();
         mkdir($dir . '/extensions');
 
-        $registry = ExtensionLoader::loadFromProjectRoot($dir);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
 
         $this->assertSame([], $registry->names());
     }
@@ -64,7 +66,7 @@ final class ExtensionLoaderTest extends TestCase
         $dir = $this->createTempDirectory();
         $class = $this->writeExtensionFile($dir, 'auto-discovered', "return 'found';");
 
-        $registry = ExtensionLoader::loadFromProjectRoot($dir);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
 
         $this->assertTrue($registry->has('auto-discovered'));
         $this->assertSame('found', $registry->call('auto-discovered'));
@@ -86,13 +88,13 @@ final class ExtensionLoaderTest extends TestCase
             sprintf("<?php\nfinal class %s { public function __invoke(): string { return 'x'; } }\n", $class),
         );
 
-        $registry = ExtensionLoader::loadFromProjectRoot($dir);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
 
         $this->assertSame([], $registry->names());
     }
 
     /**
-     * Validate that a decorated but non-invokable named class in extensions/ throws.
+     * Validate that a decorated class declaring helper: true but missing __invoke() throws.
      */
     public function testAutoDiscoveryNonInvokableClassThrows(): void
     {
@@ -105,7 +107,7 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/notinvokable.php',
             sprintf(
                 "<?php\nuse Glaze\Template\Extension\GlazeExtension;\n"
-                . "#[GlazeExtension('bad')]\nfinal class %s {}\n",
+                . "#[GlazeExtension('bad', helper: true)]\nfinal class %s {}\n",
                 $class,
             ),
         );
@@ -113,7 +115,7 @@ final class ExtensionLoaderTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/not invokable/i');
 
-        ExtensionLoader::loadFromProjectRoot($dir);
+        ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
     }
 
     /**
@@ -130,15 +132,15 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/empty.php',
             sprintf(
                 "<?php\nuse Glaze\Template\Extension\GlazeExtension;\n"
-                . "#[GlazeExtension('')]\nfinal class %s { public function __invoke(): string { return ''; } }\n",
+                . "#[GlazeExtension('', helper: true)]\nfinal class %s { public function __invoke(): string { return ''; } }\n",
                 $class,
             ),
         );
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/empty name/i');
+        $this->expectExceptionMessageMatches('/has no name/i');
 
-        ExtensionLoader::loadFromProjectRoot($dir);
+        ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
     }
 
     /**
@@ -150,12 +152,154 @@ final class ExtensionLoaderTest extends TestCase
         $this->writeExtensionFile($dir, 'custom-dir-ext', "return 'custom';", 'my-plugins');
 
         // Default 'extensions/' dir is absent — only 'my-plugins/' exists.
-        $emptyRegistry = ExtensionLoader::loadFromProjectRoot($dir);
+        $emptyRegistry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
         $this->assertSame([], $emptyRegistry->names());
 
-        $registry = ExtensionLoader::loadFromProjectRoot($dir, 'my-plugins');
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir, extensionsDir: 'my-plugins'));
         $this->assertTrue($registry->has('custom-dir-ext'));
         $this->assertSame('custom', $registry->call('custom-dir-ext'));
+    }
+
+    /**
+     * Validate configured extensions resolve by extension name and receive options.
+     */
+    public function testLoadRegistersConfiguredExtensionWithOptions(): void
+    {
+        $dir = $this->createTempDirectory();
+        $this->writeConfigurableExtensionFile($dir, 'configured-extension', 'configured_extension_result');
+
+        $config = new BuildConfig(
+            projectRoot: $dir,
+            enabledExtensions: [
+                'configured-extension' => [
+                    'option1' => 'value',
+                    'option2' => 10,
+                ],
+            ],
+        );
+
+        $registry = ExtensionLoader::load($config);
+
+        $this->assertTrue($registry->has('configured-extension'));
+        $this->assertSame('value|10', $registry->call('configured-extension'));
+    }
+
+    /**
+     * Validate options for non-configurable extensions are rejected.
+     */
+    public function testLoadThrowsWhenOptionsProvidedForNonConfigurableExtension(): void
+    {
+        $dir = $this->createTempDirectory();
+        $this->writeExtensionFile($dir, 'plain-extension', "return 'ok';");
+
+        $config = new BuildConfig(
+            projectRoot: $dir,
+            enabledExtensions: [
+                'plain-extension' => ['enabled' => true],
+            ],
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/does not implement .*ConfigurableExtension/i');
+
+        ExtensionLoader::load($config);
+    }
+
+    /**
+     * Validate core-extension short names resolve via the CORE_EXTENSIONS list using the attribute name.
+     */
+    public function testLoadResolvesCoreExtensionByShortName(): void
+    {
+        $config = new BuildConfig(
+            projectRoot: $this->createTempDirectory(),
+            enabledExtensions: [
+                'sitemap' => [],
+            ],
+        );
+
+        $dispatcher = new EventDispatcher();
+        ExtensionLoader::load($config, $dispatcher);
+
+        // SitemapExtension listens to BuildCompleted — verifies it was resolved and registered.
+        $this->assertGreaterThan(0, $dispatcher->listenerCount(BuildEvent::BuildCompleted));
+    }
+
+    /**
+     * Validate an extension can be enabled by its fully-qualified class name from the CORE_EXTENSIONS pool.
+     */
+    public function testLoadResolvesByFqcnFromPool(): void
+    {
+        $config = new BuildConfig(
+            projectRoot: $this->createTempDirectory(),
+            enabledExtensions: [
+                SitemapExtension::class => [],
+            ],
+        );
+
+        $dispatcher = new EventDispatcher();
+        ExtensionLoader::load($config, $dispatcher);
+
+        // SitemapExtension listens to BuildCompleted — confirms FQCN was resolved from the pool.
+        $this->assertGreaterThan(0, $dispatcher->listenerCount(BuildEvent::BuildCompleted));
+    }
+
+    /**
+     * Validate an extension can be enabled by its FQCN when not in the pool but autoloaded (class_exists fallback).
+     */
+    public function testLoadResolvesByFqcnViaClassExists(): void
+    {
+        $config = new BuildConfig(
+            projectRoot: $this->createTempDirectory(),
+            enabledExtensions: [
+                NamedTestExtension::class => [],
+            ],
+        );
+
+        $registry = ExtensionLoader::load($config);
+
+        // NamedTestExtension is helper: true with name 'test-extension'.
+        $this->assertTrue($registry->has('test-extension'));
+    }
+
+    /**
+     * Validate that options are forwarded when an extension is enabled by FQCN and implements ConfigurableExtension.
+     */
+    public function testLoadResolvesByFqcnWithOptions(): void
+    {
+        $config = new BuildConfig(
+            projectRoot: $this->createTempDirectory(),
+            enabledExtensions: [
+                SitemapExtension::class => [
+                    'changefreq' => 'weekly',
+                    'priority' => 0.5,
+                ],
+            ],
+        );
+
+        $dispatcher = new EventDispatcher();
+        // Must not throw — SitemapExtension implements ConfigurableExtension,
+        // so fromConfig() is called with the options map.
+        ExtensionLoader::load($config, $dispatcher);
+
+        $this->assertGreaterThan(0, $dispatcher->listenerCount(BuildEvent::BuildCompleted));
+    }
+
+    /**
+     * Validate unresolved configured extensions fail fast with a clear message.
+     */
+    public function testLoadThrowsForUnknownConfiguredExtension(): void
+    {
+        $config = new BuildConfig(
+            projectRoot: $this->createTempDirectory(),
+            enabledExtensions: [
+                'missing-extension' => [],
+            ],
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/could not be resolved/i');
+
+        ExtensionLoader::load($config);
     }
 
     // ------------------------------------------------------------------ //
@@ -175,7 +319,7 @@ final class ExtensionLoaderTest extends TestCase
         );
 
         $dispatcher = new EventDispatcher();
-        ExtensionLoader::loadFromProjectRoot($dir, 'extensions', $dispatcher);
+        ExtensionLoader::load(new BuildConfig(projectRoot: $dir), $dispatcher);
 
         $this->assertSame(1, $dispatcher->listenerCount(BuildEvent::PageWritten));
         $this->assertSame(0, $dispatcher->listenerCount(BuildEvent::BuildStarted));
@@ -196,7 +340,7 @@ final class ExtensionLoaderTest extends TestCase
         $dispatcher = new EventDispatcher();
 
         // Must not throw — the #[ListensTo] method counts as contribution.
-        $registry = ExtensionLoader::loadFromProjectRoot($dir, 'extensions', $dispatcher);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir), $dispatcher);
 
         $this->assertSame([], $registry->names());
         $this->assertSame(1, $dispatcher->listenerCount(BuildEvent::BuildStarted));
@@ -220,7 +364,7 @@ final class ExtensionLoaderTest extends TestCase
                 . "use Glaze\Build\Event\BuildStartedEvent;\n"
                 . "use Glaze\Template\Extension\GlazeExtension;\n"
                 . "use Glaze\Template\Extension\ListensTo;\n"
-                . "#[GlazeExtension('hybrid-helper')]\n"
+                . "#[GlazeExtension('hybrid-helper', helper: true)]\n"
                 . "final class %s {\n"
                 . "    public function __invoke(): string { return 'hybrid'; }\n"
                 . "    #[ListensTo(BuildEvent::BuildStarted)]\n"
@@ -231,7 +375,7 @@ final class ExtensionLoaderTest extends TestCase
         );
 
         $dispatcher = new EventDispatcher();
-        $registry = ExtensionLoader::loadFromProjectRoot($dir, 'extensions', $dispatcher);
+        $registry = ExtensionLoader::load(new BuildConfig(projectRoot: $dir), $dispatcher);
 
         $this->assertTrue($registry->has('hybrid-helper'));
         $this->assertSame('hybrid', $registry->call('hybrid-helper'));
@@ -260,7 +404,7 @@ final class ExtensionLoaderTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/contributes nothing/i');
 
-        ExtensionLoader::loadFromProjectRoot($dir);
+        ExtensionLoader::load(new BuildConfig(projectRoot: $dir));
     }
 
     // ------------------------------------------------------------------ //
@@ -330,7 +474,7 @@ final class ExtensionLoaderTest extends TestCase
         );
 
         $dispatcher = new EventDispatcher();
-        ExtensionLoader::loadFromProjectRoot($dir, 'extensions', $dispatcher);
+        ExtensionLoader::load(new BuildConfig(projectRoot: $dir), $dispatcher);
 
         $this->assertSame(1, $dispatcher->listenerCount(BuildEvent::BuildStarted));
 
@@ -373,7 +517,7 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/' . $slug . '.php',
             sprintf(
                 "<?php\nuse Glaze\Template\Extension\GlazeExtension;\n"
-                . "#[GlazeExtension('%s')]\nfinal class %s { public function __invoke(): mixed { %s } }\n",
+                . "#[GlazeExtension('%s', helper: true)]\nfinal class %s { public function __invoke(): mixed { %s } }\n",
                 $extensionName,
                 $class,
                 $invokeBody,
@@ -420,6 +564,43 @@ final class ExtensionLoaderTest extends TestCase
                 $class,
                 $eventCase,
                 $payloadClass,
+            ),
+        );
+
+        return $class;
+    }
+
+    /**
+     * Write a configurable extension class for option-passing tests.
+     *
+     * @param string $dir Project root temp directory.
+     * @param string $extensionName #[GlazeExtension] name to assign.
+     * @param string $classBasename Stable base name used to generate class names.
+     */
+    private function writeConfigurableExtensionFile(string $dir, string $extensionName, string $classBasename): string
+    {
+        $extDir = $dir . '/extensions';
+        if (!is_dir($extDir)) {
+            mkdir($extDir);
+        }
+
+        $class = 'GlazeConfigurable' . (++self::$classCounter) . ucfirst($classBasename);
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $extensionName) ?? 'configured';
+
+        file_put_contents(
+            $extDir . '/' . $slug . '.php',
+            sprintf(
+                "<?php\n"
+                . "use Glaze\\Template\\Extension\\ConfigurableExtension;\n"
+                . "use Glaze\\Template\\Extension\\GlazeExtension;\n"
+                . "#[GlazeExtension('%s', helper: true)]\n"
+                . "final class %s implements ConfigurableExtension {\n"
+                . "    private function __construct(private array \$options) {}\n"
+                . "    public static function fromConfig(array \$options): static { return new static(\$options); }\n"
+                . "    public function __invoke(): string { return (string)(\$this->options['option1'] ?? '') . '|' . (string)(\$this->options['option2'] ?? ''); }\n"
+                . "}\n",
+                $extensionName,
+                $class,
             ),
         );
 

@@ -6,9 +6,9 @@ namespace Glaze\Tests\Fixture\Extension;
 use Glaze\Template\Extension\GlazeExtension;
 
 /**
- * Invalid extension fixture: carries the attribute but has no __invoke method.
+ * Invalid extension fixture: declares helper: true but has no __invoke method.
  */
-#[GlazeExtension('not-invokable')]
+#[GlazeExtension('not-invokable', helper: true)]
 final class NotInvokableExtension
 {
 }
