@@ -90,6 +90,14 @@ final class NormalizationTest extends TestCase
     }
 
     /**
+     * Ensure path segments normalisation skips empty segments from double slashes.
+     */
+    public function testNormalizePathSegmentsSkipsEmptySegments(): void
+    {
+        $this->assertSame('docs/images/hero.png', Normalization::normalizePathSegments('docs//images/hero.png'));
+    }
+
+    /**
      * Ensure path-fragment normalization keeps case and trims slashes.
      */
     public function testPathFragmentNormalization(): void

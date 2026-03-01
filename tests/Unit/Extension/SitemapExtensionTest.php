@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Extension;
 
 use DOMDocument;
 use Glaze\Build\Event\BuildCompletedEvent;
+use Glaze\Build\Event\ContentDiscoveredEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\SiteConfig;
@@ -230,6 +231,195 @@ final class SitemapExtensionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // registerVirtualPage
+    // -------------------------------------------------------------------------
+
+    /**
+     * registerVirtualPage() injects a sitemap.xml virtual page into the event.
+     */
+    public function testRegisterVirtualPageAddsVirtualPage(): void
+    {
+        $ext = new SitemapExtension();
+        $event = new ContentDiscoveredEvent([], new BuildConfig(projectRoot: sys_get_temp_dir()));
+
+        $ext->registerVirtualPage($event);
+
+        $this->assertCount(1, $event->pages);
+        $this->assertSame('/sitemap.xml', $event->pages[0]->urlPath);
+        $this->assertTrue($event->pages[0]->virtual);
+    }
+
+    // -------------------------------------------------------------------------
+    // resolveLastModified / normalizeDate
+    // -------------------------------------------------------------------------
+
+    /**
+     * collect() uses the `lastmod` frontmatter key as the lastmod value.
+     */
+    public function testCollectUsesLastmodFrontmatterKey(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $page = $this->makePageWithMeta('/post', ['lastmod' => '2024-03-15'], $config);
+        $ext->collect($page);
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('2024-03-15', $xml);
+    }
+
+    /**
+     * collect() uses the `updatedAt` frontmatter key when `lastmod` is absent.
+     */
+    public function testCollectUsesUpdatedAtFrontmatterKey(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $page = $this->makePageWithMeta('/post', ['updatedAt' => '2025-06-01'], $config);
+        $ext->collect($page);
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('2025-06-01', $xml);
+    }
+
+    /**
+     * collect() uses the file mtime when no frontmatter date is present.
+     */
+    public function testCollectUsesSourceFileMtime(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        // Create a real file and pin its mtime to a known timestamp.
+        $sourceFile = $projectRoot . '/page.dj';
+        file_put_contents($sourceFile, '# Test');
+        touch($sourceFile, 1000000000); // 2001-09-09
+
+        $page = new ContentPage(
+            sourcePath: $sourceFile,
+            relativePath: 'page.dj',
+            slug: 'page',
+            urlPath: '/page',
+            outputRelativePath: 'page/index.html',
+            title: 'Page',
+            source: '',
+            draft: false,
+            meta: [],
+        );
+        $ext->collect(new PageWrittenEvent($page, '', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('2001-09-09', $xml);
+    }
+
+    /**
+     * collect() falls back to the current-time placeholder when no date info is available.
+     */
+    public function testCollectFallsBackToCurrentDateWhenNoDateInfo(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $ext->collect($this->makePageWrittenEvent('/page', $config)); // no meta, no source file
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        // lastmod element must be present (filled with current-time fallback).
+        $this->assertStringContainsString('<lastmod>', $xml);
+    }
+
+    /**
+     * collect() skips a frontmatter date that is invalid and falls through to null.
+     */
+    public function testCollectSkipsInvalidFrontmatterDate(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $page = $this->makePageWithMeta('/post', ['lastmod' => 'not-a-date'], $config);
+        $ext->collect($page);
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        // lastmod must still be present (falls back to current-time).
+        $this->assertStringContainsString('<lastmod>', $xml);
+        $this->assertStringNotContainsString('not-a-date', $xml);
+    }
+
+    // -------------------------------------------------------------------------
+    // absoluteUrl (via write)
+    // -------------------------------------------------------------------------
+
+    /**
+     * write() returns path-only URLs when no baseUrl is configured.
+     */
+    public function testWriteReturnsPathOnlyUrlWithoutBaseUrl(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(); // no baseUrl
+
+        $ext->collect($this->makePageWrittenEvent('/about', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('<loc>/about</loc>', $xml);
+    }
+
+    /**
+     * write() prepends basePath to page URLs.
+     */
+    public function testWritePrependsBasePathToUrl(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com', basePath: '/docs');
+
+        $ext->collect($this->makePageWrittenEvent('/guide', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('<loc>https://example.com/docs/guide</loc>', $xml);
+    }
+
+    /**
+     * write() appends a trailing slash when the root path '/' is combined with a basePath.
+     */
+    public function testWriteHandlesRootPathWithBasePath(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com', basePath: '/docs');
+
+        $ext->collect($this->makePageWrittenEvent('/', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $this->assertStringContainsString('<loc>https://example.com/docs/</loc>', $xml);
+    }
+
+    // -------------------------------------------------------------------------
+    // write() with no entries
+    // -------------------------------------------------------------------------
+
+    /**
+     * write() produces a valid empty urlset when no pages were collected.
+     */
+    public function testWriteWithNoEntriesProducesValidEmptyXml(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+        $dom = new DOMDocument();
+        $this->assertTrue($dom->loadXML($xml));
+        $this->assertStringNotContainsString('<url>', $xml);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -256,28 +446,30 @@ final class SitemapExtensionTest extends TestCase
      * Returns `[$projectRoot, $config]`.
      *
      * @param string|null $baseUrl Optional site base URL.
+     * @param string|null $basePath Optional site base path.
      * @return array{0: string, 1: \Glaze\Config\BuildConfig}
      */
-    private function makeConfig(?string $baseUrl = null): array
+    private function makeConfig(?string $baseUrl = null, ?string $basePath = null): array
     {
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/public', 0755, true);
 
         $config = new BuildConfig(
             projectRoot: $projectRoot,
-            site: new SiteConfig(baseUrl: $baseUrl),
+            site: new SiteConfig(baseUrl: $baseUrl, basePath: $basePath),
         );
 
         return [$projectRoot, $config];
     }
 
     /**
-     * Create a minimal PageWrittenEvent for the given URL path.
+     * Create a PageWrittenEvent for the given URL path with custom frontmatter metadata.
      *
      * @param string $urlPath URL path for the fake page.
+     * @param array<string, mixed> $meta Frontmatter metadata.
      * @param \Glaze\Config\BuildConfig $config Build config.
      */
-    private function makePageWrittenEvent(string $urlPath, BuildConfig $config): PageWrittenEvent
+    private function makePageWithMeta(string $urlPath, array $meta, BuildConfig $config): PageWrittenEvent
     {
         $page = new ContentPage(
             sourcePath: '',
@@ -288,9 +480,20 @@ final class SitemapExtensionTest extends TestCase
             title: 'Test Page',
             source: '',
             draft: false,
-            meta: [],
+            meta: $meta,
         );
 
-        return new PageWrittenEvent($page, '/tmp/output' . $urlPath . '/index.html', $config);
+        return new PageWrittenEvent($page, '', $config);
+    }
+
+    /**
+     * Create a minimal PageWrittenEvent for the given URL path.
+     *
+     * @param string $urlPath URL path for the fake page.
+     * @param \Glaze\Config\BuildConfig $config Build config.
+     */
+    private function makePageWrittenEvent(string $urlPath, BuildConfig $config): PageWrittenEvent
+    {
+        return $this->makePageWithMeta($urlPath, [], $config);
     }
 }

@@ -150,6 +150,68 @@ final class BuildManifestTest extends TestCase
     }
 
     /**
+     * Ensure load() returns null when the manifest file contains invalid JSON.
+     */
+    public function testLoadReturnsNullForInvalidJsonFile(): void
+    {
+        $path = $this->createTempDirectory() . '/manifest.json';
+        file_put_contents($path, 'this is not json {{{');
+
+        $result = BuildManifest::load($path);
+
+        $this->assertNotInstanceOf(BuildManifest::class, $result);
+    }
+
+    /**
+     * Ensure load() returns null when the JSON root is not an object.
+     */
+    public function testLoadReturnsNullForNonObjectJson(): void
+    {
+        $path = $this->createTempDirectory() . '/manifest.json';
+        file_put_contents($path, '"just a string"');
+
+        $result = BuildManifest::load($path);
+
+        $this->assertNotInstanceOf(BuildManifest::class, $result);
+    }
+
+    /**
+     * Ensure load() returns null when required top-level keys are missing.
+     */
+    public function testLoadReturnsNullForMissingRequiredKeys(): void
+    {
+        $path = $this->createTempDirectory() . '/manifest.json';
+        file_put_contents($path, '{"globalHash": null, "pageBodyHashes": {}}');
+
+        $result = BuildManifest::load($path);
+
+        $this->assertNotInstanceOf(BuildManifest::class, $result);
+    }
+
+    /**
+     * Ensure load() skips pageBodyHash entries whose values are not strings.
+     */
+    public function testLoadFiltersNonStringPageBodyHashValues(): void
+    {
+        $path = $this->createTempDirectory() . '/manifest.json';
+        file_put_contents($path, json_encode([
+            'globalHash' => 'abc123',
+            'pageBodyHashes' => [
+                'valid/page.html' => 'hash-ok',
+                'bad/page.html' => 42,
+            ],
+            'contentAssetSignatures' => [],
+            'staticAssetSignatures' => [],
+        ]));
+
+        $result = BuildManifest::load($path);
+
+        $this->assertInstanceOf(BuildManifest::class, $result);
+        $this->assertArrayHasKey('valid/page.html', $result->pageBodyHashes);
+        $this->assertArrayNotHasKey('bad/page.html', $result->pageBodyHashes);
+    }
+
+    /**
      * Build a simple page fixture.
      *
      * @param string $urlPath Public URL path.

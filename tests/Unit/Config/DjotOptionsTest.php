@@ -352,4 +352,25 @@ final class DjotOptionsTest extends TestCase
             'div' => ['class' => 'wrapper'],
         ], $options->defaultAttributesDefaults);
     }
+
+    /**
+     * Ensure parseDefaultAttributesDefaults skips non-string element types and non-array attribute maps.
+     */
+    public function testDefaultAttributesFiltersNonStringTypeAndNonArrayValues(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'defaultAttributes' => [
+                'enabled' => true,
+                'defaults' => [
+                    0 => ['class' => 'ignored'],
+                    'div' => 'not-an-array',
+                    'span' => ['class' => 'valid'],
+                ],
+            ],
+        ]);
+
+        $this->assertSame([
+            'span' => ['class' => 'valid'],
+        ], $options->defaultAttributesDefaults);
+    }
 }

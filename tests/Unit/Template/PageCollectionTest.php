@@ -252,6 +252,10 @@ final class PageCollectionTest extends TestCase
         );
         $resolvedTaxonomyTags = $this->callProtected($collection, 'resolveValue', $taxonomyPage, 'tags');
         $resolvedMetaWeight = $this->callProtected($collection, 'resolveValue', $weightPage, 'meta.weight');
+        $resolvedEmptyKey = $this->callProtected($collection, 'resolveValue', $weightPage, '');
+        $resolvedUnknownSimpleKey = $this->callProtected($collection, 'resolveValue', $weightPage, '__nonexistent__');
+        $resolvedTaxonomyPath = $this->callProtected($collection, 'resolveValue', $taxonomyPage, 'taxonomies.tags');
+        $resolvedDeepPath = $this->callProtected($collection, 'resolveValue', $weightPage, 'some.deep.path');
         $notEqual = $this->callProtected($collection, 'matchesWhere', 'a', 'ne', 'b');
         $nullCompared = $this->callProtected($collection, 'compareValues', null, 1);
         $dateCompared = $this->callProtected($collection, 'compareValues', '2026-01-01', '2026-01-02');
@@ -298,6 +302,10 @@ final class PageCollectionTest extends TestCase
         $this->assertSame(7, $resolvedWeight);
         $this->assertSame(['php'], $resolvedTaxonomyTags);
         $this->assertSame(7, $resolvedMetaWeight);
+        $this->assertNull($resolvedEmptyKey);
+        $this->assertNull($resolvedUnknownSimpleKey);
+        $this->assertSame(['php'], $resolvedTaxonomyPath);
+        $this->assertNull($resolvedDeepPath);
         $this->assertTrue($notEqual);
         $this->assertSame(1, $nullCompared);
         $this->assertLessThan(0, $dateCompared);
