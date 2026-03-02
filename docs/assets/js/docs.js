@@ -5,11 +5,13 @@ import registerTocPage from './toc.js'
 import registerThemeToggle, { applyTheme, resolvePreferredTheme } from './theme.js'
 import registerScaffoldDemo from './scaffold.js'
 import registerCodeGroups from './code-groups.js'
+import registerDocsSearch from './search.js'
 
 Alpine.plugin(intersect)
 registerTocPage(Alpine)
 registerThemeToggle(Alpine)
 registerScaffoldDemo(Alpine)
+registerDocsSearch(Alpine)
 registerCodeGroups()
 
 window.Alpine = Alpine

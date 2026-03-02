@@ -28,6 +28,8 @@ $isHomeTemplate = (($page->meta['template'] ?? null) === 'home');
 		</div>
 
 		<div class="navbar-end">
+			<s-doc-search />
+
 			<label x-data="themeToggle" class="btn btn-ghost btn-sm btn-circle swap swap-rotate" aria-label="Toggle color theme" title="Toggle color theme">
 				<input type="checkbox" x-model="isLight" />
 				<svg class="swap-on h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">

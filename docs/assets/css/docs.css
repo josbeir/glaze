@@ -89,6 +89,8 @@
 	body {
 		@apply text-base-content;
 	}
+
+	[x-cloak] { display: none !important; }
 }
 
 @layer components {

@@ -2,6 +2,7 @@ pageTemplate: page
 extensions:
 	- sitemap
 	- llms-txt
+	- search-index
 site:
 	title: Glaze
 	description: "A lightweight, file-based static site generator for PHP. Write content in Djot, build layouts with Sugar templates, and ship a folder of plain HTML"

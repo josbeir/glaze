@@ -1,6 +1,6 @@
 ---
 title: Core extensions
-description: "Built-in opt-in extensions that ship with Glaze: sitemap, llms-txt, and how to configure them."
+description: "Built-in opt-in extensions that ship with Glaze: sitemap, llms-txt, search-index, and how to configure them."
 weight: 80
 ---
 # Core extensions
@@ -15,6 +15,7 @@ Add an `extensions` key to `glaze.neon` with the names of the extensions you wan
 extensions:
     - sitemap
     - llms-txt
+    - search-index
 ```
 
 Each entry matches the `name` declared in the extension's `#[GlazeExtension]` attribute.
@@ -119,6 +120,70 @@ extensions:
 | `pitch` | string | Overrides the `> quote` line. Falls back to the auto-resolved project pitch. |
 | `context` | string | Overrides the context paragraph below the quote. |
 | `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the listing. |
+
+---
+
+### `search-index`
+
+Generates a `search-index.json` file in the output directory — a MiniSearch-compatible JSON array of page documents.
+
+Each document includes:
+
+- `id`
+- `title`
+- `description`
+- `url`
+- `content` (plain text extracted from rendered HTML)
+
+```neon
+extensions:
+        - search-index
+```
+
+#### Options
+
+Switch to map syntax to pass options:
+
+```neon
+extensions:
+        search-index:
+                filename: site-search.json
+                exclude:
+                        - /drafts
+                        - /private
+```
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `filename` | string | Output filename written in the build output directory. Default: `search-index.json`. |
+| `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the index. |
+
+#### MiniSearch pseudo example
+
+```js
+import MiniSearch from 'minisearch'
+
+// 1) Load generated index from Glaze output
+const docs = await fetch('/search-index.json').then((r) => r.json())
+
+// 2) Create MiniSearch with fields produced by the extension
+const mini = new MiniSearch({
+    idField: 'id',
+    fields: ['title', 'description', 'content'],
+    storeFields: ['title', 'description', 'url'],
+})
+
+// 3) Index and search
+await mini.addAllAsync(docs)
+const results = mini.search('glaze extension')
+
+// 4) Render result links (pseudo)
+for (const hit of results) {
+    console.log(hit.title, hit.url)
+}
+```
+
+The docs site itself uses this extension to power the built-in client-side search dialog.
 
 ---
 

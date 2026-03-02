@@ -6,6 +6,7 @@ namespace Glaze\Template\Extension;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Config\BuildConfig;
 use Glaze\Extension\LlmsTxtExtension;
+use Glaze\Extension\SearchIndexExtension;
 use Glaze\Extension\SitemapExtension;
 use InvalidArgumentException;
 use ReflectionClass;
@@ -71,6 +72,7 @@ final class ExtensionLoader
     protected const CORE_EXTENSIONS = [
         SitemapExtension::class,
         LlmsTxtExtension::class,
+        SearchIndexExtension::class,
     ];
 
     /**
