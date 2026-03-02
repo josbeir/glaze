@@ -1,13 +1,12 @@
 ---
 title: Installation
-description: "Install Glaze globally or per project and verify your environment requirements."
+description: "Requirements and install instructions for Glaze via Composer, globally or per project."
 weight: 20
 ---
 # Installation
 
-Getting Glaze running takes less than a minute. Install it globally with Composer
-and the `glaze` binary is available from any directory. No system configuration
-needed — just PHP and Composer, which you likely already have.
+Install Glaze via Composer — globally to have `glaze` available from any directory,
+or per-project to pin a specific version. The only prerequisites are PHP 8.2+ and Composer 2.
 
 ## Requirements
 
@@ -15,9 +14,9 @@ needed — just PHP and Composer, which you likely already have.
 - Composer 2 or higher
 - GD or Imagick extension (for Glide image transforms; GD ships with most PHP builds)
 
-## Global install (recommended)
+## Install
 
-Installing globally makes `glaze` available from any directory:
+Installing globally makes `glaze` available from any directory. Per-project installs are also supported if you prefer to pin a version:
 
 ::: code-group
 
@@ -58,9 +57,9 @@ export PATH="$HOME/.composer/vendor/bin:$PATH"
 
 Reload your profile (`source ~/.zshrc`) and run `glaze --help` again.
 
-## Per-project install
+## New project setup
 
-If you prefer to pin Glaze to a specific project:
+To set up Glaze inside a new project directory:
 
 ```bash
 mkdir my-site && cd my-site

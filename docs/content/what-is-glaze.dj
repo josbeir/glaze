@@ -143,7 +143,7 @@ If you need it, Glaze has optional [Vite](https://vitejs.dev/) integration. Scaf
 everything in one command:
 
 ```bash
-glaze init my-site --vite
+glaze init my-site --preset vite
 ```
 
 This wires up a Vite config alongside your Glaze project. Start both together:

@@ -123,32 +123,49 @@ $site->hasSiteMeta('hero.primaryAction')  // existence check
 
 ## Site context (`$this`)
 
-Inside every template, `$this` is a `SiteContext` instance with helpers for querying all site content:
+Inside every template, `$this` is a `SiteContext` instance. Its helpers are grouped into three areas: querying pages and sections, generating URLs, and accessing content assets.
+
+### Querying pages & sections
 
 ```php
 $this->pages()                          // all pages
 $this->regularPages()                   // pages without a content type
-$this->tree()                           // root Section node
-$this->section('blog')                  // ?Section for a path (supports nesting: docs/guides)
 $this->type('blog')                     // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
-$this->isCurrent('/blog/')              // bool
-$this->url('/about/')                   // string -- site-root path with basePath applied
-$this->url('/about/', true)             // string -- fully-qualified URL (baseUrl + basePath + path)
-$this->canonicalUrl()                   // string -- fully-qualified URL of the current page
-$this->assets(?string $subdirectory = null)             // ContentAssetCollection from content root
-$this->pageAssets(?string $subdirectory = null)         // ContentAssetCollection for current page
-$this->assetsFor($page, ?string $subdirectory = null)   // ContentAssetCollection for arbitrary page
+$this->tree()                           // root Section node
+$this->section('blog')                  // ?Section for a path (supports nesting: docs/guides)
 $this->sections()                       // array<string, Section> — top-level sections, ordered by weight
-$this->rootPages()                     // PageCollection — root-level pages (no section)
-$this->previous(?callable $predicate = null)          // ?ContentPage — previous page in global display order
-$this->next(?callable $predicate = null)              // ?ContentPage — next page in global display order
-$this->previousInSection(?callable $predicate = null) // ?ContentPage
-$this->nextInSection(?callable $predicate = null)     // ?ContentPage
-$this->extension('name')               // call a project extension (see Extensions)
+$this->rootPages()                      // PageCollection — root-level pages (no section)
+$this->isCurrent('/blog/')              // bool -- true when current page matches path
+$this->previous(?callable $predicate = null)           // ?ContentPage — previous in global display order
+$this->next(?callable $predicate = null)               // ?ContentPage — next in global display order
+$this->previousInSection(?callable $predicate = null)  // ?ContentPage
+$this->nextInSection(?callable $predicate = null)      // ?ContentPage
 ```
 
-### Content assets in templates
+See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination.
+
+### URL helpers
+
+`url()` and `canonicalUrl()` handle base-path prefixing and absolute URL construction so templates never need to reference `$site->basePath` directly.
+
+```php
+$this->url('/blog/')                 // '/blog/' or '/sub/blog/' when basePath is /sub
+$this->url('/blog/', true)           // 'https://example.com/sub/blog/' with baseUrl configured
+$this->url($page->urlPath)           // apply basePath to any page URL
+$this->canonicalUrl()                // fully-qualified URL for the current page
+```
+
+Use `$this->url()` for all internal `href` and `src` attributes. Pass `true` as the second argument when a fully-qualified URL is needed, for example for Open Graph or canonical link tags:
+
+```php
+<link rel="canonical" href="<?= $this->canonicalUrl() ?>" />
+<meta property="og:url" content="<?= $this->canonicalUrl() ?>" />
+<meta property="og:image" content="<?= $this->url('/og-image.png', true) ?>" />
+<a href="<?= $this->url('/quick-start/') ?>">Get started</a>
+```
+
+### Content assets
 
 Use content asset helpers to discover non-Djot files from content directories:
 
@@ -186,31 +203,18 @@ $asset->is('png', 'jpg')
 $asset->isImage()
 ```
 
-See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For custom PHP logic callable from templates, see [Extensions](extensions.dj).
+### Extensions
 
-### URL helpers
-
-`url()` and `canonicalUrl()` handle base-path prefixing and absolute URL construction so templates do not need to reference `$site->basePath` directly.
+Invoke registered project extensions from any template:
 
 ```php
-$this->url('/blog/')                 // '/blog/' or '/sub/blog/' when basePath is /sub
-$this->url('/blog/', true)           // 'https://example.com/sub/blog/' with baseUrl configured
-$this->url($page->urlPath)           // apply basePath to any page URL
-$this->canonicalUrl()                // fully-qualified URL for the current page
+$this->extension('name')          // call a named extension
+$this->extension('name', $arg)    // pass arguments to the extension
 ```
 
-`url()` delegates to the same `ResourcePathRewriter` that the build pipeline uses, so the result is always consistent with how other resource paths are rewritten.
+For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
-Use `$this->url()` for all internal `href` and `src` attributes inside templates. Pass `true` as the second argument when a fully-qualified URL is needed (for example Open Graph or canonical link tags):
-
-```php
-<link rel="canonical" href="<?= $this->canonicalUrl() ?>" />
-<meta property="og:url" content="<?= $this->canonicalUrl() ?>" />
-<meta property="og:image" content="<?= $this->url('/og-image.png', true) ?>" />
-<a href="<?= $this->url('/quick-start/') ?>">Get started</a>
-```
-
-### Navigation example (section-based sidebar)
+## Navigation example
 
 Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` for clean sidebar navigation:
 
@@ -278,22 +282,25 @@ For the complete directive reference -- including `s:unless`, `s:forelse`, `s:sw
 
 When Vite is enabled in Glaze config, Sugar's Vite extension is automatically registered and you can render dev/prod asset tags directly from templates.
 
-Basic usage:
+Both syntaxes are equivalent:
 
 ```php
 <s-template s:vite="'assets/css/site.css'" />
+<s-vite src="assets/css/site.css" />
 ```
 
 Multiple entries:
 
 ```php
 <s-template s:vite="['assets/css/site.css', 'assets/js/site.js']" />
+<s-vite src="['assets/css/site.css', 'assets/js/site.js']" />
 ```
 
 Default entry (from `build.vite.defaultEntry` or `devServer.vite.defaultEntry`):
 
 ```php
 <s-template s:vite="true" />
+<s-vite />
 ```
 
 Behavior by mode:
@@ -304,7 +311,7 @@ Behavior by mode:
 To scaffold all related files/config quickly:
 
 ```bash
-glaze init my-site --vite
+glaze init my-site --preset vite
 ```
 
 ## Debug helpers

@@ -563,7 +563,7 @@ build:
 Glaze can scaffold and wire Vite support with one command:
 
 ```bash
-glaze init my-site --vite
+glaze init my-site --preset vite
 ```
 
 This creates `vite.config.js`, `package.json`, and enables Vite defaults in `glaze.neon`.
