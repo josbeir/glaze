@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Http\Middleware;
 
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Http\AssetResponder;
 use Glaze\Image\ImageTransformerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -42,7 +43,7 @@ abstract class AbstractGlideAssetMiddleware extends AbstractAssetMiddleware
                 requestPath: $requestPath,
                 queryParams: $this->normalizeQueryParams($request->getQueryParams()),
                 presets: $this->config->imagePresets,
-                cachePath: $this->config->glideCachePath(),
+                cachePath: $this->config->cachePath(CachePath::Glide),
                 options: $this->config->imageOptions,
             );
 

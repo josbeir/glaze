@@ -81,7 +81,7 @@ final class DjotRenderer
         ?BuildConfig $config = null,
     ): RenderResult {
         $toc = new TocExtension();
-        $converter = $this->createConverter($djot ?? new DjotOptions(), $siteConfig, $relativePagePath);
+        $converter = $this->createConverter($djot ?? new DjotOptions(), $siteConfig, $relativePagePath, $config);
 
         if (
             $dispatcher instanceof EventDispatcher
@@ -107,12 +107,14 @@ final class DjotRenderer
      * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
      * @param \Glaze\Config\SiteConfig|null $siteConfig Site configuration used for internal path rewriting.
      * @param string|null $relativePagePath Relative source page path for content-relative links.
+     * @param \Glaze\Config\BuildConfig|null $config Optional active build configuration.
      */
     protected function createConverter(
         DjotOptions $djot,
         ?SiteConfig $siteConfig = null,
         ?string $relativePagePath = null,
+        ?BuildConfig $config = null,
     ): DjotConverter {
-        return $this->converterFactory->create($djot, $siteConfig, $relativePagePath);
+        return $this->converterFactory->create($djot, $siteConfig, $relativePagePath, $config);
     }
 }

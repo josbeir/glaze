@@ -138,35 +138,23 @@ final class BuildConfig
     }
 
     /**
-     * Get absolute cache directory.
+     * Get absolute cache directory or a specific cache subpath.
+     *
+     * @param \Glaze\Config\CachePath|string|null $path Optional named cache target or relative cache path.
      */
-    public function cachePath(): string
+    public function cachePath(CachePath|string|null $path = null): string
     {
-        return $this->resolvePath($this->cacheDir);
-    }
+        $baseCachePath = $this->resolvePath($this->cacheDir);
+        if ($path === null) {
+            return $baseCachePath;
+        }
 
-    /**
-     * Get absolute template cache directory.
-     */
-    public function templateCachePath(): string
-    {
-        return $this->cachePath() . '/sugar';
-    }
+        $suffix = $path instanceof CachePath ? $path->value : trim($path);
+        if ($suffix === '') {
+            return $baseCachePath;
+        }
 
-    /**
-     * Get absolute Glide image cache directory.
-     */
-    public function glideCachePath(): string
-    {
-        return $this->cachePath() . '/glide';
-    }
-
-    /**
-     * Get absolute incremental build manifest path.
-     */
-    public function buildManifestPath(): string
-    {
-        return $this->cachePath() . '/build-manifest.json';
+        return Normalization::path($baseCachePath . '/' . ltrim($suffix, '/'));
     }
 
     /**

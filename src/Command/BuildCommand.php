@@ -10,6 +10,7 @@ use Cake\Console\ConsoleOptionParser;
 use Glaze\Build\BuildManifest;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\CachePath;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Utility\Normalization;
@@ -113,7 +114,7 @@ final class BuildCommand extends BaseCommand
                 $includeDrafts,
             );
             $verbose = (bool)$args->getOption('verbose');
-            $manifestPath = $config->buildManifestPath();
+            $manifestPath = $config->cachePath(CachePath::BuildManifest);
             $previousManifest = BuildManifest::load($manifestPath);
             $cleanedOutput = false;
             $io->overwrite($formatStageMessage($doneIcon, 'Config', 'Resolving project configuration...'));

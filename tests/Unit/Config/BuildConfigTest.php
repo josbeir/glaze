@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Config;
 
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
 use Glaze\Config\TemplateViteOptions;
@@ -27,8 +28,11 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/templates', $config->templatePath());
         $this->assertSame('/tmp/glaze-project/public', $config->outputPath());
         $this->assertSame('/tmp/glaze-project/tmp/cache', $config->cachePath());
-        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $config->templateCachePath());
-        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $config->glideCachePath());
+        $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $config->cachePath(CachePath::Sugar));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $config->cachePath(CachePath::Glide));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/phiki-html', $config->cachePath(CachePath::PhikiHtml));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/build-manifest.json', $config->cachePath(CachePath::BuildManifest));
+        $this->assertSame('/tmp/glaze-project/tmp/cache/custom-subpath', $config->cachePath('custom-subpath'));
         $this->assertSame([], $config->imagePresets);
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([], $config->contentTypes);

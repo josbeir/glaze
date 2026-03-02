@@ -34,21 +34,46 @@ final class CacheCommandTest extends IntegrationCommandTestCase
 
         $templateCache = $projectRoot . '/tmp/cache/sugar';
         $imageCache = $projectRoot . '/tmp/cache/glide';
+        $phikiCache = $projectRoot . '/tmp/cache/phiki-html';
         mkdir($templateCache, 0755, true);
         mkdir($imageCache, 0755, true);
+        mkdir($phikiCache, 0755, true);
 
         file_put_contents($templateCache . '/template.php', '<?php echo 1;');
         file_put_contents($imageCache . '/img.jpg', 'binary');
+        file_put_contents($phikiCache . '/block.cache.phpser', 'serialized');
 
         $this->exec(sprintf('cc --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
         $this->assertOutputContains('[Cache/Templates]');
         $this->assertOutputContains('[Cache/Images]');
+        $this->assertOutputContains('[Cache/Phiki]');
         $this->assertDirectoryExists($templateCache);
         $this->assertDirectoryExists($imageCache);
+        $this->assertDirectoryExists($phikiCache);
         $this->assertFileDoesNotExist($templateCache . '/template.php');
         $this->assertFileDoesNotExist($imageCache . '/img.jpg');
+        $this->assertFileDoesNotExist($phikiCache . '/block.cache.phpser');
+    }
+
+    /**
+     * Ensure the build manifest file is deleted when present during a default clear.
+     */
+    public function testClearBothDeletesExistingBuildManifestFile(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        $this->writeMinimalConfig($projectRoot);
+
+        $manifestPath = $projectRoot . '/tmp/cache/build-manifest.json';
+        mkdir(dirname($manifestPath), 0755, true);
+        file_put_contents($manifestPath, '{"hash":"abc"}');
+
+        $this->exec(sprintf('cc --root "%s"', $projectRoot));
+
+        $this->assertExitCode(0);
+        $this->assertOutputContains('[Cache/Build]');
+        $this->assertFileDoesNotExist($manifestPath);
     }
 
     /**
@@ -61,18 +86,23 @@ final class CacheCommandTest extends IntegrationCommandTestCase
 
         $templateCache = $projectRoot . '/tmp/cache/sugar';
         $imageCache = $projectRoot . '/tmp/cache/glide';
+        $phikiCache = $projectRoot . '/tmp/cache/phiki-html';
         mkdir($templateCache, 0755, true);
         mkdir($imageCache, 0755, true);
+        mkdir($phikiCache, 0755, true);
 
         file_put_contents($templateCache . '/template.php', '<?php echo 1;');
         file_put_contents($imageCache . '/img.jpg', 'binary');
+        file_put_contents($phikiCache . '/block.cache.phpser', 'serialized');
 
         $this->exec(sprintf('cc --templates --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
         $this->assertOutputContains('[Cache/Templates]');
+        $this->assertOutputContains('[Cache/Phiki]');
         $this->assertOutputNotContains('[Cache/Images]');
         $this->assertFileDoesNotExist($templateCache . '/template.php');
+        $this->assertFileDoesNotExist($phikiCache . '/block.cache.phpser');
         $this->assertFileExists($imageCache . '/img.jpg');
     }
 
@@ -86,19 +116,24 @@ final class CacheCommandTest extends IntegrationCommandTestCase
 
         $templateCache = $projectRoot . '/tmp/cache/sugar';
         $imageCache = $projectRoot . '/tmp/cache/glide';
+        $phikiCache = $projectRoot . '/tmp/cache/phiki-html';
         mkdir($templateCache, 0755, true);
         mkdir($imageCache, 0755, true);
+        mkdir($phikiCache, 0755, true);
 
         file_put_contents($templateCache . '/template.php', '<?php echo 1;');
         file_put_contents($imageCache . '/img.jpg', 'binary');
+        file_put_contents($phikiCache . '/block.cache.phpser', 'serialized');
 
         $this->exec(sprintf('cc --images --root "%s"', $projectRoot));
 
         $this->assertExitCode(0);
         $this->assertOutputContains('[Cache/Images]');
         $this->assertOutputNotContains('[Cache/Templates]');
+        $this->assertOutputNotContains('[Cache/Phiki]');
         $this->assertFileDoesNotExist($imageCache . '/img.jpg');
         $this->assertFileExists($templateCache . '/template.php');
+        $this->assertFileExists($phikiCache . '/block.cache.phpser');
     }
 
     /**
@@ -152,6 +187,20 @@ final class CacheCommandTest extends IntegrationCommandTestCase
 
         $this->assertExitCode(0);
         $this->assertOutputContains('Glaze');
+    }
+
+    /**
+     * Ensure malformed project configuration is reported as a command error.
+     */
+    public function testMalformedProjectConfigReturnsErrorCode(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents($projectRoot . '/glaze.neon', "site: [\n");
+
+        $this->exec(sprintf('cc --root "%s"', $projectRoot));
+
+        $this->assertExitCode(1);
+        $this->assertErrorContains('Cache clear failed:');
     }
 
     /**

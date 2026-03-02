@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Build;
 
 use Glaze\Build\BuildManifest;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -36,7 +37,7 @@ final class BuildManifestTest extends TestCase
             $this->createPage('/b/', 'b/index.html', '# B'),
         ]);
 
-        $manifestPath = $config->buildManifestPath();
+        $manifestPath = $config->cachePath(CachePath::BuildManifest);
         $manifest->save($manifestPath);
         $loaded = BuildManifest::load($manifestPath);
 

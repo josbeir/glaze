@@ -11,6 +11,7 @@ use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\PageRenderedEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
 use Glaze\Render\PageRenderPipeline;
@@ -108,7 +109,7 @@ final class SiteBuilder
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
-        $manifestPath = $config->buildManifestPath();
+        $manifestPath = $config->cachePath(CachePath::BuildManifest);
         $currentManifest = BuildManifest::fromBuild($config, $pages);
         $previousManifest = $cleanOutput ? null : BuildManifest::load($manifestPath);
         $fullBuild = $cleanOutput || $currentManifest->requiresFullBuild($previousManifest);

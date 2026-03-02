@@ -7,6 +7,7 @@ use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Support\ResourcePathRewriter;
 use Glaze\Utility\Hash;
 
@@ -47,7 +48,7 @@ final class SugarPageRendererFactory
     ): SugarPageRenderer {
         $renderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
-            cachePath: $config->templateCachePath(),
+            cachePath: $config->cachePath(CachePath::Sugar),
             template: $template,
             siteConfig: $config->site,
             resourcePathRewriter: $this->resourcePathRewriter,

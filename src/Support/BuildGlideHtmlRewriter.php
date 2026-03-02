@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Support;
 
 use Glaze\Config\BuildConfig;
+use Glaze\Config\CachePath;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Utility\Hash;
@@ -162,7 +163,7 @@ final class BuildGlideHtmlRewriter
                 requestPath: $sourcePath,
                 queryParams: $normalizedQueryParams,
                 presets: $config->imagePresets,
-                cachePath: $config->glideCachePath(),
+                cachePath: $config->cachePath(CachePath::Glide),
                 options: $config->imageOptions,
             );
             if (is_string($transformedPath)) {

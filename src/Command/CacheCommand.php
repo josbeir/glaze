@@ -8,6 +8,7 @@ use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\CachePath;
 use Glaze\Utility\ProjectRootResolver;
 use Throwable;
 
@@ -84,16 +85,18 @@ final class CacheCommand extends BaseCommand
             $imagesOnly = (bool)$args->getOption('images');
             $clearBoth = !$templatesOnly && !$imagesOnly;
 
-            if ($clearBoth || $templatesOnly) {
-                $this->clearDirectory($config->templateCachePath(), 'Templates', $io);
-            }
+            foreach (CachePath::cases() as $cachePath) {
+                if (!$cachePath->shouldClear($clearBoth, $templatesOnly, $imagesOnly)) {
+                    continue;
+                }
 
-            if ($clearBoth || $imagesOnly) {
-                $this->clearDirectory($config->glideCachePath(), 'Images', $io);
-            }
+                if ($cachePath->isFileTarget()) {
+                    $this->clearFile($config->cachePath($cachePath), $cachePath->label(), $io);
 
-            if ($clearBoth) {
-                $this->clearFile($config->buildManifestPath(), 'Build', $io);
+                    continue;
+                }
+
+                $this->clearDirectory($config->cachePath($cachePath), $cachePath->label(), $io);
             }
         } catch (Throwable $throwable) {
             $io->error(sprintf('Cache clear failed: %s', $throwable->getMessage()));

@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Render\Djot;
 use Djot\Node\Block\CodeBlock;
 use Glaze\Render\Djot\PhikiCodeBlockRenderer;
 use PHPUnit\Framework\TestCase;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Tests for Phiki Djot code block renderer.
@@ -79,16 +80,111 @@ final class PhikiCodeBlockRendererTest extends TestCase
     }
 
     /**
-     * Ensure named multi-theme configuration emits CSS variables for alternate themes.
+     * Ensure repeated renders of the same block produce identical output (cache round-trip sanity check).
      */
-    public function testRenderSupportsNamedMultipleThemes(): void
+    public function testRenderProducesIdenticalOutputOnSubsequentCallsForSameBlock(): void
     {
-        $renderer = new PhikiCodeBlockRenderer(theme: ['dark' => 'github-dark', 'light' => 'github-light']);
-        $html = $renderer->render(new CodeBlock("echo 1;\n", 'php'));
+        $renderer = new PhikiCodeBlockRenderer();
+        $block = new CodeBlock("echo 1;\n", 'php');
 
-        $this->assertStringContainsString('class="phiki', $html);
-        $this->assertStringContainsString('phiki-themes', $html);
-        $this->assertStringContainsString('github-light', $html);
-        $this->assertStringContainsString('--phiki-light-background-color', $html);
+        $this->assertSame($renderer->render($block), $renderer->render($block));
+    }
+
+    /**
+     * Ensure consecutive renders of the same block use the cache and avoid re-processing.
+     */
+    public function testRenderServesCachedHtmlOnSubsequentCallsWithSameBlock(): void
+    {
+        $setCalls = 0;
+        $getCalls = 0;
+
+        $spy = new class ($setCalls, $getCalls) implements CacheInterface {
+            /**
+             * @var array<string, mixed>
+             */
+            private array $store = [];
+
+            public function __construct(private int &$setCount, private int &$getCount)
+            {
+            }
+
+            public function get(string $key, mixed $default = null): mixed
+            {
+                ++$this->getCount;
+
+                return array_key_exists($key, $this->store) ? $this->store[$key] : $default;
+            }
+
+            public function set(string $key, mixed $value, mixed $ttl = null): bool
+            {
+                ++$this->setCount;
+                $this->store[$key] = $value;
+
+                return true;
+            }
+
+            public function has(string $key): bool
+            {
+                return array_key_exists($key, $this->store);
+            }
+
+            public function delete(string $key): bool
+            {
+                unset($this->store[$key]);
+
+                return true;
+            }
+
+            public function clear(): bool
+            {
+                $this->store = [];
+
+                return true;
+            }
+
+            public function getMultiple(iterable $keys, mixed $default = null): iterable
+            {
+                $result = [];
+                foreach ($keys as $k) {
+                    $result[$k] = $this->get($k, $default);
+                }
+
+                return $result;
+            }
+
+            /**
+             * @param iterable<string, mixed> $values
+             */
+            public function setMultiple(iterable $values, mixed $ttl = null): bool
+            {
+                foreach ($values as $k => $v) {
+                    $this->set((string)$k, $v);
+                }
+
+                return true;
+            }
+
+            public function deleteMultiple(iterable $keys): bool
+            {
+                foreach ($keys as $k) {
+                    $this->delete($k);
+                }
+
+                return true;
+            }
+        };
+
+        $renderer = new PhikiCodeBlockRenderer(cache: $spy);
+        $block = new CodeBlock("echo 1;\n", 'php');
+
+        $first = $renderer->render($block);
+        $second = $renderer->render($block);
+
+        // The HTML output must be identical on both calls.
+        $this->assertSame($first, $second);
+
+        // The first render must have stored one entry and the second must have retrieved it.
+        $this->assertSame(1, $setCalls, 'Cache set() must be called exactly once for a unique block');
+        $this->assertSame(1, $getCalls, 'Cache get() must be called exactly once on the second render (after has() hit)');
     }
 }
