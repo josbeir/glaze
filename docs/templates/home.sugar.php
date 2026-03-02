@@ -37,7 +37,7 @@ use function Sugar\Core\Runtime\raw;
 						<a
 							class="btn btn-primary btn-md"
 							s:if="$page->hasMeta('hero.primaryAction.label')"
-							href="<?= ($site->basePath ?? '') . $page->meta('hero.primaryAction.href', '/') ?>"
+							href="<?= $this->url($page->meta('hero.primaryAction.href', '/')) ?>"
 						>
 							<?= $page->meta('hero.primaryAction.label') ?>
 						</a>
@@ -45,7 +45,7 @@ use function Sugar\Core\Runtime\raw;
 						<a
 							class="btn btn-ghost btn-md"
 							s:if="$page->hasMeta('hero.secondaryAction.label')"
-							href="<?= ($site->basePath ?? '') . $page->meta('hero.secondaryAction.href', '/') ?>"
+							href="<?= $this->url($page->meta('hero.secondaryAction.href', '/')) ?>"
 						>
 							<?= $page->meta('hero.secondaryAction.label') ?>
 						</a>
@@ -55,7 +55,7 @@ use function Sugar\Core\Runtime\raw;
 				<div class="hidden lg:flex lg:justify-end">
 					<img
 						class="w-64 xl:w-76 2xl:w-84 h-auto"
-						src="<?= ($site->basePath ?? '') . '/glaze-logo.svg' ?>"
+						src="<?= $this->url('/glaze-logo.svg') ?>"
 						alt="<?= $site->title ?>"
 					/>
 				</div>

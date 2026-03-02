@@ -19,7 +19,7 @@ use function Sugar\Core\Runtime\raw;
 <s-template s:block="content">
 	<div class="breadcrumbs text-sm mb-4 text-base-content/70">
 		<ul>
-			<li><a href="<?= ($site->basePath ?? '') . '/' ?>">Docs</a></li>
+			<li><a href="<?= $this->url('/') ?>">Docs</a></li>
 			<li><?= $page->meta['navigationtitle'] ?? $page->title ?></li>
 		</ul>
 	</div>

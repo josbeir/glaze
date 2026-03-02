@@ -119,6 +119,8 @@ $site->siteMeta('hero.title')             // alias for readability
 $site->hasSiteMeta('hero.primaryAction')  // existence check
 ```
 
+> **Tip:** Do not prepend `$site->basePath` manually to paths in templates. Use `$this->url('/path/')` instead -- it applies basePath correctly and also supports fully-qualified URLs via the second argument.
+
 ## Site context (`$this`)
 
 Inside every template, `$this` is a `SiteContext` instance with helpers for querying all site content:
@@ -131,6 +133,9 @@ $this->section('blog')                  // ?Section for a path (supports nesting
 $this->type('blog')                     // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')      // pages tagged 'php'
 $this->isCurrent('/blog/')              // bool
+$this->url('/about/')                   // string -- site-root path with basePath applied
+$this->url('/about/', true)             // string -- fully-qualified URL (baseUrl + basePath + path)
+$this->canonicalUrl()                   // string -- fully-qualified URL of the current page
 $this->assets(?string $subdirectory = null)             // ContentAssetCollection from content root
 $this->pageAssets(?string $subdirectory = null)         // ContentAssetCollection for current page
 $this->assetsFor($page, ?string $subdirectory = null)   // ContentAssetCollection for arbitrary page
@@ -183,6 +188,28 @@ $asset->isImage()
 
 See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
+### URL helpers
+
+`url()` and `canonicalUrl()` handle base-path prefixing and absolute URL construction so templates do not need to reference `$site->basePath` directly.
+
+```php
+$this->url('/blog/')                 // '/blog/' or '/sub/blog/' when basePath is /sub
+$this->url('/blog/', true)           // 'https://example.com/sub/blog/' with baseUrl configured
+$this->url($page->urlPath)           // apply basePath to any page URL
+$this->canonicalUrl()                // fully-qualified URL for the current page
+```
+
+`url()` delegates to the same `ResourcePathRewriter` that the build pipeline uses, so the result is always consistent with how other resource paths are rewritten.
+
+Use `$this->url()` for all internal `href` and `src` attributes inside templates. Pass `true` as the second argument when a fully-qualified URL is needed (for example Open Graph or canonical link tags):
+
+```php
+<link rel="canonical" href="<?= $this->canonicalUrl() ?>" />
+<meta property="og:url" content="<?= $this->canonicalUrl() ?>" />
+<meta property="og:image" content="<?= $this->url('/og-image.png', true) ?>" />
+<a href="<?= $this->url('/quick-start/') ?>">Get started</a>
+```
+
 ### Navigation example (section-based sidebar)
 
 Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` for clean sidebar navigation:
@@ -195,7 +222,7 @@ Glaze derives sections from the content folder structure. Place pages inside sub
             <template s:foreach="$section->pages() as $item">
                 <li s:if="$item->meta('navigation') ?? true">
                     <a
-                        href="<?= $item->urlPath ?>"
+                        href="<?= $this->url($item->urlPath) ?>"
                         s:class="['menu-active' => $this->isCurrent($item->urlPath)]"
                     >
                         <?= $item->meta('navigationTitle') ?? $item->title ?>
@@ -218,7 +245,7 @@ For nested folders, use child sections directly:
         <h3><?= $child->label() ?></h3>
         <ul>
             <li s:foreach="$child->pages() as $item">
-                <a href="<?= $item->urlPath ?>"><?= $item->title ?></a>
+                <a href="<?= $this->url($item->urlPath) ?>"><?= $item->title ?></a>
             </li>
         </ul>
     </article>
@@ -232,7 +259,7 @@ Sugar provides attribute-based directives for control flow, looping, and conditi
 ```php
 <!-- loop -->
 <li s:foreach="$this->section('blog')?->pages()->take(5) ?? [] as $post">
-    <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+    <a href="<?= $this->url($post->urlPath) ?>"><?= $post->title ?></a>
 </li>
 
 <!-- conditional -->
@@ -240,7 +267,7 @@ Sugar provides attribute-based directives for control flow, looping, and conditi
 <span s:else>Published</span>
 
 <!-- conditional class -->
-<a href="<?= $post->urlPath ?>" s:class="['active' => $this->isCurrent($post->urlPath)]">
+<a href="<?= $this->url($post->urlPath) ?>" s:class="['active' => $this->isCurrent($post->urlPath)]">
     <?= $post->title ?>
 </a>
 ```

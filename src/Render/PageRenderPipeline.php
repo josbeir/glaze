@@ -80,6 +80,7 @@ final class PageRenderPipeline
             currentPage: $page,
             extensions: $extensionRegistry ?? new ExtensionRegistry(),
             assetResolver: $assetResolver,
+            siteConfig: $config->site,
         );
 
         $htmlContent = $renderResult->html;

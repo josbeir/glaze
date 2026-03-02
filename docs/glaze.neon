@@ -4,7 +4,7 @@ extensions:
 	- llms-txt
 site:
 	title: Glaze
-	description: PHP templating engine documentation
+	description: "A lightweight, file-based static site generator for PHP. Write content in Djot, build layouts with Sugar templates, and ship a folder of plain HTML"
 	basePath: /glaze
 	baseUrl: https://josbeir.github.io/
 	repository: 'https://github.com/josbeir/glaze'

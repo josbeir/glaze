@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Template;
 
+use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentAsset;
 use Glaze\Content\ContentPage;
 use Glaze\Template\ContentAssetResolver;
@@ -277,6 +278,58 @@ final class SiteContextTest extends TestCase
         $noResolverContext = new SiteContext($index, $blogPage);
         $this->assertCount(0, $noResolverContext->assets());
         $this->assertCount(0, $noResolverContext->pageAssets());
+    }
+
+    /**
+     * Validate url() applies basePath and optionally prepends baseUrl.
+     */
+    public function testUrlAppliesBasePathAndOptionalBaseUrl(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('docs/intro', '/docs/intro/', 'docs/intro.dj', []),
+        ]);
+        $page = $index->findBySlug('docs/intro') ?? $this->fail('Missing page');
+
+        $noConfig = new SiteContext($index, $page);
+        $this->assertSame('/about/', $noConfig->url('/about/'));
+        $this->assertSame('/about/', $noConfig->url('/about/', true));
+
+        $withBasePath = new SiteContext(
+            siteIndex: $index,
+            currentPage: $page,
+            siteConfig: new SiteConfig(basePath: '/glaze'),
+        );
+        $this->assertSame('/glaze/about/', $withBasePath->url('/about/'));
+        $this->assertSame('/glaze/about/', $withBasePath->url('/about/', true));
+
+        $withBoth = new SiteContext(
+            siteIndex: $index,
+            currentPage: $page,
+            siteConfig: new SiteConfig(baseUrl: 'https://example.com', basePath: '/glaze'),
+        );
+        $this->assertSame('/glaze/about/', $withBoth->url('/about/'));
+        $this->assertSame('https://example.com/glaze/about/', $withBoth->url('/about/', true));
+    }
+
+    /**
+     * Validate canonicalUrl() returns the fully-qualified URL for the current page.
+     */
+    public function testCanonicalUrlReturnsFullyQualifiedPageUrl(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('docs/intro', '/docs/intro/', 'docs/intro.dj', []),
+        ]);
+        $page = $index->findBySlug('docs/intro') ?? $this->fail('Missing page');
+
+        $noConfig = new SiteContext($index, $page);
+        $this->assertSame('/docs/intro/', $noConfig->canonicalUrl());
+
+        $withBoth = new SiteContext(
+            siteIndex: $index,
+            currentPage: $page,
+            siteConfig: new SiteConfig(baseUrl: 'https://example.com', basePath: '/glaze'),
+        );
+        $this->assertSame('https://example.com/glaze/docs/intro/', $withBoth->canonicalUrl());
     }
 
     /**

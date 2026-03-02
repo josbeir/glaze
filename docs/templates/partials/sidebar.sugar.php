@@ -7,7 +7,7 @@
 ?>
 <div class="w-72 h-full min-h-screen border-r border-base-300 bg-base-200 text-base-content">
 	<nav class="h-full overflow-y-auto p-4 lg:p-5">
-		<a class="btn btn-ghost justify-start normal-case text-base sm:text-lg w-full mb-3" href="<?= ($site->basePath ?? '') . '/' ?>">
+		<a class="btn btn-ghost justify-start normal-case text-base sm:text-lg w-full mb-3" href="<?= $this->url('/') ?>">
 			<s-site-brand s:bind="['site' => $site]" />
 		</a>
 		<ul class="menu bg-base-200 rounded-box w-56">
@@ -16,7 +16,7 @@
 			); ?>
 			<li s:foreach="$rootPages as $menuPage">
 				<a
-					href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+					href="<?= $this->url($menuPage->urlPath) ?>"
 					s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
 				>
 					<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>
@@ -31,7 +31,7 @@
 					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
 					<li s:foreach="$sectionPages as $menuPage">
 						<a
-							href="<?= ($site->basePath ?? '') . $menuPage->urlPath ?>"
+							href="<?= $this->url($menuPage->urlPath) ?>"
 							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
 						>
 							<?= $menuPage->meta('navigationTitle') ?? $menuPage->title ?>

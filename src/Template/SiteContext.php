@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Glaze\Template;
 
+use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
+use Glaze\Support\ResourcePathRewriter;
 use Glaze\Template\Collection\ContentAssetCollection;
 use Glaze\Template\Collection\PageCollection;
 use Glaze\Template\Extension\ExtensionRegistry;
@@ -20,12 +22,16 @@ final class SiteContext
      * @param \Glaze\Content\ContentPage $currentPage Current page being rendered.
      * @param \Glaze\Template\Extension\ExtensionRegistry $extensions Registered project extensions.
      * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
+     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration used for URL helpers.
+     * @param \Glaze\Support\ResourcePathRewriter $pathRewriter Path rewriter used by URL helpers.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
         protected ContentPage $currentPage,
         protected ExtensionRegistry $extensions = new ExtensionRegistry(),
         protected ?ContentAssetResolver $assetResolver = null,
+        protected SiteConfig $siteConfig = new SiteConfig(),
+        protected ResourcePathRewriter $pathRewriter = new ResourcePathRewriter(),
     ) {
     }
 
@@ -276,6 +282,49 @@ final class SiteContext
     public function next(?callable $predicate = null): ?ContentPage
     {
         return $this->siteIndex->next($this->currentPage, $predicate);
+    }
+
+    /**
+     * Return a site-root URL path with basePath applied.
+     *
+     * When `$absolute` is true, the configured `baseUrl` is prepended to produce
+     * a fully-qualified URL. Falls back to a relative path when `baseUrl` is not
+     * configured.
+     *
+     * Example:
+     * ```php
+     * $this->url('/about/')           // '/docs/about/' (with basePath=/docs)
+     * $this->url('/about/', true)     // 'https://example.com/docs/about/'
+     * ```
+     *
+     * @param string $path Site-root path, for example '/about/'.
+     * @param bool $absolute Whether to prepend the configured baseUrl.
+     */
+    public function url(string $path, bool $absolute = false): string
+    {
+        $withBase = $this->pathRewriter->applyBasePathToPath($path, $this->siteConfig);
+
+        if (!$absolute) {
+            return $withBase;
+        }
+
+        $baseUrl = rtrim($this->siteConfig->baseUrl ?? '', '/');
+        if ($baseUrl === '') {
+            return $withBase;
+        }
+
+        return $baseUrl . $withBase;
+    }
+
+    /**
+     * Return the canonical fully-qualified URL for the current page.
+     *
+     * Shorthand for `url(page()->urlPath, true)`. Returns a relative URL when
+     * `baseUrl` is not configured.
+     */
+    public function canonicalUrl(): string
+    {
+        return $this->url($this->currentPage->urlPath, true);
     }
 
     /**

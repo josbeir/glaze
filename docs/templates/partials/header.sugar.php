@@ -4,9 +4,10 @@
  * @var Glaze\Config\SiteConfig $site
  * @var Glaze\Template\SiteContext $this
  */
+
+$isHomeTemplate = (($page->meta['template'] ?? null) === 'home');
 ?>
 <header class="sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
-	<?php $isHomeTemplate = (($page->meta['template'] ?? null) === 'home'); ?>
 	<div class="navbar w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16">
 		<div class="navbar-start gap-2">
 			<label for="docs-drawer" class="btn btn-ghost btn-square lg:hidden" aria-label="Open navigation">
@@ -15,11 +16,11 @@
 				</svg>
 			</label>
 
-			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg lg:hidden" s:if="!$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>" aria-label="Go to homepage">
+			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg lg:hidden" s:if="!$isHomeTemplate" href="<?= $this->url('/') ?>" aria-label="Go to homepage">
 				<s-site-brand s:bind="['site' => $site]" />
 			</a>
 
-			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg" s:if="$isHomeTemplate" href="<?= ($site->basePath ?? '') . '/' ?>">
+			<a class="btn btn-ghost px-2 normal-case text-base sm:text-lg" s:if="$isHomeTemplate" href="<?= $this->url('/') ?>">
 				<s-site-brand s:bind="['site' => $site]" />
 			</a>
 
