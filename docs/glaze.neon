@@ -15,7 +15,7 @@ djot:
 	codeHighlighting:
 		enabled: true
 		themes:
-			dark: plastic
+			dark: github-dark-default
 			light: light-plus
 		withGutter: false
 	headerAnchors:

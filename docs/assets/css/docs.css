@@ -287,7 +287,7 @@
 		@apply rounded-box border border-base-300;
 	}
 
-	.prose :where(pre) {
+	.prose :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
 		@apply bg-base-200 border border-base-300 rounded-box;
 	}
 
@@ -295,6 +295,27 @@
 		background-color: var(--phiki-light-background-color) !important;
 		color: var(--phiki-light-color) !important;
 	}
+
+	.prose :where(pre.phiki.phiki-themes):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+		border-radius: var(--radius-box) !important;
+		border-width: 1px !important;
+		border-style: solid !important;
+		border-color: var(--color-base-300) !important;
+		@apply relative;
+	}
+
+	.prose :where(pre.phiki.phiki-themes[data-language]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+		@apply pt-9;
+	}
+
+	.prose :where(pre.phiki.phiki-themes[data-language]):not(:where([class~="not-prose"], [class~="not-prose"] *))::after {
+		content: attr(data-language);
+		@apply absolute top-2.5 right-2.5 py-0.5 px-2 rounded-full text-[0.65rem] leading-none font-light tracking-[0.01em] whitespace-nowrap border pointer-events-none;
+		color: color-mix(in srgb, var(--color-base-content) 88%, transparent);
+		background: color-mix(in srgb, var(--color-base-100) 72%, transparent);
+		border: 1px solid color-mix(in srgb, var(--color-base-300) 92%, transparent);
+	}
+
 
 	html[data-theme="glaze-docs-light"] .prose :where(pre.phiki.phiki-themes) :where([style*="--phiki-light-color"]) {
 		color: var(--phiki-light-color) !important;
@@ -400,7 +421,7 @@
 		@apply my-6 w-full rounded-box border border-base-300 bg-base-200 overflow-hidden;
 	}
 
-	.prose .glaze-code-group pre {
+	.prose :where(.glaze-code-group pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
 		margin: 0 !important;
 		border: 0 !important;
 		border-radius: 0 !important;
@@ -463,8 +484,13 @@
 		display: none !important;
 	}
 
-	.prose :where(.glaze-code-group > .glaze-code-group-panel > pre) {
+	.prose :where(.glaze-code-group > .glaze-code-group-panel > pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
 		@apply m-0 rounded-none border-0;
+	}
+
+	.prose :where(.glaze-code-group > .glaze-code-group-panel > pre.phiki.phiki-themes):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+		border-radius: 0 !important;
+		border-width: 0 !important;
 	}
 
 	.prose :where(.glaze-code-group > .glaze-code-group-panel code) {

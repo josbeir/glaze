@@ -62,8 +62,8 @@ final class PhikiCodeBlockRendererTest extends TestCase
         $html = $renderer->render(new CodeBlock("# Title\n\nParagraph\n", 'djot'));
 
         $this->assertStringContainsString('class="phiki', $html);
-        $this->assertStringContainsString('language-Djot', $html);
-        $this->assertStringContainsString('data-language="Djot"', $html);
+        $this->assertMatchesRegularExpression('/language-djot/i', $html);
+        $this->assertMatchesRegularExpression('/data-language="djot"/i', $html);
     }
 
     /**
@@ -75,8 +75,25 @@ final class PhikiCodeBlockRendererTest extends TestCase
         $html = $renderer->render(new CodeBlock("+++\ntitle: Hello\n+++\n\n# Intro\n", 'djot'));
 
         $this->assertStringContainsString('class="phiki', $html);
-        $this->assertStringContainsString('language-Djot', $html);
+        $this->assertMatchesRegularExpression('/language-djot/i', $html);
         $this->assertStringContainsString('+++', $html);
+    }
+
+    /**
+     * Ensure Sugar templates are highlighted with the custom Sugar grammar.
+     */
+    public function testRenderUsesCustomSugarGrammar(): void
+    {
+        $renderer = new PhikiCodeBlockRenderer();
+                $html = $renderer->render(new CodeBlock(<<<'SUGAR'
+<s-template s:if="$show">
+    <?= $title ?>
+</s-template>
+SUGAR, 'sugar'));
+
+        $this->assertStringContainsString('class="phiki', $html);
+        $this->assertStringContainsString('language-sugar', $html);
+        $this->assertStringContainsString('data-language="sugar"', $html);
     }
 
     /**

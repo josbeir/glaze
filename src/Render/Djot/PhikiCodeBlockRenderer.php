@@ -43,7 +43,10 @@ final class PhikiCodeBlockRenderer
     protected function registerCustomGrammarAliases(): void
     {
         $this->phiki->grammar('djot', dirname(__DIR__, 3) . '/resources/grammars/djot.json');
+        $this->phiki->grammar('sugar', dirname(__DIR__, 3) . '/resources/grammars/sugar.json');
         $this->phiki->alias('dj', 'djot');
+        $this->phiki->alias('sugar-template', 'sugar');
+        $this->phiki->alias('tpl', 'sugar');
         $this->phiki->alias('neon', 'yaml');
     }
 

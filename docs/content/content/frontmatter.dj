@@ -117,7 +117,7 @@ weight: 10
 
 In templates, sort a collection by weight:
 
-```php
+```sugar
 <li s:foreach="$this->pages()->by('meta.weight', 'asc') as $p">
     <a href="<?= $p->urlPath ?>"><?= $p->title ?></a>
 </li>

@@ -17,7 +17,7 @@ Sugar uses `s:extends` and `s:block` for layout inheritance. A base layout defin
 
 `templates/layout/base.sugar.php`:
 
-```php
+```sugar
 <!doctype html>
 <html lang="en">
 <head>
@@ -32,7 +32,7 @@ Sugar uses `s:extends` and `s:block` for layout inheritance. A base layout defin
 
 `templates/page.sugar.php`:
 
-```php
+```sugar
 <s-template s:extends="layout/base">
 
 <title s:prepend="title"><?= $page->title ?> | </title>
@@ -181,7 +181,7 @@ $this->section('blog')?->allAssets()        // recursive assets in content/blog/
 
 When iterating a page collection, use `$this->assetsFor($item, ...)`:
 
-```php
+```sugar
 <ul>
     <li s:foreach="$this->section('blog')?->pages() ?? [] as $item">
         <h3><?= $item->title ?></h3>
@@ -218,7 +218,7 @@ For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
 Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` for clean sidebar navigation:
 
-```php
+```sugar
 <ul class="menu">
     <li s:foreach="$this->sections() as $section">
         <h2 class="menu-title"><?= $section->label() ?></h2>
@@ -240,7 +240,7 @@ Glaze derives sections from the content folder structure. Place pages inside sub
 
 For nested folders, use child sections directly:
 
-```php
+```sugar
 <?php $docs = $this->section('docs'); ?>
 
 <section s:if="$docs">
@@ -260,7 +260,7 @@ For nested folders, use child sections directly:
 
 Sugar provides attribute-based directives for control flow, looping, and conditional class merging. A brief example:
 
-```php
+```sugar
 <!-- loop -->
 <li s:foreach="$this->section('blog')?->pages()->take(5) ?? [] as $post">
     <a href="<?= $this->url($post->urlPath) ?>"><?= $post->title ?></a>
@@ -284,21 +284,21 @@ When Vite is enabled in Glaze config, Sugar's Vite extension is automatically re
 
 Both syntaxes are equivalent:
 
-```php
+```sugar
 <s-template s:vite="'assets/css/site.css'" />
 <s-vite src="assets/css/site.css" />
 ```
 
 Multiple entries:
 
-```php
+```sugar
 <s-template s:vite="['assets/css/site.css', 'assets/js/site.js']" />
 <s-vite src="['assets/css/site.css', 'assets/js/site.js']" />
 ```
 
 Default entry (from `build.vite.defaultEntry` or `devServer.vite.defaultEntry`):
 
-```php
+```sugar
 <s-template s:vite="true" />
 <s-vite />
 ```

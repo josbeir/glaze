@@ -570,7 +570,7 @@ This creates `vite.config.js`, `package.json`, and enables Vite defaults in `gla
 
 In templates, use Sugar's `s:vite` directive:
 
-```php
+```sugar
 <s-template s:vite="'assets/css/site.css'" />
 ```
 

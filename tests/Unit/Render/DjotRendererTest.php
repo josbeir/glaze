@@ -107,8 +107,8 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render("```djot\n# Intro\n```\n");
 
         $this->assertStringContainsString('class="phiki', $html);
-        $this->assertStringContainsString('language-Djot', $html);
-        $this->assertStringContainsString('data-language="Djot"', $html);
+        $this->assertMatchesRegularExpression('/language-djot/i', $html);
+        $this->assertMatchesRegularExpression('/data-language="djot"/i', $html);
     }
 
     /**

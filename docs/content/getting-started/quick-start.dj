@@ -76,7 +76,7 @@ This is my site.
 
 `templates/page.sugar.php` is the default page template:
 
-```php
+```sugar
 <s-template s:extends="layout/page">
 <s-template s:block="content">
     <h1><?= $title ?></h1>
@@ -105,7 +105,7 @@ Open `http://127.0.0.1:8080`. The server renders each page on request -- edit co
 
 Then reference assets in your layout template using Sugar's Vite directive:
 
-```php
+```sugar
 <s-vite src="['assets/css/site.css']" />
 ```
 
