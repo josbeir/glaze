@@ -41,6 +41,10 @@ final class PageRenderPipeline
     /**
      * Render one content page to final HTML.
      *
+     * Returns a `PageRenderOutput` containing both the rendered HTML string and
+     * the toc-enriched `ContentPage`, allowing callers to access the collected
+     * TOC entries when dispatching downstream build events.
+     *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param \Glaze\Content\ContentPage $page Page to render.
      * @param string $pageTemplate Template name to render with.
@@ -57,7 +61,7 @@ final class PageRenderPipeline
         ?SiteIndex $siteIndex = null,
         ?ExtensionRegistry $extensionRegistry = null,
         ?EventDispatcher $dispatcher = null,
-    ): string {
+    ): PageRenderOutput {
         $pageRenderer = $this->sugarPageRendererFactory->createCached($config, $pageTemplate, $debug, $dispatcher);
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
@@ -99,9 +103,9 @@ final class PageRenderPipeline
         ], $templateContext);
 
         if (!$debug) {
-            return $this->buildGlideHtmlRewriter->rewrite($output, $config);
+            return new PageRenderOutput($this->buildGlideHtmlRewriter->rewrite($output, $config), $page);
         }
 
-        return $output;
+        return new PageRenderOutput($output, $page);
     }
 }

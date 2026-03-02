@@ -179,6 +179,7 @@ export default function registerDocsSearch(Alpine) {
 				return;
 			}
 
+			this.close();
 			window.location.assign(selected.url);
 		},
 

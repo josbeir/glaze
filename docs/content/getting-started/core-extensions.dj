@@ -137,7 +137,7 @@ Each document includes:
 
 ```neon
 extensions:
-        - search-index
+    - search-index
 ```
 
 #### Options
@@ -146,16 +146,18 @@ Switch to map syntax to pass options:
 
 ```neon
 extensions:
-        search-index:
-                filename: site-search.json
-                exclude:
-                        - /drafts
-                        - /private
+    search-index:
+        filename: site-search.json
+        toc: true
+        exclude:
+            - /drafts
+            - /private
 ```
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `filename` | string | Output filename written in the build output directory. Default: `search-index.json`. |
+| `toc` | bool | Include heading-level anchor documents from page TOC entries. Default: `true`. |
 | `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the index. |
 
 #### MiniSearch pseudo example
@@ -182,6 +184,10 @@ for (const hit of results) {
     console.log(hit.title, hit.url)
 }
 ```
+
+When `toc` is enabled, heading-level entries are included and can produce
+results like `Installation > New project setup` that link directly to
+`/installation#New-project-setup`.
 
 The docs site itself uses this extension to power the built-in client-side search dialog.
 

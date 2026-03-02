@@ -67,6 +67,7 @@
 								class="flex flex-col items-start gap-0.5"
 								:class="{ 'bg-base-200': index === activeIndex }"
 								@mouseenter="setActiveIndex(index)"
+								@click="close()"
 							>
 								<span class="font-medium" x-text="result.title"></span>
 								<span class="text-xs text-base-content/70 line-clamp-2" x-text="result.description || result.url"></span>

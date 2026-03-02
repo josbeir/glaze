@@ -10,6 +10,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Extension\SearchIndexExtension;
+use Glaze\Render\Djot\TocEntry;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -462,6 +463,88 @@ final class SearchIndexExtensionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // TOC heading documents
+    // -------------------------------------------------------------------------
+
+    /**
+     * collect() emits extra documents for each TOC entry by default.
+     */
+    public function testCollectIncludesTocHeadingDocumentsByDefault(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $toc = [
+            new TocEntry(level: 2, id: 'new-project-setup', text: 'New project setup'),
+            new TocEntry(level: 2, id: 'existing-project', text: 'Existing project'),
+        ];
+        $ext->collect($this->makePageRenderedEvent('/installation', '<p>Content</p>', $config, title: 'Installation', toc: $toc));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $titles = array_column($documents, 'title');
+
+        $this->assertContains('Installation > New project setup', $titles);
+        $this->assertContains('Installation > Existing project', $titles);
+
+        $urls = array_column($documents, 'url');
+        $this->assertContains('/installation#new-project-setup', $urls);
+        $this->assertContains('/installation#existing-project', $urls);
+    }
+
+    /**
+     * collect() skips TOC heading documents when toc is disabled in config.
+     */
+    public function testCollectSkipsTocHeadingDocumentsWhenDisabled(): void
+    {
+        $ext = new SearchIndexExtension(toc: false);
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $toc = [
+            new TocEntry(level: 2, id: 'new-project-setup', text: 'New project setup'),
+        ];
+        $ext->collect($this->makePageRenderedEvent('/installation', '<p>Content</p>', $config, title: 'Installation', toc: $toc));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $this->assertCount(1, $documents);
+        $this->assertSame('Installation', $documents[0]['title']);
+    }
+
+    /**
+     * fromConfig() parses toc: false to disable heading documents.
+     */
+    public function testFromConfigParsesTocFalse(): void
+    {
+        $ext = SearchIndexExtension::fromConfig(['toc' => false]);
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $toc = [new TocEntry(level: 2, id: 'section-one', text: 'Section One')];
+        $ext->collect($this->makePageRenderedEvent('/page', '<p>Content</p>', $config, toc: $toc));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $this->assertCount(1, $documents);
+    }
+
+    /**
+     * collect() prefixes heading document URLs with site basePath.
+     */
+    public function testCollectPrefixesHeadingUrlsWithBasePath(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig('/glaze');
+
+        $toc = [new TocEntry(level: 2, id: 'setup', text: 'Setup')];
+        $ext->collect($this->makePageRenderedEvent('/installation', '<p>Content</p>', $config, toc: $toc));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $urls = array_column($documents, 'url');
+        $this->assertContains('/glaze/installation#setup', $urls);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -489,6 +572,7 @@ final class SearchIndexExtensionTest extends TestCase
      * @param \Glaze\Config\BuildConfig $config Build config.
      * @param string $title Page title.
      * @param array<string, mixed> $meta Frontmatter meta values.
+     * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries.
      */
     private function makePageRenderedEvent(
         string $urlPath,
@@ -496,6 +580,7 @@ final class SearchIndexExtensionTest extends TestCase
         BuildConfig $config,
         string $title = 'Test Page',
         array $meta = [],
+        array $toc = [],
     ): PageRenderedEvent {
         $page = new ContentPage(
             sourcePath: '',
@@ -507,6 +592,7 @@ final class SearchIndexExtensionTest extends TestCase
             source: '',
             draft: false,
             meta: $meta,
+            toc: $toc,
         );
 
         return new PageRenderedEvent($page, $html, $config);

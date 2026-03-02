@@ -70,7 +70,7 @@ final class SiteBuilder
             siteIndex: $siteIndex,
             extensionRegistry: $extensionRegistry,
             dispatcher: $dispatcher,
-        );
+        )->html;
     }
 
     /**
@@ -165,7 +165,7 @@ final class SiteBuilder
 
             $pageStartTime = hrtime(true);
 
-            $html = $this->pageRenderPipeline->render(
+            $renderOutput = $this->pageRenderPipeline->render(
                 config: $config,
                 page: $page,
                 pageTemplate: $this->resolvePageTemplate($page, $config),
@@ -175,7 +175,7 @@ final class SiteBuilder
                 dispatcher: $dispatcher,
             );
 
-            $renderedEvent = new PageRenderedEvent($page, $html, $config);
+            $renderedEvent = new PageRenderedEvent($renderOutput->page, $renderOutput->html, $config);
             $dispatcher->dispatch(BuildEvent::PageRendered, $renderedEvent);
             $html = $renderedEvent->html;
 

@@ -70,11 +70,13 @@ final class SearchIndexExtension implements ConfigurableExtension
      *
      * @param string $filename Output filename written under the build output directory.
      * @param list<string> $exclude URL path prefixes whose pages are excluded from the index.
+     * @param bool $toc Whether to emit additional search documents for each TOC heading anchor.
      * @param \Glaze\Support\ResourcePathRewriter $pathRewriter Shared URL path rewriter for basePath application.
      */
     public function __construct(
         protected readonly string $filename = 'search-index.json',
         protected readonly array $exclude = [],
+        protected readonly bool $toc = true,
         protected readonly ResourcePathRewriter $pathRewriter = new ResourcePathRewriter(),
     ) {
     }
@@ -102,7 +104,9 @@ final class SearchIndexExtension implements ConfigurableExtension
             }
         }
 
-        return new self($filename, $exclude);
+        $toc = is_bool($options['toc'] ?? null) ? $options['toc'] : true;
+
+        return new self($filename, $exclude, $toc);
     }
 
     /**
@@ -149,6 +153,40 @@ final class SearchIndexExtension implements ConfigurableExtension
             'url' => $this->resolveDocumentUrl($event),
             'content' => $this->extractContent($event->html),
         ];
+
+        if ($this->toc) {
+            foreach ($this->extractHeadingDocuments($event) as $anchor => $document) {
+                $this->documents[$event->page->urlPath . '#' . $anchor] = $document;
+            }
+        }
+    }
+
+    /**
+     * Build heading-level search documents from the page's TOC entries.
+     *
+     * Each `\Glaze\Render\Djot\TocEntry` on the rendered page produces a separate document
+     * with the combined title `Page Title > Heading Text` and a fragment URL pointing
+     * directly to the heading anchor. Documents are keyed by their anchor id.
+     *
+     * @param \Glaze\Build\Event\PageRenderedEvent $event Event payload.
+     * @return array<string, array{id: int, title: string, description: string, url: string, content: string}>
+     */
+    protected function extractHeadingDocuments(PageRenderedEvent $event): array
+    {
+        $documents = [];
+        $pageUrl = $this->resolveDocumentUrl($event);
+
+        foreach ($event->page->toc as $entry) {
+            $documents[$entry->id] = [
+                'id' => $this->nextId++,
+                'title' => sprintf('%s > %s', $event->page->title, $entry->text),
+                'description' => $event->page->title,
+                'url' => $pageUrl . '#' . $entry->id,
+                'content' => $entry->text,
+            ];
+        }
+
+        return $documents;
     }
 
     /**
