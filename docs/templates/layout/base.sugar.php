@@ -10,7 +10,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>
+    <title s:trim>
 		<s-ifblock name="title">
 			<s-template s:block="title" /> |
 		</s-ifblock>

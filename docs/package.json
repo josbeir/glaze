@@ -15,7 +15,6 @@
     "htmx.org": "^2.0.8",
     "minisearch": "^7.2.0",
     "tailwindcss": "^4.2.1",
-    "typed.js": "^2.1.0",
     "vite": "latest"
   }
 }

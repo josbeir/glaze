@@ -16,6 +16,7 @@
 			); ?>
 			<li s:foreach="$rootPages as $menuPage">
 				<a
+					s:trim
 					href="<?= $this->url($menuPage->urlPath) ?>"
 					s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
 				>
@@ -31,6 +32,7 @@
 					<?php /** @var Glaze\Content\ContentPage $menuPage */ ?>
 					<li s:foreach="$sectionPages as $menuPage">
 						<a
+							s:trim
 							href="<?= $this->url($menuPage->urlPath) ?>"
 							s:class="['menu-active' => $this->isCurrent($menuPage->urlPath)]"
 						>
