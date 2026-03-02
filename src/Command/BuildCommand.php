@@ -58,8 +58,8 @@ final class BuildCommand extends BaseCommand
                 'help' => 'Project root directory containing content/ and templates/.',
                 'default' => null,
             ])
-            ->addOption('noclean', [
-                'help' => 'Skip cleaning the output directory before writing files.',
+            ->addOption('clean', [
+                'help' => 'Force cleaning the output directory before writing files.',
                 'boolean' => true,
                 'default' => false,
             ])
@@ -295,15 +295,18 @@ final class BuildCommand extends BaseCommand
     }
 
     /**
-     * Resolve clean-output behavior from config with optional no-clean override.
+     * Resolve clean-output behavior from config with optional --clean override.
+     *
+     * Returns true when --clean is passed on the CLI, or when build.clean is enabled
+     * in project configuration. The CLI flag takes precedence over the config value.
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
      * @param array<string, mixed> $buildConfiguration Build configuration map.
      */
     protected function resolveCleanOutputOption(Arguments $args, array $buildConfiguration): bool
     {
-        if ((bool)$args->getOption('noclean')) {
-            return false;
+        if ((bool)$args->getOption('clean')) {
+            return true;
         }
 
         $configuredValue = $buildConfiguration['clean'] ?? null;

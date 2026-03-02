@@ -80,15 +80,14 @@ glaze build
 Options:
 
 - `--root <path>` project root
-- `--noclean` skip cleaning output directory before build
+- `--clean` force cleaning the output directory before build
 - `--drafts` include draft pages
 - `--vite` run Vite build process after static build
 - `--vite-command <command>` custom Vite build command (defaults to `build.vite.command` or `npm run build`)
 
 Defaults for these options can be set in `glaze.neon` under `build` (`clean`, `drafts`, `vite.enabled`, `vite.command`).
 
-`build.clean` now defaults to `false`, so incremental builds are the default behavior when not configured.
-Set `build.clean: true` when you need a full clean rebuild each run.
+Incremental builds are the default. Use `--clean` for a one-off clean run, or set `build.clean: true` in `glaze.neon` to always clean before building.
 
 With `--verbose`, build output streams one line per page during the build:
 

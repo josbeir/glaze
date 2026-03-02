@@ -115,10 +115,10 @@ build:
   clean: true
 ```
 
-To skip cleaning from the CLI when a project is configured with `build.clean: true`:
+To force a clean for a single run without configuring `build.clean`:
 
 ```bash
-glaze build --noclean
+glaze build --clean
 ```
 
 What happens during a build:

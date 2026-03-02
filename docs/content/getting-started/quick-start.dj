@@ -152,10 +152,10 @@ build:
   clean: true
 ```
 
-To override that setting for one run and keep incremental behavior:
+To force a single clean run without changing configuration:
 
 ```bash
-glaze build --noclean
+glaze build --clean
 ```
 
 During build, Glaze:

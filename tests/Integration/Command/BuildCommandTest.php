@@ -493,19 +493,18 @@ final class BuildCommandTest extends IntegrationCommandTestCase
     }
 
     /**
-     * Ensure --noclean disables cleanup even when build.clean is enabled in config.
+     * Ensure --clean forces output cleanup even when build.clean is not enabled in config.
      */
-    public function testBuildCommandNoCleanOptionOverridesConfigurationCleanDefault(): void
+    public function testBuildCommandCleanOptionForcesCleanRegardlessOfConfiguration(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
         mkdir($projectRoot . '/public', 0755, true);
         file_put_contents($projectRoot . '/public/stale.txt', 'stale');
-        file_put_contents($projectRoot . '/glaze.neon', "build:\n  clean: true\n");
 
-        $this->exec(sprintf('build --root "%s" --noclean', $projectRoot));
+        $this->exec(sprintf('build --root "%s" --clean', $projectRoot));
 
         $this->assertExitCode(0);
-        $this->assertFileExists($projectRoot . '/public/stale.txt');
+        $this->assertFileDoesNotExist($projectRoot . '/public/stale.txt');
     }
 
     /**
