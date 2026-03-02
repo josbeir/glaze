@@ -108,4 +108,27 @@ final class PageRenderPipeline
 
         return new PageRenderOutput($output, $page);
     }
+
+    /**
+     * Extract table-of-contents entries from a page's Djot source without running
+     * the full Sugar template pipeline.
+     *
+     * This performs a lightweight Djot-only conversion to collect heading entries.
+     * The rendered HTML is discarded — only the TOC list is returned. Used by
+     * `SiteBuilder` to populate TOC data for cache-hit pages that skip the full
+     * render pass, so that `PageRendered` listeners always receive a complete page.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page to extract TOC from.
+     * @param \Glaze\Config\BuildConfig $config Active build configuration.
+     * @return list<\Glaze\Render\Djot\TocEntry> TOC entries in document order.
+     */
+    public function extractToc(ContentPage $page, BuildConfig $config): array
+    {
+        return $this->djotRenderer->renderWithToc(
+            source: $page->source,
+            djot: $config->djotOptions,
+            siteConfig: $config->site,
+            relativePagePath: $page->relativePath,
+        )->toc;
+    }
 }

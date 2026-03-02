@@ -153,7 +153,18 @@ final class SiteBuilder
                 || !is_file($destination);
 
             if (!$shouldRender) {
-                $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
+                $cachedHtml = is_file($destination) ? (string)file_get_contents($destination) : '';
+                $enrichedPage = $page->withToc(
+                    $this->pageRenderPipeline->extractToc($page, $config),
+                );
+
+                $renderedEvent = new PageRenderedEvent($enrichedPage, $cachedHtml, $config);
+                $dispatcher->dispatch(BuildEvent::PageRendered, $renderedEvent);
+
+                $dispatcher->dispatch(
+                    BuildEvent::PageWritten,
+                    new PageWrittenEvent($enrichedPage, $destination, $config),
+                );
                 $completedPages++;
 
                 if (is_callable($progressCallback)) {
@@ -180,7 +191,10 @@ final class SiteBuilder
             $html = $renderedEvent->html;
 
             $this->writeFile($destination, $html);
-            $dispatcher->dispatch(BuildEvent::PageWritten, new PageWrittenEvent($page, $destination, $config));
+            $dispatcher->dispatch(
+                BuildEvent::PageWritten,
+                new PageWrittenEvent($renderOutput->page, $destination, $config),
+            );
             $writtenFiles[] = $destination;
             $completedPages++;
             $pageDuration = (float)(hrtime(true) - $pageStartTime) / 1e9;

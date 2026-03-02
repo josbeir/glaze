@@ -833,6 +833,178 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure PageRendered is dispatched for cached (non-re-rendered) pages during incremental builds.
+     */
+    public function testBuildIncrementalDispatchesPageRenderedForCachedPages(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        mkdir($projectRoot . '/content/docs', 0755, true);
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        // First build renders both pages
+        $builder->build($config);
+
+        // Change only one page so the other is served from cache
+        file_put_contents($projectRoot . '/content/docs/second.dj', "# Second updated\n");
+
+        $renderedUrls = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$renderedUrls): void {
+            $renderedUrls[] = $event->page->urlPath;
+        });
+
+        $builder->build($config, dispatcher: $dispatcher);
+
+        // Both pages should have fired PageRendered — even the cached /
+        $this->assertContains('/', $renderedUrls);
+        $this->assertContains('/docs/second/', $renderedUrls);
+        $this->assertCount(2, $renderedUrls);
+    }
+
+    /**
+     * Ensure PageRendered for cached pages carries the HTML previously written to disk.
+     */
+    public function testBuildIncrementalPageRenderedCarriesCachedHtml(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        // First build writes index.html
+        $builder->build($config);
+
+        $expectedHtml = file_get_contents($projectRoot . '/public/index.html');
+        $this->assertNotEmpty($expectedHtml);
+
+        // Second build — no changes, so index is served from cache
+        $capturedHtml = null;
+        $dispatcher = new EventDispatcher();
+        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$capturedHtml): void {
+            if ($event->page->urlPath === '/') {
+                $capturedHtml = $event->html;
+            }
+        });
+
+        $builder->build($config, dispatcher: $dispatcher);
+
+        $this->assertSame($expectedHtml, $capturedHtml);
+    }
+
+    /**
+     * Ensure PageRendered for cached pages carries a TOC-enriched ContentPage.
+     */
+    public function testBuildIncrementalPageRenderedCarriesTocEnrichedPage(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "# Home\n\n## Setup\n\nSome content.\n\n## Usage\n\nMore content.\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        // First build — renders page with headings
+        $builder->build($config);
+
+        // Second build — no changes, page is cached
+        $capturedToc = null;
+        $dispatcher = new EventDispatcher();
+        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$capturedToc): void {
+            if ($event->page->urlPath === '/') {
+                $capturedToc = $event->page->toc;
+            }
+        });
+
+        $builder->build($config, dispatcher: $dispatcher);
+
+        $this->assertNotNull($capturedToc);
+        $this->assertCount(3, $capturedToc);
+
+        $this->assertSame(1, $capturedToc[0]->level);
+        $this->assertSame('Home', $capturedToc[0]->text);
+
+        $this->assertSame(2, $capturedToc[1]->level);
+        $this->assertSame('Setup', $capturedToc[1]->text);
+
+        $this->assertSame(2, $capturedToc[2]->level);
+        $this->assertSame('Usage', $capturedToc[2]->text);
+    }
+
+    /**
+     * Ensure PageWritten carries a TOC-enriched ContentPage for freshly rendered pages.
+     */
+    public function testBuildPageWrittenCarriesTocEnrichedPage(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "# Home\n\n## Getting Started\n\nContent here.\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        $capturedToc = null;
+        $dispatcher = new EventDispatcher();
+        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$capturedToc): void {
+            if ($event->page->urlPath === '/') {
+                $capturedToc = $event->page->toc;
+            }
+        });
+
+        $builder->build($config, dispatcher: $dispatcher);
+
+        $this->assertNotNull($capturedToc);
+        $this->assertCount(2, $capturedToc);
+
+        $this->assertSame(1, $capturedToc[0]->level);
+        $this->assertSame('Home', $capturedToc[0]->text);
+
+        $this->assertSame(2, $capturedToc[1]->level);
+        $this->assertSame('Getting Started', $capturedToc[1]->text);
+    }
+
+    /**
+     * Ensure PageWritten carries a TOC-enriched ContentPage for cached pages during incremental builds.
+     */
+    public function testBuildIncrementalPageWrittenCarriesTocEnrichedPage(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "# Home\n\n## Installation\n\nContent.\n\n## Configuration\n\nMore.\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder = $this->createSiteBuilder();
+
+        // First build — renders page
+        $builder->build($config);
+
+        // Second build — no changes, page is cached
+        $capturedToc = null;
+        $dispatcher = new EventDispatcher();
+        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$capturedToc): void {
+            if ($event->page->urlPath === '/') {
+                $capturedToc = $event->page->toc;
+            }
+        });
+
+        $builder->build($config, dispatcher: $dispatcher);
+
+        $this->assertNotNull($capturedToc);
+        $this->assertCount(3, $capturedToc);
+
+        $this->assertSame('Home', $capturedToc[0]->text);
+        $this->assertSame('Installation', $capturedToc[1]->text);
+        $this->assertSame('Configuration', $capturedToc[2]->text);
+    }
+
+    /**
      * Ensure incremental builds remove orphaned output files for deleted content pages.
      */
     public function testBuildIncrementalPrunesDeletedPageOutput(): void
