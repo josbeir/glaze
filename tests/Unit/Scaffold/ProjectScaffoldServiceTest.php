@@ -135,7 +135,7 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertStringContainsString('# --- Available options (uncomment and adjust as needed) ---', $raw);
         $this->assertStringContainsString('# contentTypes:', $raw);
         $this->assertStringContainsString('# paths:', $raw);
-        $this->assertStringContainsString('#   template: templates', $raw);
+        $this->assertMatchesRegularExpression('/#\s+template:\s+templates/', $raw);
         $this->assertStringContainsString('# djot:', $raw);
         $this->assertStringContainsString('# devServer:', $raw);
     }

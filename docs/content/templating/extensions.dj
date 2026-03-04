@@ -30,7 +30,8 @@ Create an `extensions/` directory at your project root. Any class decorated with
 The directory is `extensions/` by default. Override it in `glaze.neon`:
 
 ```neon
-extensionsDir: src/Extensions
+paths:
+    extensions: src/Extensions
 ```
 
 Classes that do **not** carry `#[GlazeExtension]` are silently skipped, so helper files can live alongside extension classes without issue.

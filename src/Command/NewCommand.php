@@ -11,7 +11,6 @@ use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\BuildConfigFactory;
 use Glaze\Scaffold\PageScaffoldOptions;
 use Glaze\Scaffold\PageScaffoldService;
 use Glaze\Utility\Normalization;
@@ -29,11 +28,9 @@ final class NewCommand extends BaseCommand
      * Constructor.
      *
      * @param \Glaze\Scaffold\PageScaffoldService $pageScaffoldService Page scaffold service.
-     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
         protected PageScaffoldService $pageScaffoldService,
-        protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
     }
@@ -120,7 +117,7 @@ final class NewCommand extends BaseCommand
     {
         try {
             $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
-            $config = $this->buildConfigFactory->fromProjectRoot($projectRoot, true);
+            $config = BuildConfig::fromProjectRoot($projectRoot, true);
             $input = $this->resolvePageInput($args, $io, $config);
             $targetPath = $this->pageScaffoldService->scaffold(
                 $config->contentPath(),

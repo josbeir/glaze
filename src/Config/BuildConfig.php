@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Config;
 
+use Cake\Core\Configure;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\Path;
 use RuntimeException;
@@ -10,8 +11,9 @@ use RuntimeException;
 /**
  * Immutable build configuration for static site generation.
  *
- * Instantiated via {@see self::fromProjectRoot()} which reads glaze.neon and
- * constructs fully typed sub-objects ({@see DjotOptions}, {@see TemplateViteOptions},
+ * Instantiated via {@see self::fromProjectRoot()} (CLI commands) or
+ * {@see self::fromConfigure()} (DI container) which construct fully typed
+ * sub-objects ({@see DjotOptions}, {@see TemplateViteOptions},
  * {@see SiteConfig}) directly — no intermediate array representations are stored.
  */
 final class BuildConfig
@@ -64,18 +66,54 @@ final class BuildConfig
     /**
      * Create a configuration from a project root path by reading glaze.neon.
      *
+     * Loads the reference configuration and merges the project's glaze.neon
+     * on top via Configure. Runtime values (`projectRoot`, CLI `includeDrafts`)
+     * are written to Configure so that downstream code and the container's
+     * shared {@see self::fromConfigure()} factory can read them.
+     *
      * @param string $projectRoot Project root path.
-     * @param bool $includeDrafts Whether draft pages should be included.
-     * @param \Glaze\Config\ProjectConfigurationReader|null $projectConfigurationReader Project configuration reader service.
+     * @param bool $includeDrafts Whether draft pages should be included (CLI override).
      */
     public static function fromProjectRoot(
         string $projectRoot,
         bool $includeDrafts = false,
-        ?ProjectConfigurationReader $projectConfigurationReader = null,
     ): self {
         $root = Path::normalize($projectRoot);
-        $reader = $projectConfigurationReader ?? new ProjectConfigurationReader();
-        $config = $reader->read($root);
+        (new ProjectConfigurationReader())->read($root);
+
+        Configure::write('projectRoot', $root);
+        if ($includeDrafts) {
+            Configure::write('build.drafts', true);
+        }
+
+        return self::fromConfigure();
+    }
+
+    /**
+     * Create a configuration from the current Configure state.
+     *
+     * Expects the merged reference + project configuration to already be
+     * loaded into Configure (via {@see ProjectConfigurationReader::read()})
+     * and `projectRoot` to be set. This factory is used by the DI container
+     * to provide a shared BuildConfig instance.
+     *
+     * @throws \RuntimeException When projectRoot is not available in Configure.
+     */
+    public static function fromConfigure(): self
+    {
+        $root = Configure::read('projectRoot');
+        if (!is_string($root) || $root === '') {
+            throw new RuntimeException(
+                'projectRoot not available in Configure. Load project configuration first.',
+            );
+        }
+
+        $config = Configure::read();
+        if (!is_array($config)) {
+            $config = [];
+        }
+
+        /** @var array<string, mixed> $config */
 
         /** @var array<string, mixed> $buildConfig */
         $buildConfig = is_array($config['build'] ?? null) ? $config['build'] : [];
@@ -99,7 +137,7 @@ final class BuildConfig
             staticDir: $pathConfig['static'],
             outputDir: $pathConfig['public'],
             pageTemplate: self::extractPageTemplate($config),
-            extensionsDir: self::extractExtensionsDir($config),
+            extensionsDir: $pathConfig['extensions'],
             enabledExtensions: self::extractEnabledExtensions($config),
             imagePresets: self::extractImagePresets($config),
             imageOptions: self::extractImageOptions($config),
@@ -108,7 +146,7 @@ final class BuildConfig
             djotOptions: DjotOptions::fromProjectConfig($djotConfig),
             templateViteOptions: TemplateViteOptions::fromProjectConfig($buildVite, $devVite, $root),
             site: SiteConfig::fromProjectConfig($config['site'] ?? null),
-            includeDrafts: $includeDrafts,
+            includeDrafts: ($buildConfig['drafts'] ?? false) === true,
         );
     }
 
@@ -168,7 +206,7 @@ final class BuildConfig
      * Extract configurable project paths from the `paths` block.
      *
      * @param array<string, mixed> $config Raw project configuration.
-     * @return array{content: string, template: string, static: string, public: string}
+     * @return array{content: string, template: string, static: string, public: string, extensions: string}
      */
     private static function extractPathConfig(array $config): array
     {
@@ -180,6 +218,7 @@ final class BuildConfig
             'template' => self::extractConfiguredPath($paths, 'template', 'templates'),
             'static' => self::extractConfiguredPath($paths, 'static', 'static'),
             'public' => self::extractConfiguredPath($paths, 'public', 'public'),
+            'extensions' => self::extractConfiguredPath($paths, 'extensions', 'extensions'),
         ];
     }
 
@@ -209,18 +248,6 @@ final class BuildConfig
         $value = $config['pageTemplate'] ?? null;
 
         return is_string($value) && trim($value) !== '' ? trim($value) : 'page';
-    }
-
-    /**
-     * Extract the extensions directory name from project configuration.
-     *
-     * @param array<string, mixed> $config Raw project configuration.
-     */
-    private static function extractExtensionsDir(array $config): string
-    {
-        $value = $config['extensionsDir'] ?? null;
-
-        return is_string($value) && trim($value) !== '' ? trim($value) : 'extensions';
     }
 
     /**

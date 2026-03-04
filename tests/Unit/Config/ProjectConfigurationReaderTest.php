@@ -25,7 +25,9 @@ final class ProjectConfigurationReaderTest extends TestCase
 
         $configuration = $reader->read($projectRoot);
 
-        $this->assertSame([], $configuration);
+        $this->assertArrayHasKey('paths', $configuration);
+        $this->assertArrayHasKey('build', $configuration);
+        $this->assertArrayHasKey('devServer', $configuration);
     }
 
     /**
@@ -90,7 +92,8 @@ final class ProjectConfigurationReaderTest extends TestCase
 
         $configuration = $reader->read($projectRoot);
 
-        $this->assertSame([], $configuration);
+        $this->assertArrayHasKey('paths', $configuration);
+        $this->assertArrayHasKey('djot', $configuration);
     }
 
     /**
@@ -119,6 +122,22 @@ final class ProjectConfigurationReaderTest extends TestCase
 
         $configuration = $reader->read($projectRoot);
 
-        $this->assertSame([], $configuration);
+        $this->assertArrayHasKey('paths', $configuration);
+        $this->assertArrayHasKey('site', $configuration);
+    }
+
+    /**
+     * Ensure bundled reference config can be read without a project root.
+     */
+    public function testReadReferenceReturnsBundledDefaults(): void
+    {
+        $reader = new ProjectConfigurationReader();
+
+        $configuration = $reader->readReference();
+
+        $this->assertArrayHasKey('pageTemplate', $configuration);
+        $this->assertArrayHasKey('djot', $configuration);
+        $this->assertArrayHasKey('build', $configuration);
+        $this->assertArrayHasKey('devServer', $configuration);
     }
 }

@@ -1,0 +1,135 @@
+# Default Sugar template used for full-page rendering.
+pageTemplate: page
+
+# Directory paths relative to the project root.
+paths:
+  content: content
+  template: templates
+  static: static
+  public: public
+  # Directory scanned for auto-discoverable extension classes.
+  extensions: extensions
+
+# Explicitly enabled extensions, supports list and map notation.
+# examples:
+#   - sitemap
+#   - search-index:
+#       indexDrafts: false
+#   llms-txt:
+#     maxDepth: 2
+extensions: []
+
+# Taxonomy keys used for content classification (defaults to [tags]).
+# taxonomies:
+#   - tags
+#   - categories
+
+# Site-wide project metadata exposed in templates via `site`.
+site:
+  title: null
+  description: null
+  baseUrl: null
+  basePath: null
+  # Arbitrary key/value metadata accessible via site.meta('key').
+  meta: {}
+
+# Glide image processing configuration.
+images:
+  # Image driver: gd or imagick.
+  driver: null
+  # Named image presets with Glide parameters.
+  # example:
+  #   thumb:
+  #     w: 320
+  #     h: 180
+  #     fit: crop
+  presets: {}
+
+# Content type definitions with path rules and frontmatter defaults.
+# example:
+#   post:
+#     paths:
+#       - match: blog
+#         createPattern: 'blog/{year}'
+#     defaults:
+#       draft: false
+contentTypes: []
+
+# Djot renderer options.
+djot:
+  codeHighlighting:
+    enabled: true
+    theme: nord
+    # Named theme variants (e.g. dark: github-dark, light: github-light).
+    themes: {}
+    withGutter: false
+  headerAnchors:
+    enabled: false
+    symbol: "#"
+    # Position of the permalink: before or after the heading text.
+    position: after
+    cssClass: permalink-wrapper
+    ariaLabel: Anchor link
+    # Heading levels that receive permalinks (defaults to all: 1-6).
+    # levels:
+    #   - 2
+    #   - 3
+  autolink:
+    enabled: false
+    # URL schemes allowed for autolinking (defaults to https, http, mailto).
+    # allowedSchemes:
+    #   - https
+    #   - http
+  externalLinks:
+    enabled: false
+    # Hostnames considered internal (links to these are not decorated).
+    internalHosts: []
+    target: _blank
+    rel: noopener noreferrer
+    nofollow: false
+  smartQuotes:
+    enabled: false
+    locale: null
+    # Custom quote characters (overrides locale).
+    openDouble: null
+    closeDouble: null
+    openSingle: null
+    closeSingle: null
+  mentions:
+    enabled: false
+    # URL template with {username} placeholder.
+    urlTemplate: '/users/view/{username}'
+    cssClass: mention
+  semanticSpan:
+    enabled: false
+  defaultAttributes:
+    enabled: false
+    # Default attributes per element type.
+    # example:
+    #   paragraph:
+    #     class: prose
+    defaults: {}
+
+# Static build options.
+build:
+  clean: false
+  drafts: false
+  vite:
+    enabled: false
+    command: 'npm run build'
+    assetBaseUrl: /
+    manifestPath: public/.vite/manifest.json
+    defaultEntry: null
+
+# Development server options.
+devServer:
+  php:
+    host: 127.0.0.1
+    port: 8080
+  vite:
+    enabled: false
+    host: 127.0.0.1
+    port: 5173
+    injectClient: true
+    defaultEntry: null
+    command: 'npm run dev -- --host {host} --port {port} --strictPort'

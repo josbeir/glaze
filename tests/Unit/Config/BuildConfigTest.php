@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Config;
 
+use Cake\Core\Configure;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
 use Glaze\Config\DjotOptions;
+use Glaze\Config\NeonConfigEngine;
+use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Config\SiteConfig;
 use Glaze\Config\TemplateViteOptions;
 use Glaze\Utility\Path;
@@ -137,7 +140,11 @@ final class BuildConfigTest extends TestCase
     {
         $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
         mkdir($projectRoot, 0755, true);
-        file_put_contents($projectRoot . '/glaze.neon', "extensionsDir: src/Extensions\n");
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "paths:\n"
+            . "  extensions: src/Extensions\n",
+        );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
@@ -151,7 +158,11 @@ final class BuildConfigTest extends TestCase
     {
         $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
         mkdir($projectRoot, 0755, true);
-        file_put_contents($projectRoot . '/glaze.neon', "extensionsDir: \n");
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "paths:\n"
+            . "  extensions: ''\n",
+        );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
@@ -901,5 +912,138 @@ final class BuildConfigTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
         $this->assertSame(['tags'], $config->taxonomies);
+    }
+
+    /**
+     * Ensure fromConfigure throws when projectRoot is not set in Configure.
+     */
+    public function testFromConfigureThrowsWithoutProjectRoot(): void
+    {
+        Configure::clear();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('projectRoot not available in Configure');
+
+        BuildConfig::fromConfigure();
+    }
+
+    /**
+     * Ensure fromConfigure throws when projectRoot is an empty string.
+     */
+    public function testFromConfigureThrowsWithEmptyProjectRoot(): void
+    {
+        Configure::clear();
+        Configure::write('projectRoot', '');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('projectRoot not available in Configure');
+
+        BuildConfig::fromConfigure();
+    }
+
+    /**
+     * Ensure fromConfigure constructs a BuildConfig from pre-populated Configure state.
+     */
+    public function testFromConfigureConstructsFromConfigureState(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "pageTemplate: custom-page\n");
+
+        if (!Configure::isConfigured('default')) {
+            Configure::config('default', new NeonConfigEngine());
+        }
+
+        (new ProjectConfigurationReader())->read($projectRoot);
+        Configure::write('projectRoot', $projectRoot);
+
+        $config = BuildConfig::fromConfigure();
+
+        $this->assertSame($projectRoot, $config->projectRoot);
+        $this->assertSame('custom-page', $config->pageTemplate);
+        $this->assertFalse($config->includeDrafts);
+    }
+
+    /**
+     * Ensure fromConfigure respects build.drafts written to Configure.
+     */
+    public function testFromConfigureRespectsDraftsOverride(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', '');
+
+        if (!Configure::isConfigured('default')) {
+            Configure::config('default', new NeonConfigEngine());
+        }
+
+        (new ProjectConfigurationReader())->read($projectRoot);
+        Configure::write('projectRoot', $projectRoot);
+        Configure::write('build.drafts', true);
+
+        $config = BuildConfig::fromConfigure();
+
+        $this->assertTrue($config->includeDrafts);
+    }
+
+    /**
+     * Ensure fromProjectRoot populates Configure with projectRoot for downstream consumers.
+     */
+    public function testFromProjectRootPopulatesConfigureWithProjectRoot(): void
+    {
+        Configure::clear();
+
+        BuildConfig::fromProjectRoot('/tmp/glaze-project');
+
+        $this->assertSame('/tmp/glaze-project', Configure::read('projectRoot'));
+    }
+
+    /**
+     * Ensure fromProjectRoot writes build.drafts to Configure when CLI override is active.
+     */
+    public function testFromProjectRootWritesDraftsToConfigureWhenEnabled(): void
+    {
+        Configure::clear();
+
+        BuildConfig::fromProjectRoot('/tmp/glaze-project', true);
+
+        $this->assertTrue(Configure::read('build.drafts'));
+    }
+
+    /**
+     * Ensure fromProjectRoot does not override build.drafts when CLI flag is false.
+     */
+    public function testFromProjectRootPreservesConfigDraftsWhenCliDisabled(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents($projectRoot . '/glaze.neon', "build:\n  drafts: true\n");
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, false);
+
+        $this->assertTrue($config->includeDrafts);
+    }
+
+    /**
+     * Ensure fromConfigure produces the same result as fromProjectRoot for the same configuration.
+     */
+    public function testFromConfigureMatchesFromProjectRoot(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "pageTemplate: article\ntaxonomies:\n  - tags\n  - categories\n",
+        );
+
+        $fromRoot = BuildConfig::fromProjectRoot($projectRoot);
+        $fromConfigure = BuildConfig::fromConfigure();
+
+        $this->assertSame($fromRoot->projectRoot, $fromConfigure->projectRoot);
+        $this->assertSame($fromRoot->pageTemplate, $fromConfigure->pageTemplate);
+        $this->assertSame($fromRoot->taxonomies, $fromConfigure->taxonomies);
+        $this->assertSame($fromRoot->includeDrafts, $fromConfigure->includeDrafts);
+        $this->assertSame($fromRoot->contentDir, $fromConfigure->contentDir);
+        $this->assertSame($fromRoot->templateDir, $fromConfigure->templateDir);
     }
 }

@@ -7,8 +7,6 @@ use Cake\Console\Arguments;
 use Closure;
 use Glaze\Build\SiteBuilder;
 use Glaze\Command\BuildCommand;
-use Glaze\Config\BuildConfigFactory;
-use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
@@ -59,9 +57,7 @@ final class BuildCommandTest extends TestCase
         $siteBuilder = $this->service(SiteBuilder::class);
         $command = new BuildCommand(
             siteBuilder: $siteBuilder,
-            projectConfigurationReader: $this->service(ProjectConfigurationReader::class),
             viteBuildProcess: $this->service(ViteBuildProcess::class),
-            buildConfigFactory: $this->service(BuildConfigFactory::class),
         );
 
         $siteBuilderProperty = new ReflectionProperty($command, 'siteBuilder');
@@ -82,100 +78,6 @@ final class BuildCommandTest extends TestCase
         $this->assertSame('/tmp/site', $trimmed);
         $this->assertNull($blank);
         $this->assertNull($invalid);
-    }
-
-    /**
-     * Ensure Vite build configuration can be loaded from glaze.neon and overridden by CLI options.
-     */
-    public function testResolveViteBuildConfigurationFromConfigAndCliOverrides(): void
-    {
-        $command = $this->createCommand();
-
-        $argsFromConfig = new Arguments([], [
-            'vite' => false,
-            'vite-command' => null,
-        ], []);
-
-        $resolvedFromConfig = $this->callProtected(
-            $command,
-            'resolveViteBuildConfiguration',
-            $argsFromConfig,
-            [
-                'vite' => [
-                    'enabled' => true,
-                    'command' => 'npm run build:prod',
-                ],
-            ],
-        );
-
-        $this->assertIsArray($resolvedFromConfig);
-        $this->assertTrue($resolvedFromConfig['enabled']);
-        $this->assertSame('npm run build:prod', $resolvedFromConfig['command']);
-
-        $argsFromCli = new Arguments([], [
-            'vite' => true,
-            'vite-command' => 'pnpm build',
-        ], []);
-
-        $resolvedFromCli = $this->callProtected(
-            $command,
-            'resolveViteBuildConfiguration',
-            $argsFromCli,
-            [
-                'vite' => [
-                    'enabled' => true,
-                    'command' => 'npm run build:prod',
-                ],
-            ],
-        );
-
-        $this->assertIsArray($resolvedFromCli);
-        $this->assertTrue($resolvedFromCli['enabled']);
-        $this->assertSame('pnpm build', $resolvedFromCli['command']);
-    }
-
-    /**
-     * Ensure build boolean options use CLI true values and fallback to configuration defaults.
-     */
-    public function testResolveBuildBooleanOptionFromCliAndConfiguration(): void
-    {
-        $command = $this->createCommand();
-
-        $argsFromCli = new Arguments([], [
-            'clean' => true,
-        ], []);
-        $cleanFromCli = $this->callProtected(
-            $command,
-            'resolveBuildBooleanOption',
-            $argsFromCli,
-            ['clean' => false],
-            'clean',
-        );
-        $this->assertTrue($cleanFromCli);
-
-        $argsFromConfig = new Arguments([], [
-            'clean' => null,
-        ], []);
-        $cleanFromConfig = $this->callProtected(
-            $command,
-            'resolveBuildBooleanOption',
-            $argsFromConfig,
-            ['clean' => true],
-            'clean',
-        );
-        $this->assertTrue($cleanFromConfig);
-
-        $argsFromDefault = new Arguments([], [
-            'clean' => null,
-        ], []);
-        $cleanFromDefault = $this->callProtected(
-            $command,
-            'resolveBuildBooleanOption',
-            $argsFromDefault,
-            [],
-            'clean',
-        );
-        $this->assertFalse($cleanFromDefault);
     }
 
     /**

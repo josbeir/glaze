@@ -7,7 +7,7 @@ use Cake\Console\Arguments;
 use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
 use Glaze\Utility\Path;
 use Glaze\Utility\ProjectRootResolver;
@@ -26,16 +26,6 @@ use Throwable;
  */
 final class CacheCommand extends BaseCommand
 {
-    /**
-     * Constructor.
-     *
-     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
-     */
-    public function __construct(protected BuildConfigFactory $buildConfigFactory)
-    {
-        parent::__construct();
-    }
-
     /**
      * Return command description text.
      */
@@ -80,7 +70,7 @@ final class CacheCommand extends BaseCommand
     {
         try {
             $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
-            $config = $this->buildConfigFactory->fromProjectRoot($projectRoot);
+            $config = BuildConfig::fromProjectRoot($projectRoot);
 
             $templatesOnly = (bool)$args->getOption('templates');
             $imagesOnly = (bool)$args->getOption('images');

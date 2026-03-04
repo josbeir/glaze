@@ -7,8 +7,9 @@ use Cake\Console\Arguments;
 use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Core\Configure;
 use Glaze\Build\SiteBuilder;
-use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\BuildConfig;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\PhpServerProcess;
 use Glaze\Process\ViteServeProcess;
@@ -27,17 +28,13 @@ final class ServeCommand extends BaseCommand
      * Constructor.
      *
      * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
-     * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
      * @param \Glaze\Process\ViteServeProcess $viteServeProcess Vite process service.
      * @param \Glaze\Process\PhpServerProcess $phpServerProcess PHP server process.
-     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
         protected SiteBuilder $siteBuilder,
-        protected ProjectConfigurationReader $projectConfigurationReader,
         protected ViteServeProcess $viteServeProcess,
         protected PhpServerProcess $phpServerProcess,
-        protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
     }
@@ -109,6 +106,10 @@ final class ServeCommand extends BaseCommand
     /**
      * Execute server command.
      *
+     * Loads the merged project configuration into Configure early so that
+     * all subsequent option resolution can read directly from Configure
+     * rather than performing separate file reads.
+     *
      * @param \Cake\Console\Arguments $args Parsed command arguments.
      * @param \Cake\Console\ConsoleIo $io Console IO service.
      */
@@ -123,9 +124,11 @@ final class ServeCommand extends BaseCommand
             return self::CODE_ERROR;
         }
 
+        (new ProjectConfigurationReader())->read($projectRoot);
+
         $isStaticMode = (bool)$args->getOption('static');
         $includeDrafts = !$isStaticMode || (bool)$args->getOption('drafts');
-        $viteConfiguration = $this->resolveViteConfiguration($args, $projectRoot);
+        $viteConfiguration = $this->resolveViteConfiguration($args);
         /** @var array{enabled: bool, host: string, port: int, command: string} $viteConfiguration */
 
         if ($viteConfiguration['enabled'] && $isStaticMode) {
@@ -145,7 +148,7 @@ final class ServeCommand extends BaseCommand
 
             try {
                 $writtenFiles = $this->siteBuilder->build(
-                    $this->buildConfigFactory->fromProjectRoot($projectRoot, $includeDrafts),
+                    BuildConfig::fromProjectRoot($projectRoot, $includeDrafts),
                 );
                 $io->out(sprintf('Build complete: %d page(s).', count($writtenFiles)));
             } catch (RuntimeException $runtimeException) {
@@ -267,17 +270,18 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
-     * Resolve Vite runtime configuration from project config and CLI options.
+     * Resolve Vite runtime configuration from Configure state and CLI options.
+     *
+     * Reads devServer.vite values from Configure (populated by the
+     * ProjectConfigurationReader call in execute()) and merges with
+     * any CLI overrides.
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
-     * @param string $projectRoot Project root directory.
      * @return array{enabled: bool, host: string, port: int, command: string}
      */
-    protected function resolveViteConfiguration(Arguments $args, string $projectRoot): array
+    protected function resolveViteConfiguration(Arguments $args): array
     {
-        $devServerConfig = $this->readDevServerConfiguration($projectRoot);
-
-        $viteConfig = $devServerConfig['vite'] ?? null;
+        $viteConfig = Configure::read('devServer.vite');
         if (!is_array($viteConfig)) {
             $viteConfig = [];
         }
@@ -312,7 +316,7 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
-     * Resolve PHP server runtime configuration from project config and CLI options.
+     * Resolve PHP server runtime configuration from Configure state and CLI options.
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
      * @param string $projectRoot Project root directory.
@@ -328,9 +332,7 @@ final class ServeCommand extends BaseCommand
         bool $isStaticMode,
         bool $streamOutput = false,
     ): array {
-        $devServerConfig = $this->readDevServerConfiguration($projectRoot);
-
-        $phpConfig = $devServerConfig['php'] ?? null;
+        $phpConfig = Configure::read('devServer.php');
         if (!is_array($phpConfig)) {
             $phpConfig = [];
         }
@@ -357,32 +359,6 @@ final class ServeCommand extends BaseCommand
             'staticMode' => $isStaticMode,
             'streamOutput' => $streamOutput,
         ];
-    }
-
-    /**
-     * Read the devServer section from project configuration.
-     *
-     * @param string $projectRoot Project root directory.
-     * @return array<string, mixed>
-     */
-    protected function readDevServerConfiguration(string $projectRoot): array
-    {
-        $projectConfiguration = $this->projectConfigurationReader->read($projectRoot);
-        $devServerConfiguration = $projectConfiguration['devServer'] ?? null;
-        if (!is_array($devServerConfiguration)) {
-            return [];
-        }
-
-        $normalized = [];
-        foreach ($devServerConfiguration as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $normalized[$key] = $value;
-        }
-
-        return $normalized;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Command;
 use Cake\Console\Arguments;
 use Closure;
 use Glaze\Command\ServeCommand;
+use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
@@ -131,6 +132,8 @@ final class ServeCommandTest extends TestCase
             "devServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5175\n    command: 'npm run dev -- --host {host} --port {port}'\n",
         );
 
+        (new ProjectConfigurationReader())->read($projectRoot);
+
         $command = $this->createCommand();
 
         $argsFromConfig = new Arguments([], [
@@ -144,7 +147,6 @@ final class ServeCommandTest extends TestCase
             $command,
             'resolveViteConfiguration',
             $argsFromConfig,
-            $projectRoot,
         );
 
         $this->assertIsArray($resolvedFromConfig);
@@ -164,7 +166,6 @@ final class ServeCommandTest extends TestCase
             $command,
             'resolveViteConfiguration',
             $argsFromCli,
-            $projectRoot,
         );
 
         $this->assertIsArray($resolvedFromCli);
@@ -184,6 +185,8 @@ final class ServeCommandTest extends TestCase
             $projectRoot . '/glaze.neon',
             "devServer:\n  php:\n    host: 0.0.0.0\n    port: 9080\n",
         );
+
+        (new ProjectConfigurationReader())->read($projectRoot);
 
         $command = $this->createCommand();
 
@@ -225,76 +228,10 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
-     * Ensure project configuration reads reflect file changes for the same project root.
-     */
-    public function testReadProjectConfigurationRefreshesWhenFileChanges(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        $configurationFile = $projectRoot . '/glaze.neon';
-        file_put_contents($configurationFile, "devServer:\n  php:\n    port: 8081\n");
-
-        $command = $this->createCommand();
-
-        $firstDevServer = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
-        $this->assertIsArray($firstDevServer);
-        /** @var array<string, mixed> $firstDevServer */
-        $this->assertArrayHasKey('php', $firstDevServer);
-        $this->assertIsArray($firstDevServer['php']);
-        /** @var array<string, mixed> $firstPhp */
-        $firstPhp = $firstDevServer['php'];
-        $this->assertArrayHasKey('port', $firstPhp);
-        $this->assertSame(8081, $firstPhp['port']);
-
-        file_put_contents($configurationFile, "devServer:\n  php:\n    port: 18081\n");
-
-        $secondDevServer = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
-        $this->assertIsArray($secondDevServer);
-        /** @var array<string, mixed> $secondDevServer */
-        $this->assertArrayHasKey('php', $secondDevServer);
-        $this->assertIsArray($secondDevServer['php']);
-        /** @var array<string, mixed> $secondPhp */
-        $secondPhp = $secondDevServer['php'];
-        $this->assertArrayHasKey('port', $secondPhp);
-        $this->assertSame(18081, $secondPhp['port']);
-    }
-
-    /**
-     * Ensure non-array devServer root configuration is normalized to an empty map.
-     */
-    public function testReadDevServerConfigurationReturnsEmptyArrayWhenInvalid(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        file_put_contents($projectRoot . '/glaze.neon', "devServer: true\n");
-
-        $command = $this->createCommand();
-        $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
-
-        $this->assertSame([], $result);
-    }
-
-    /**
-     * Ensure devServer map keeps only string keys.
-     */
-    public function testReadDevServerConfigurationFiltersNonStringKeys(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        file_put_contents($projectRoot . '/glaze.neon', "devServer:\n  php:\n    port: 8082\n  1: ignored\n");
-
-        $command = $this->createCommand();
-        $result = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
-
-        $this->assertIsArray($result);
-        /** @var array<string, mixed> $result */
-        $this->assertArrayHasKey('php', $result);
-        $this->assertArrayNotHasKey(1, $result);
-    }
-
-    /**
      * Ensure invalid explicit Vite port values are rejected.
      */
     public function testResolveViteConfigurationRejectsInvalidCliPort(): void
     {
-        $projectRoot = $this->createTempDirectory();
         $command = $this->createCommand();
 
         $args = new Arguments([], [
@@ -307,7 +244,7 @@ final class ServeCommandTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid Vite port');
 
-        $this->callProtected($command, 'resolveViteConfiguration', $args, $projectRoot);
+        $this->callProtected($command, 'resolveViteConfiguration', $args);
     }
 
     /**
@@ -316,6 +253,9 @@ final class ServeCommandTest extends TestCase
     public function testResolvePhpServerConfigurationRejectsInvalidCliPort(): void
     {
         $projectRoot = $this->createTempDirectory();
+
+        (new ProjectConfigurationReader())->read($projectRoot);
+
         $command = $this->createCommand();
 
         $args = new Arguments([], [

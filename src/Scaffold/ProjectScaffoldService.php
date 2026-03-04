@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Scaffold;
 
+use Glaze\Config\ProjectConfigurationReader;
 use Nette\Neon\Neon;
 use RuntimeException;
 
@@ -32,10 +33,12 @@ final class ProjectScaffoldService
      *
      * @param \Glaze\Scaffold\ScaffoldRegistry $registry Scaffold preset registry.
      * @param \Glaze\Scaffold\TemplateRenderer $renderer Template variable renderer.
+     * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
      */
     public function __construct(
         protected readonly ScaffoldRegistry $registry,
         protected readonly TemplateRenderer $renderer,
+        protected readonly ProjectConfigurationReader $projectConfigurationReader = new ProjectConfigurationReader(),
     ) {
     }
 
@@ -315,106 +318,16 @@ final class ProjectScaffoldService
      */
     protected function commentedOptionsBlock(): string
     {
-        return <<<NEON
-# --- Available options (uncomment and adjust as needed) ---
-# pageTemplate: page
-#
-# images:
-#   driver: gd
-#   presets:
-#     thumb:
-#       w: 320
-#       h: 180
-#       fit: crop
-#
-# site:
-#   title: My Site
-#   description: Default site description
-#   baseUrl: https://example.com
-#   basePath: /blog
-#   meta:
-#     robots: index,follow
-#
-# taxonomies:
-#   - tags
-#   - categories
-#
-# contentTypes:
-#   blog:
-#     paths:
-#       - blog
-#       - match: blog/archive
-#         createPattern: 'blog/archive/{date:Y/m}'
-#     defaults:
-#       template: blog
-#
-# paths:
-#   content: content
-#   template: templates
-#   static: static
-#   public: public
-#
-# extensionsDir: extensions
-#
-# djot:
-#   codeHighlighting:
-#     enabled: true
-#     theme: github-dark
-#     themes:
-#       dark: github-dark
-#       light: github-light
-#     withGutter: false
-#   headerAnchors:
-#     enabled: false
-#     symbol: "#"
-#     position: after
-#     cssClass: permalink-wrapper
-#     ariaLabel: Anchor link
-#     levels: [1, 2, 3, 4, 5, 6]
-#   autolink:
-#     enabled: false
-#     allowedSchemes: [https, http, mailto]
-#   externalLinks:
-#     enabled: false
-#     internalHosts: []
-#     target: _blank
-#     rel: noopener noreferrer
-#     nofollow: false
-#   smartQuotes:
-#     enabled: false
-#     locale: null
-#   mentions:
-#     enabled: false
-#     urlTemplate: '/users/view/{username}'
-#     cssClass: mention
-#   semanticSpan:
-#     enabled: false
-#   defaultAttributes:
-#     enabled: false
-#     defaults: {}
-#
-# build:
-#   clean: false
-#   drafts: false
-#   vite:
-#     enabled: false
-#     command: "npm run build"
-#     assetBaseUrl: /
-#     manifestPath: public/.vite/manifest.json
-#     defaultEntry: assets/css/site.css
-#
-# devServer:
-#   php:
-#     host: 127.0.0.1
-#     port: 8080
-#   vite:
-#     enabled: false
-#     host: 127.0.0.1
-#     port: 5173
-#     url: http://127.0.0.1:5173
-#     injectClient: true
-#     defaultEntry: assets/css/site.css
-#     command: "npm run dev -- --host {host} --port {port} --strictPort"
-NEON;
+        $referenceConfiguration = $this->projectConfigurationReader->readReference();
+        $referenceConfigurationBlock = Neon::encode($referenceConfiguration, true);
+        $commentedReferenceBlock = implode(PHP_EOL, array_map(
+            static fn(string $line): string => '# ' . $line,
+            explode(PHP_EOL, rtrim($referenceConfigurationBlock)),
+        ));
+
+        return '# --- Available options (uncomment and adjust as needed) ---'
+            . PHP_EOL
+            . $commentedReferenceBlock
+            . PHP_EOL;
     }
 }

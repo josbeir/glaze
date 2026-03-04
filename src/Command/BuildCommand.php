@@ -7,11 +7,11 @@ use Cake\Console\Arguments;
 use Cake\Console\BaseCommand;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Core\Configure;
 use Glaze\Build\BuildManifest;
 use Glaze\Build\SiteBuilder;
-use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
-use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\Path;
@@ -27,15 +27,11 @@ final class BuildCommand extends BaseCommand
      * Constructor.
      *
      * @param \Glaze\Build\SiteBuilder $siteBuilder Site builder service.
-     * @param \Glaze\Config\ProjectConfigurationReader $projectConfigurationReader Project configuration reader.
      * @param \Glaze\Process\ViteBuildProcess $viteBuildProcess Vite build process.
-     * @param \Glaze\Config\BuildConfigFactory $buildConfigFactory Build configuration factory.
      */
     public function __construct(
         protected SiteBuilder $siteBuilder,
-        protected ProjectConfigurationReader $projectConfigurationReader,
         protected ViteBuildProcess $viteBuildProcess,
-        protected BuildConfigFactory $buildConfigFactory,
     ) {
         parent::__construct();
     }
@@ -86,6 +82,10 @@ final class BuildCommand extends BaseCommand
     /**
      * Execute site build command.
      *
+     * Creates the BuildConfig first (which populates Configure with the
+     * merged reference + project configuration), then reads build-specific
+     * options from Configure to resolve CLI overrides.
+     *
      * @param \Cake\Console\Arguments $args Parsed command arguments.
      * @param \Cake\Console\ConsoleIo $io Console IO service.
      */
@@ -105,15 +105,23 @@ final class BuildCommand extends BaseCommand
             $configMessage = $formatStageMessage($pendingIcon, 'Config', 'Resolving project configuration...');
             $io->out($configMessage, 0);
             $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
-            $buildConfiguration = $this->readBuildConfiguration($projectRoot);
-            $includeDrafts = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'drafts');
-            $cleanOutput = $this->resolveCleanOutputOption($args, $buildConfiguration);
-            $viteBuildConfiguration = $this->resolveViteBuildConfiguration($args, $buildConfiguration);
 
-            $config = $this->buildConfigFactory->fromProjectRoot(
+            $config = BuildConfig::fromProjectRoot(
                 $projectRoot,
-                $includeDrafts,
+                (bool)$args->getOption('drafts'),
             );
+
+            $cleanOutput = (bool)$args->getOption('clean') || Configure::read('build.clean') === true;
+
+            $viteEnabled = (bool)$args->getOption('vite') || Configure::read('build.vite.enabled') === true;
+            $viteCommand = Normalization::optionalString($args->getOption('vite-command'))
+                ?? Normalization::optionalString(Configure::read('build.vite.command'))
+                ?? 'npm run build';
+            $viteBuildConfiguration = [
+                'enabled' => $viteEnabled,
+                'command' => $viteCommand,
+            ];
+
             $verbose = (bool)$args->getOption('verbose');
             $manifestPath = $config->cachePath(CachePath::BuildManifest);
             $previousManifest = BuildManifest::load($manifestPath);
@@ -242,107 +250,6 @@ final class BuildCommand extends BaseCommand
         ));
 
         return self::CODE_SUCCESS;
-    }
-
-    /**
-     * Resolve Vite build configuration from project config and CLI options.
-     *
-     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
-     * @param array<string, mixed> $buildConfiguration Build configuration map.
-     * @return array{enabled: bool, command: string}
-     */
-    protected function resolveViteBuildConfiguration(Arguments $args, array $buildConfiguration): array
-    {
-        $viteConfiguration = $buildConfiguration['vite'] ?? null;
-        if (!is_array($viteConfiguration)) {
-            $viteConfiguration = [];
-        }
-
-        $enabledFromConfiguration = is_bool($viteConfiguration['enabled'] ?? null) && $viteConfiguration['enabled'];
-        $enabled = (bool)$args->getOption('vite') || $enabledFromConfiguration;
-
-        $command = Normalization::optionalString($args->getOption('vite-command'))
-            ?? Normalization::optionalString($viteConfiguration['command'] ?? null)
-            ?? 'npm run build';
-
-        return [
-            'enabled' => $enabled,
-            'command' => $command,
-        ];
-    }
-
-    /**
-     * Resolve boolean build option from CLI value with configuration fallback.
-     *
-     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
-     * @param array<string, mixed> $buildConfiguration Build configuration map.
-     * @param string $optionName Build option key.
-     */
-    protected function resolveBuildBooleanOption(
-        Arguments $args,
-        array $buildConfiguration,
-        string $optionName,
-    ): bool {
-        $optionValue = $args->getOption($optionName);
-        if (is_bool($optionValue) && $optionValue) {
-            return true;
-        }
-
-        $configuredValue = $buildConfiguration[$optionName] ?? null;
-        if (is_bool($configuredValue)) {
-            return $configuredValue;
-        }
-
-        return false;
-    }
-
-    /**
-     * Resolve clean-output behavior from config with optional --clean override.
-     *
-     * Returns true when --clean is passed on the CLI, or when build.clean is enabled
-     * in project configuration. The CLI flag takes precedence over the config value.
-     *
-     * @param \Cake\Console\Arguments $args Parsed CLI arguments.
-     * @param array<string, mixed> $buildConfiguration Build configuration map.
-     */
-    protected function resolveCleanOutputOption(Arguments $args, array $buildConfiguration): bool
-    {
-        if ((bool)$args->getOption('clean')) {
-            return true;
-        }
-
-        $configuredValue = $buildConfiguration['clean'] ?? null;
-        if (is_bool($configuredValue)) {
-            return $configuredValue;
-        }
-
-        return false;
-    }
-
-    /**
-     * Read the build section from project configuration.
-     *
-     * @param string $projectRoot Project root directory.
-     * @return array<string, mixed>
-     */
-    protected function readBuildConfiguration(string $projectRoot): array
-    {
-        $projectConfiguration = $this->projectConfigurationReader->read($projectRoot);
-        $buildConfiguration = $projectConfiguration['build'] ?? null;
-        if (!is_array($buildConfiguration)) {
-            return [];
-        }
-
-        $normalized = [];
-        foreach ($buildConfiguration as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $normalized[$key] = $value;
-        }
-
-        return $normalized;
     }
 
     /**

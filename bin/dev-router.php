@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
+use Cake\Core\Configure;
 use Cake\Http\MiddlewareQueue;
 use Cake\Http\ResponseEmitter;
 use Cake\Http\Runner;
 use Cake\Http\ServerRequestFactory;
 use Glaze\Application;
-use Glaze\Config\BuildConfig;
-use Glaze\Config\BuildConfigFactory;
+use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\ErrorHandlingMiddleware;
@@ -30,13 +30,14 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
 
 $application = new Application();
+$application->bootstrap();
 $container = $application->getContainer();
 
-$container->addShared(BuildConfig::class, function() use ($container, $projectRoot, $includeDrafts): BuildConfig {
-	/** @var \Glaze\Config\BuildConfigFactory $buildConfigFactory */
-	$buildConfigFactory = $container->get(BuildConfigFactory::class);
-	return $buildConfigFactory->fromProjectRoot($projectRoot, $includeDrafts);
-});
+(new ProjectConfigurationReader())->read($projectRoot);
+Configure::write('projectRoot', $projectRoot);
+if ($includeDrafts) {
+    Configure::write('build.drafts', true);
+}
 
 /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
 $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);

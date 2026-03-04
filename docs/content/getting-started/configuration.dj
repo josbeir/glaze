@@ -19,6 +19,7 @@ paths:
   template: templates
   static: static
   public: public
+  extensions: extensions
 
 site:
   title: My Site
@@ -58,8 +59,6 @@ contentTypes:
       - match: docs
     defaults:
       template: docs
-
-extensionsDir: extensions
 
 djot:
   codeHighlighting:
@@ -468,12 +467,13 @@ Each `TocEntry` exposes:
 - `$entry->id` -- anchor id matching the rendered heading element
 - `$entry->text` -- plain-text heading label
 
-## `extensionsDir`
+## `paths.extensions`
 
 Directory Glaze scans for classes decorated with `#[GlazeExtension]`. Relative to the project root. Defaults to `extensions`.
 
 ```neon
-extensionsDir: extensions
+paths:
+  extensions: extensions
 ```
 
 Classes carrying `#[GlazeExtension('name', helper: true)]` in this directory are auto-registered as template helpers callable from templates as `$this->extension('name')`. Classes with only `#[ListensTo]` methods are registered as event subscribers. See [Extensions](../templating/extensions.dj) for full details.

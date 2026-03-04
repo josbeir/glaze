@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze;
 
 use Cake\Console\CommandCollection;
+use Cake\Core\Configure;
 use Cake\Core\ConsoleApplicationInterface;
 use Cake\Core\Container;
 use Cake\Core\ContainerApplicationInterface;
@@ -14,6 +15,8 @@ use Glaze\Command\HelpCommand;
 use Glaze\Command\InitCommand;
 use Glaze\Command\NewCommand;
 use Glaze\Command\ServeCommand;
+use Glaze\Config\BuildConfig;
+use Glaze\Config\NeonConfigEngine;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Image\ImageTransformerInterface;
@@ -29,10 +32,14 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
     protected ?ContainerInterface $container = null;
 
     /**
-     * Load application bootstrap logic.
+     * Register the default NEON Configure engine so all configuration
+     * loading goes through CakePHP's Configure subsystem.
      */
     public function bootstrap(): void
     {
+        if (!Configure::isConfigured('default')) {
+            Configure::config('default', new NeonConfigEngine());
+        }
     }
 
     /**
@@ -55,10 +62,22 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
     /**
      * Register application services in the dependency injection container.
      *
+     * BuildConfig is registered as a shared service resolved lazily from
+     * Configure state. Callers must ensure that project configuration is
+     * loaded into Configure (via {@see \Glaze\Config\ProjectConfigurationReader})
+     * and `projectRoot` is set before resolving BuildConfig.
+     *
      * @param \Cake\Core\ContainerInterface $container The container to populate.
      */
     public function services(ContainerInterface $container): void
     {
+        $container->addShared(
+            BuildConfig::class,
+            static function (): BuildConfig {
+                return BuildConfig::fromConfigure();
+            },
+        );
+
         $container->addShared(
             ImageTransformerInterface::class,
             static function () use ($container): ImageTransformerInterface {

@@ -23,6 +23,8 @@ trait ContainerTestTrait
         }
 
         $application = new Application();
+        $application->bootstrap();
+
         $this->testContainer = $application->getContainer();
 
         return $this->testContainer;
