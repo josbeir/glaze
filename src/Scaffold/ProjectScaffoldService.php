@@ -320,9 +320,14 @@ final class ProjectScaffoldService
     {
         $referenceConfiguration = $this->projectConfigurationReader->readReference();
         $referenceConfigurationBlock = Neon::encode($referenceConfiguration, true);
+        $referenceLines = preg_split('/\R/u', rtrim($referenceConfigurationBlock));
+        if (!is_array($referenceLines)) {
+            $referenceLines = [];
+        }
+
         $commentedReferenceBlock = implode(PHP_EOL, array_map(
             static fn(string $line): string => '# ' . $line,
-            explode(PHP_EOL, rtrim($referenceConfigurationBlock)),
+            $referenceLines,
         ));
 
         return '# --- Available options (uncomment and adjust as needed) ---'

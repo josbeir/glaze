@@ -141,12 +141,14 @@ paths:
   template: templates
   static: static
   public: public
+  extensions: extensions
 ```
 
 - `content` -- content source directory (used for page discovery)
 - `template` -- Sugar template directory (used by page rendering)
 - `static` -- static asset source directory copied during builds
 - `public` -- build output directory
+- `extensions` -- project extension auto-discovery directory
 
 Values can be relative to the project root or absolute paths:
 

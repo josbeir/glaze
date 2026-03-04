@@ -87,10 +87,10 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/my/absolute/templates', $config->templateDir);
         $this->assertSame('my-static', $config->staticDir);
         $this->assertSame('dist', $config->outputDir);
-        $this->assertSame($projectRoot . '/source-content', $config->contentPath());
+        $this->assertSame(Path::normalize($projectRoot . '/source-content'), $config->contentPath());
         $this->assertSame('/my/absolute/templates', $config->templatePath());
-        $this->assertSame($projectRoot . '/my-static', $config->staticPath());
-        $this->assertSame($projectRoot . '/dist', $config->outputPath());
+        $this->assertSame(Path::normalize($projectRoot . '/my-static'), $config->staticPath());
+        $this->assertSame(Path::normalize($projectRoot . '/dist'), $config->outputPath());
     }
 
     /**
@@ -115,10 +115,10 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('templates', $config->templateDir);
         $this->assertSame('static', $config->staticDir);
         $this->assertSame('public', $config->outputDir);
-        $this->assertSame($projectRoot . '/content', $config->contentPath());
-        $this->assertSame($projectRoot . '/templates', $config->templatePath());
-        $this->assertSame($projectRoot . '/static', $config->staticPath());
-        $this->assertSame($projectRoot . '/public', $config->outputPath());
+        $this->assertSame(Path::normalize($projectRoot . '/content'), $config->contentPath());
+        $this->assertSame(Path::normalize($projectRoot . '/templates'), $config->templatePath());
+        $this->assertSame(Path::normalize($projectRoot . '/static'), $config->staticPath());
+        $this->assertSame(Path::normalize($projectRoot . '/public'), $config->outputPath());
     }
 
     /**
