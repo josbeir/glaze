@@ -216,7 +216,7 @@ final class ExtensionLoader
 
             /** @var \Glaze\Template\Extension\ListensTo $listensTo */
             $listensTo = $listensToAttributes[0]->newInstance();
-            $dispatcher->on($listensTo->event, function (object $event) use ($instance, $method): void {
+            $dispatcher->on($listensTo->event, static function (object $event) use ($instance, $method): void {
                 $method->invoke($instance, $event);
             });
             $registeredAnything = true;

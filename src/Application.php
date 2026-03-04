@@ -61,7 +61,7 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
     {
         $container->addShared(
             ImageTransformerInterface::class,
-            function () use ($container): ImageTransformerInterface {
+            static function () use ($container): ImageTransformerInterface {
                 /** @var \Glaze\Image\ImagePresetResolver $presetResolver */
                 $presetResolver = $container->get(ImagePresetResolver::class);
 

@@ -119,7 +119,7 @@ final class NewCommand extends BaseCommand
     public function execute(Arguments $args, ConsoleIo $io): int
     {
         try {
-            $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
+            $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
             $config = $this->buildConfigFactory->fromProjectRoot($projectRoot, true);
             $input = $this->resolvePageInput($args, $io, $config);
             $targetPath = $this->pageScaffoldService->scaffold(
@@ -162,27 +162,27 @@ final class NewCommand extends BaseCommand
         $nonInteractive = (bool)$args->getOption('yes');
                 $pathPrefix = Path::optionalFragment($args->getOption('path'));
 
-        $slugInput = $this->normalizeString($args->getOption('slug'));
+        $slugInput = Normalization::optionalString($args->getOption('slug'));
                 $normalizedSlugInput = Path::optionalFragment($slugInput);
 
-        $title = $this->normalizeString($args->getOption('title'))
-            ?? $this->normalizeString($args->getArgument('title'));
+        $title = Normalization::optionalString($args->getOption('title'))
+            ?? Normalization::optionalString($args->getArgument('title'));
         if ($title === null && $normalizedSlugInput !== null) {
             $title = $this->deriveTitleFromPath($normalizedSlugInput);
         }
 
         if (!$nonInteractive && $title === null) {
-            $title = $this->normalizeString($io->ask('Post title'));
+            $title = Normalization::optionalString($io->ask('Post title'));
         }
 
         if ($title === null) {
             throw new RuntimeException('Page title is required.');
         }
 
-        $dateInput = $this->normalizeString($args->getOption('date'));
+        $dateInput = Normalization::optionalString($args->getOption('date'));
         $dateDefault = Chronos::now()->toIso8601String();
         if (!$nonInteractive && $dateInput === null) {
-            $dateInput = $this->normalizeString($io->ask('Date', $dateDefault));
+            $dateInput = Normalization::optionalString($io->ask('Date', $dateDefault));
         }
 
         $date = $this->normalizeDateInput($dateInput ?? $dateDefault);
@@ -288,7 +288,7 @@ final class NewCommand extends BaseCommand
         array $contentTypes,
         bool $nonInteractive,
     ): ?string {
-        $typeInput = $this->normalizeString($args->getOption('type'));
+        $typeInput = Normalization::optionalString($args->getOption('type'));
 
         if ($contentTypes === []) {
             return $this->normalizeTypeInput($typeInput, $contentTypes);
@@ -388,7 +388,7 @@ final class NewCommand extends BaseCommand
      */
     protected function normalizeWeightInput(mixed $weightInput): ?int
     {
-        $normalized = $this->normalizeString($weightInput);
+        $normalized = Normalization::optionalString($weightInput);
         if ($normalized === null) {
             return null;
         }
@@ -409,7 +409,7 @@ final class NewCommand extends BaseCommand
      */
     protected function normalizeTypeInput(?string $typeInput, array $contentTypes): ?string
     {
-        $normalized = $this->normalizeString($typeInput);
+        $normalized = Normalization::optionalString($typeInput);
         if ($normalized === null) {
             return null;
         }
@@ -445,26 +445,6 @@ final class NewCommand extends BaseCommand
         }
 
         return $path;
-    }
-
-    /**
-     * Normalize optional string values.
-     *
-     * @param mixed $value Raw value.
-     */
-    protected function normalizeString(mixed $value): ?string
-    {
-        return Normalization::optionalString($value);
-    }
-
-    /**
-     * Normalize optional root option values.
-     *
-     * @param mixed $rootOption Raw root option value.
-     */
-    protected function normalizeRootOption(mixed $rootOption): ?string
-    {
-        return Path::optional($rootOption);
     }
 
     /**

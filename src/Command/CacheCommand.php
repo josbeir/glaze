@@ -9,6 +9,7 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Glaze\Config\BuildConfigFactory;
 use Glaze\Config\CachePath;
+use Glaze\Utility\Path;
 use Glaze\Utility\ProjectRootResolver;
 use Throwable;
 
@@ -78,7 +79,7 @@ final class CacheCommand extends BaseCommand
     public function execute(Arguments $args, ConsoleIo $io): int
     {
         try {
-            $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
+            $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
             $config = $this->buildConfigFactory->fromProjectRoot($projectRoot);
 
             $templatesOnly = (bool)$args->getOption('templates');
@@ -222,21 +223,5 @@ final class CacheCommand extends BaseCommand
         }
 
         rmdir($directory);
-    }
-
-    /**
-     * Normalize an optional root option value, returning null for blank input.
-     *
-     * @param mixed $rootOption Raw root option value.
-     */
-    protected function normalizeRootOption(mixed $rootOption): ?string
-    {
-        if (!is_string($rootOption)) {
-            return null;
-        }
-
-        $normalized = trim($rootOption);
-
-        return $normalized === '' ? null : $normalized;
     }
 }

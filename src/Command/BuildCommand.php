@@ -14,6 +14,7 @@ use Glaze\Config\CachePath;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Glaze\Utility\ProjectRootResolver;
 use Throwable;
 
@@ -103,7 +104,7 @@ final class BuildCommand extends BaseCommand
         try {
             $configMessage = $formatStageMessage($pendingIcon, 'Config', 'Resolving project configuration...');
             $io->out($configMessage, 0);
-            $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
+            $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
             $buildConfiguration = $this->readBuildConfiguration($projectRoot);
             $includeDrafts = $this->resolveBuildBooleanOption($args, $buildConfiguration, 'drafts');
             $cleanOutput = $this->resolveCleanOutputOption($args, $buildConfiguration);
@@ -319,17 +320,6 @@ final class BuildCommand extends BaseCommand
     }
 
     /**
-     * Read decoded project configuration from glaze.neon.
-     *
-     * @param string $projectRoot Project root directory.
-     * @return array<string, mixed>
-     */
-    protected function readProjectConfiguration(string $projectRoot): array
-    {
-        return $this->projectConfigurationReader->read($projectRoot);
-    }
-
-    /**
      * Read the build section from project configuration.
      *
      * @param string $projectRoot Project root directory.
@@ -337,7 +327,7 @@ final class BuildCommand extends BaseCommand
      */
     protected function readBuildConfiguration(string $projectRoot): array
     {
-        $projectConfiguration = $this->readProjectConfiguration($projectRoot);
+        $projectConfiguration = $this->projectConfigurationReader->read($projectRoot);
         $buildConfiguration = $projectConfiguration['build'] ?? null;
         if (!is_array($buildConfiguration)) {
             return [];
@@ -370,22 +360,6 @@ final class BuildCommand extends BaseCommand
         }
 
         return $filePath;
-    }
-
-    /**
-     * Normalize optional root option values.
-     *
-     * @param mixed $rootOption Raw root option value.
-     */
-    protected function normalizeRootOption(mixed $rootOption): ?string
-    {
-        if (!is_string($rootOption)) {
-            return null;
-        }
-
-        $normalized = trim($rootOption);
-
-        return $normalized === '' ? null : $normalized;
     }
 
     /**

@@ -93,35 +93,15 @@ class GlazeCommandRunner extends CommandRunner
      */
     protected function shouldRenderVersionHeader(CommandInterface $command, array $argv): bool
     {
-        if ($this->hasQuietFlag($argv)) {
+        if (in_array('-q', $argv, true) || in_array('--quiet', $argv, true)) {
             return false;
         }
 
         if ($command instanceof ServeCommand) {
-            return $this->hasVerboseFlag($argv);
+            return in_array('-v', $argv, true) || in_array('--verbose', $argv, true);
         }
 
         return true;
-    }
-
-    /**
-     * Check whether quiet mode is present in command arguments.
-     *
-     * @param array<int, string> $argv Raw command arguments.
-     */
-    protected function hasQuietFlag(array $argv): bool
-    {
-        return in_array('-q', $argv, true) || in_array('--quiet', $argv, true);
-    }
-
-    /**
-     * Check whether verbose mode is present in command arguments.
-     *
-     * @param array<int, string> $argv Raw command arguments.
-     */
-    protected function hasVerboseFlag(array $argv): bool
-    {
-        return in_array('-v', $argv, true) || in_array('--verbose', $argv, true);
     }
 
     /**

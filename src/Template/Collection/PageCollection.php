@@ -214,7 +214,7 @@ final class PageCollection implements IteratorAggregate, Countable
 
         $expectedType = strtolower($normalizedType);
 
-        return $this->filter(function (ContentPage $page) use ($expectedType): bool {
+        return $this->filter(static function (ContentPage $page) use ($expectedType): bool {
             $resolvedType = Normalization::optionalString($page->type);
             if ($resolvedType !== null) {
                 return strtolower($resolvedType) === $expectedType;

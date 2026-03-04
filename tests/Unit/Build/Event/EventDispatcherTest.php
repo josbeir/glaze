@@ -49,13 +49,13 @@ final class EventDispatcherTest extends TestCase
         $dispatcher = new EventDispatcher();
         $log = [];
 
-        $dispatcher->on(BuildEvent::BuildStarted, function () use (&$log): void {
+        $dispatcher->on(BuildEvent::BuildStarted, static function () use (&$log): void {
             $log[] = 'first';
         });
-        $dispatcher->on(BuildEvent::BuildStarted, function () use (&$log): void {
+        $dispatcher->on(BuildEvent::BuildStarted, static function () use (&$log): void {
             $log[] = 'second';
         });
-        $dispatcher->on(BuildEvent::BuildStarted, function () use (&$log): void {
+        $dispatcher->on(BuildEvent::BuildStarted, static function () use (&$log): void {
             $log[] = 'third';
         });
 
@@ -119,7 +119,7 @@ final class EventDispatcherTest extends TestCase
 
         $event = new PageRenderedEvent($page, '<p>original</p>', $config);
 
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $received): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $received): void {
             $received->html = '<p>mutated</p>';
         });
 
@@ -136,10 +136,10 @@ final class EventDispatcherTest extends TestCase
         $dispatcher = new EventDispatcher();
         $log = [];
 
-        $dispatcher->on(BuildEvent::BuildStarted, function () use (&$log): void {
+        $dispatcher->on(BuildEvent::BuildStarted, static function () use (&$log): void {
             $log[] = 'started';
         });
-        $dispatcher->on(BuildEvent::BuildCompleted, function () use (&$log): void {
+        $dispatcher->on(BuildEvent::BuildCompleted, static function () use (&$log): void {
             $log[] = 'completed';
         });
 

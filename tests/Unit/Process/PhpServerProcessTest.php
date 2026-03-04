@@ -160,7 +160,7 @@ final class PhpServerProcessTest extends TestCase
         ];
 
         $received = [];
-        $process->start($config, $projectRoot, function (string $type, string $buffer) use (&$received): void {
+        $process->start($config, $projectRoot, static function (string $type, string $buffer) use (&$received): void {
             $received[] = [$type, $buffer];
         });
 

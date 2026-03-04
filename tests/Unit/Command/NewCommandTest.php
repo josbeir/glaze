@@ -489,7 +489,7 @@ final class NewCommandTest extends TestCase
 
         $emptySlug = $this->callProtected($command, 'slugifyPath', '///');
         $relativePath = $this->callProtected($command, 'relativeToRoot', '/other/path/file.dj', '/tmp/project');
-        $rootOption = $this->callProtected($command, 'normalizeRootOption', ' /tmp/site ');
+        $rootOption = Path::optional(' /tmp/site ');
         $normalizedPathPrefix = Path::optionalFragment('/posts/2026/');
         $derivedTitle = $this->callProtected($command, 'deriveTitleFromPath', 'posts/my-post');
 

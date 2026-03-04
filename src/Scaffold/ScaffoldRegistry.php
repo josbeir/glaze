@@ -178,7 +178,7 @@ final class ScaffoldRegistry
             }
         }
 
-        uasort($discovered, function (array $a, array $b): int {
+        uasort($discovered, static function (array $a, array $b): int {
             return $a['weight'] <=> $b['weight'];
         });
 

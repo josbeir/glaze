@@ -9,6 +9,7 @@ use Glaze\Command\ServeCommand;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Path;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
@@ -69,8 +70,8 @@ final class ServeCommandTest extends TestCase
     {
         $command = $this->createCommand();
 
-        $normalizedRoot = $this->callProtected($command, 'normalizeRootOption', ' /tmp/test/ ');
-        $blankRoot = $this->callProtected($command, 'normalizeRootOption', '   ');
+        $normalizedRoot = Path::optional(' /tmp/test/ ');
+        $blankRoot = Path::optional('   ');
         $validPort = $this->callProtected($command, 'normalizePort', '8080');
         $invalidPort = $this->callProtected($command, 'normalizePort', '70000');
 
@@ -234,13 +235,9 @@ final class ServeCommandTest extends TestCase
 
         $command = $this->createCommand();
 
-        $first = $this->callProtected($command, 'readProjectConfiguration', $projectRoot);
-        $this->assertIsArray($first);
-        /** @var array<string, mixed> $first */
-        $this->assertArrayHasKey('devServer', $first);
-        $this->assertIsArray($first['devServer']);
+        $firstDevServer = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
+        $this->assertIsArray($firstDevServer);
         /** @var array<string, mixed> $firstDevServer */
-        $firstDevServer = $first['devServer'];
         $this->assertArrayHasKey('php', $firstDevServer);
         $this->assertIsArray($firstDevServer['php']);
         /** @var array<string, mixed> $firstPhp */
@@ -250,13 +247,9 @@ final class ServeCommandTest extends TestCase
 
         file_put_contents($configurationFile, "devServer:\n  php:\n    port: 18081\n");
 
-        $second = $this->callProtected($command, 'readProjectConfiguration', $projectRoot);
-        $this->assertIsArray($second);
-        /** @var array<string, mixed> $second */
-        $this->assertArrayHasKey('devServer', $second);
-        $this->assertIsArray($second['devServer']);
+        $secondDevServer = $this->callProtected($command, 'readDevServerConfiguration', $projectRoot);
+        $this->assertIsArray($secondDevServer);
         /** @var array<string, mixed> $secondDevServer */
-        $secondDevServer = $second['devServer'];
         $this->assertArrayHasKey('php', $secondDevServer);
         $this->assertIsArray($secondDevServer['php']);
         /** @var array<string, mixed> $secondPhp */

@@ -532,7 +532,7 @@ final class SiteBuilderTest extends TestCase
         $dispatcher = new EventDispatcher();
         $received = [];
 
-        $dispatcher->on(BuildEvent::BuildStarted, function (BuildStartedEvent $event) use (&$received): void {
+        $dispatcher->on(BuildEvent::BuildStarted, static function (BuildStartedEvent $event) use (&$received): void {
             $received[] = $event->config->projectRoot;
         });
 
@@ -551,7 +551,7 @@ final class SiteBuilderTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $dispatcher = new EventDispatcher();
 
-        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+        $dispatcher->on(BuildEvent::ContentDiscovered, static function (ContentDiscoveredEvent $event): void {
             // Remove all discovered pages — build should complete with zero rendered pages.
             $event->pages = [];
         });
@@ -570,7 +570,7 @@ final class SiteBuilderTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $dispatcher = new EventDispatcher();
 
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $event): void {
             $event->html = '<!-- injected -->';
         });
 
@@ -591,7 +591,7 @@ final class SiteBuilderTest extends TestCase
         $registerCalls = 0;
 
         $dispatcher->on(BuildEvent::DjotConverterCreated, function (DjotConverterCreatedEvent $event) use (&$registerCalls): void {
-            $event->converter->addExtension(new class (function () use (&$registerCalls): void {
+            $event->converter->addExtension(new class (static function () use (&$registerCalls): void {
                 $registerCalls++;
             }) implements DjotExtensionInterface {
                 /**
@@ -629,7 +629,7 @@ final class SiteBuilderTest extends TestCase
         $registered = false;
 
         $dispatcher->on(BuildEvent::SugarRendererCreated, function (SugarRendererCreatedEvent $event) use (&$registered): void {
-            $event->renderer->addExtension(new class (function () use (&$registered): void {
+            $event->renderer->addExtension(new class (static function () use (&$registered): void {
                 $registered = true;
             }) implements SugarExtensionInterface {
                 /**
@@ -669,7 +669,7 @@ final class SiteBuilderTest extends TestCase
         $dispatcher = new EventDispatcher();
         $eventCount = 0;
 
-        $dispatcher->on(BuildEvent::SugarRendererCreated, function (SugarRendererCreatedEvent $event) use (&$eventCount): void {
+        $dispatcher->on(BuildEvent::SugarRendererCreated, static function (SugarRendererCreatedEvent $event) use (&$eventCount): void {
             $eventCount++;
         });
 
@@ -688,7 +688,7 @@ final class SiteBuilderTest extends TestCase
         $dispatcher = new EventDispatcher();
         $destinations = [];
 
-        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$destinations): void {
+        $dispatcher->on(BuildEvent::PageWritten, static function (PageWrittenEvent $event) use (&$destinations): void {
             $destinations[] = $event->destination;
         });
 
@@ -710,7 +710,7 @@ final class SiteBuilderTest extends TestCase
         $dispatcher = new EventDispatcher();
         $completedEvents = [];
 
-        $dispatcher->on(BuildEvent::BuildCompleted, function (BuildCompletedEvent $event) use (&$completedEvents): void {
+        $dispatcher->on(BuildEvent::BuildCompleted, static function (BuildCompletedEvent $event) use (&$completedEvents): void {
             $completedEvents[] = $event;
         });
 
@@ -731,14 +731,14 @@ final class SiteBuilderTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $dispatcher = new EventDispatcher();
 
-        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+        $dispatcher->on(BuildEvent::ContentDiscovered, static function (ContentDiscoveredEvent $event): void {
             $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
         });
 
         $progressItems = [];
         $writtenFiles = $this->createSiteBuilder()->build(
             $config,
-            progressCallback: function (int $done, int $total, string $file, float $duration) use (&$progressItems): void {
+            progressCallback: static function (int $done, int $total, string $file, float $duration) use (&$progressItems): void {
                 $progressItems[] = ['done' => $done, 'total' => $total, 'file' => $file];
             },
             dispatcher: $dispatcher,
@@ -767,13 +767,13 @@ final class SiteBuilderTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot);
         $dispatcher = new EventDispatcher();
 
-        $dispatcher->on(BuildEvent::ContentDiscovered, function (ContentDiscoveredEvent $event): void {
+        $dispatcher->on(BuildEvent::ContentDiscovered, static function (ContentDiscoveredEvent $event): void {
             $event->pages[] = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
         });
 
         // Collect every page URL that Sugar templates "see" via PageRendered events
         $renderedUrls = [];
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$renderedUrls): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $event) use (&$renderedUrls): void {
             $renderedUrls[] = $event->page->urlPath;
         });
 
@@ -852,7 +852,7 @@ final class SiteBuilderTest extends TestCase
 
         $renderedUrls = [];
         $dispatcher = new EventDispatcher();
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$renderedUrls): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $event) use (&$renderedUrls): void {
             $renderedUrls[] = $event->page->urlPath;
         });
 
@@ -882,7 +882,7 @@ final class SiteBuilderTest extends TestCase
         // Second build — no changes, so index is served from cache
         $capturedHtml = null;
         $dispatcher = new EventDispatcher();
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$capturedHtml): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $event) use (&$capturedHtml): void {
             if ($event->page->urlPath === '/') {
                 $capturedHtml = $event->html;
             }
@@ -913,7 +913,7 @@ final class SiteBuilderTest extends TestCase
         // Second build — no changes, page is cached
         $capturedToc = null;
         $dispatcher = new EventDispatcher();
-        $dispatcher->on(BuildEvent::PageRendered, function (PageRenderedEvent $event) use (&$capturedToc): void {
+        $dispatcher->on(BuildEvent::PageRendered, static function (PageRenderedEvent $event) use (&$capturedToc): void {
             if ($event->page->urlPath === '/') {
                 $capturedToc = $event->page->toc;
             }
@@ -950,7 +950,7 @@ final class SiteBuilderTest extends TestCase
 
         $capturedToc = null;
         $dispatcher = new EventDispatcher();
-        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$capturedToc): void {
+        $dispatcher->on(BuildEvent::PageWritten, static function (PageWrittenEvent $event) use (&$capturedToc): void {
             if ($event->page->urlPath === '/') {
                 $capturedToc = $event->page->toc;
             }
@@ -988,7 +988,7 @@ final class SiteBuilderTest extends TestCase
         // Second build — no changes, page is cached
         $capturedToc = null;
         $dispatcher = new EventDispatcher();
-        $dispatcher->on(BuildEvent::PageWritten, function (PageWrittenEvent $event) use (&$capturedToc): void {
+        $dispatcher->on(BuildEvent::PageWritten, static function (PageWrittenEvent $event) use (&$capturedToc): void {
             if ($event->page->urlPath === '/') {
                 $capturedToc = $event->page->toc;
             }

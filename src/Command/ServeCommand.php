@@ -116,7 +116,7 @@ final class ServeCommand extends BaseCommand
     {
         $verbose = (bool)$args->getOption('verbose');
 
-        $projectRoot = ProjectRootResolver::resolve($this->normalizeRootOption($args->getOption('root')));
+        $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
         if (!is_dir($projectRoot)) {
             $io->err(sprintf('<error>Project root not found: %s</error>', $projectRoot));
 
@@ -360,17 +360,6 @@ final class ServeCommand extends BaseCommand
     }
 
     /**
-     * Read decoded project configuration from glaze.neon.
-     *
-     * @param string $projectRoot Project root directory.
-     * @return array<string, mixed>
-     */
-    protected function readProjectConfiguration(string $projectRoot): array
-    {
-        return $this->projectConfigurationReader->read($projectRoot);
-    }
-
-    /**
      * Read the devServer section from project configuration.
      *
      * @param string $projectRoot Project root directory.
@@ -378,7 +367,7 @@ final class ServeCommand extends BaseCommand
      */
     protected function readDevServerConfiguration(string $projectRoot): array
     {
-        $projectConfiguration = $this->readProjectConfiguration($projectRoot);
+        $projectConfiguration = $this->projectConfigurationReader->read($projectRoot);
         $devServerConfiguration = $projectConfiguration['devServer'] ?? null;
         if (!is_array($devServerConfiguration)) {
             return [];
@@ -430,20 +419,6 @@ final class ServeCommand extends BaseCommand
 
             putenv($key . '=' . $value);
         }
-    }
-
-    /**
-     * Normalize optional root option values.
-     *
-     * @param mixed $rootOption Raw root option value.
-     */
-    protected function normalizeRootOption(mixed $rootOption): ?string
-    {
-        if (!is_string($rootOption)) {
-            return null;
-        }
-
-        return Path::optional($rootOption);
     }
 
     /**

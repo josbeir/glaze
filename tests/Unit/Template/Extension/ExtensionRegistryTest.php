@@ -32,7 +32,7 @@ final class ExtensionRegistryTest extends TestCase
     {
         $invocations = 0;
         $registry = new ExtensionRegistry();
-        $registry->register('counter', function () use (&$invocations): int {
+        $registry->register('counter', static function () use (&$invocations): int {
             return ++$invocations;
         });
 

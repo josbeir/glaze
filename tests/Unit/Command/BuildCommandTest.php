@@ -13,6 +13,7 @@ use Glaze\Process\ViteBuildProcess;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
@@ -74,11 +75,9 @@ final class BuildCommandTest extends TestCase
      */
     public function testNormalizeRootOptionHandlesVariants(): void
     {
-        $command = $this->createCommand();
-
-        $trimmed = $this->callProtected($command, 'normalizeRootOption', ' /tmp/site ');
-        $blank = $this->callProtected($command, 'normalizeRootOption', '   ');
-        $invalid = $this->callProtected($command, 'normalizeRootOption', 123);
+        $trimmed = Path::optional(' /tmp/site ');
+        $blank = Path::optional('   ');
+        $invalid = Path::optional(123);
 
         $this->assertSame('/tmp/site', $trimmed);
         $this->assertNull($blank);
