@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Scaffold;
 
 use Cake\Chronos\Chronos;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Nette\Neon\Neon;
 use RuntimeException;
 
@@ -49,7 +49,7 @@ final class PageScaffoldService
 
         foreach ($paths as $path) {
             if (is_string($path)) {
-                $match = Normalization::pathFragment($path);
+                $match = Path::fragment($path);
                 if ($match === '') {
                     continue;
                 }
@@ -66,12 +66,12 @@ final class PageScaffoldService
                 continue;
             }
 
-            $match = Normalization::optionalPathFragment($path['match'] ?? null);
+            $match = Path::optionalFragment($path['match'] ?? null);
             if ($match === null) {
                 continue;
             }
 
-            $createPattern = Normalization::optionalPathFragment($path['createPattern'] ?? null);
+            $createPattern = Path::optionalFragment($path['createPattern'] ?? null);
             $rules[] = [
                 'match' => $match,
                 'createPattern' => $createPattern,
@@ -160,8 +160,8 @@ final class PageScaffoldService
         );
 
         return is_string($resolved)
-            ? Normalization::pathFragment($resolved)
-            : Normalization::pathFragment($pattern);
+            ? Path::fragment($resolved)
+            : Path::fragment($pattern);
     }
 
     /**
@@ -199,7 +199,7 @@ final class PageScaffoldService
      */
     protected function resolveTargetPath(string $contentPath, string $relativePath): string
     {
-        return Normalization::path(
+        return Path::normalize(
             rtrim($contentPath, DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
             . str_replace('/', DIRECTORY_SEPARATOR, trim($relativePath, '/')),

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Config;
 
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 
 /**
  * Immutable typed options for Sugar Vite template integration.
@@ -85,7 +85,7 @@ final readonly class TemplateViteOptions
             buildEnabled: ($buildVite['enabled'] ?? false) === true,
             devEnabled: ($devVite['enabled'] ?? false) === true,
             assetBaseUrl: rtrim($assetBaseUrl, '/') . '/',
-            manifestPath: Normalization::path($manifestPath),
+            manifestPath: Path::normalize($manifestPath),
             devServerUrl: $devServerUrl,
             injectClient: is_bool($devVite['injectClient'] ?? null) ? $devVite['injectClient'] : true,
             defaultEntry: $defaultEntry,

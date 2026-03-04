@@ -11,7 +11,7 @@ use Cake\Utility\Inflector;
 use Glaze\Process\NpmInstallProcess;
 use Glaze\Scaffold\ProjectScaffoldService;
 use Glaze\Scaffold\ScaffoldOptions;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use RuntimeException;
 
 /**
@@ -185,11 +185,8 @@ final class InitCommand extends BaseCommand
 
         $preset = $this->resolvePreset($args, $io, $nonInteractive);
 
-        $directoryPath = Normalization::path($directory);
-        if (!$this->isAbsolutePath($directoryPath)) {
-            $currentDirectory = getcwd() ?: '.';
-            $directoryPath = Normalization::path($currentDirectory . DIRECTORY_SEPARATOR . $directoryPath);
-        }
+        $currentDirectory = getcwd() ?: '.';
+        $directoryPath = Path::resolve($currentDirectory, Path::normalize($directory));
 
         return new ScaffoldOptions(
             targetDirectory: $directoryPath,
@@ -310,13 +307,9 @@ final class InitCommand extends BaseCommand
      */
     protected function resolvePresetAbsolutePath(string $preset): string
     {
-        if ($this->isAbsolutePath($preset)) {
-            return $preset;
-        }
-
         $cwd = getcwd() ?: '.';
 
-        return Normalization::path($cwd . DIRECTORY_SEPARATOR . $preset);
+        return Path::resolve($cwd, $preset);
     }
 
     /**
@@ -408,23 +401,5 @@ final class InitCommand extends BaseCommand
         $normalized = trim($template);
 
         return $normalized === '' ? 'page' : $normalized;
-    }
-
-    /**
-     * Detect absolute path values on Unix and Windows.
-     *
-     * @param string $path Path to inspect.
-     */
-    protected function isAbsolutePath(string $path): bool
-    {
-        if ($path === '') {
-            return false;
-        }
-
-        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
-            return true;
-        }
-
-        return preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
     }
 }

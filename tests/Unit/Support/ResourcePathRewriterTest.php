@@ -5,7 +5,7 @@ namespace Glaze\Tests\Unit\Support;
 
 use Glaze\Config\SiteConfig;
 use Glaze\Support\ResourcePathRewriter;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -135,7 +135,7 @@ final class ResourcePathRewriterTest extends TestCase
      */
     public function testNormalizePathSegmentsResolvesDotsAndDotDots(): void
     {
-        $normalized = Normalization::normalizePathSegments('docs/./guides/../images/hero.png');
+        $normalized = Path::normalizeSegments('docs/./guides/../images/hero.png');
 
         $this->assertSame('docs/images/hero.png', $normalized);
     }

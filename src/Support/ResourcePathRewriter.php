@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Support;
 
 use Glaze\Config\SiteConfig;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 
 /**
  * Rewrites internal resource paths across Djot and Sugar rendering pipelines.
@@ -128,11 +128,11 @@ final class ResourcePathRewriter
         $pathPart = $parts[1] ?? $resourcePath;
         $suffix = $parts[2] ?? '';
 
-        $baseDirectory = dirname(Normalization::path($relativePagePath));
+            $baseDirectory = dirname(Path::normalize($relativePagePath));
         $baseDirectory = $baseDirectory === '.' ? '' : trim($baseDirectory, '/');
 
         $combinedPath = ($baseDirectory !== '' ? $baseDirectory . '/' : '') . ltrim($pathPart, '/');
-        $normalizedPath = Normalization::normalizePathSegments($combinedPath);
+            $normalizedPath = Path::normalizeSegments($combinedPath);
 
         return '/' . ltrim($normalizedPath, '/') . $suffix;
     }

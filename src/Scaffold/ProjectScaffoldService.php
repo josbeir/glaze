@@ -348,7 +348,11 @@ final class ProjectScaffoldService
 #     defaults:
 #       template: blog
 #
-# staticDir: static
+# paths:
+#   content: content
+#   template: templates
+#   static: static
+#   public: public
 #
 # extensionsDir: extensions
 #

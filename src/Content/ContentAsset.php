@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Content;
 
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 
 /**
  * Value object representing a discoverable non-Djot content asset.
@@ -50,7 +50,7 @@ final class ContentAsset
 
         $normalized = [];
         foreach ($extensions as $extension) {
-            $fragment = Normalization::optionalPathFragment($extension);
+            $fragment = Path::optionalFragment($extension);
             if ($fragment === null) {
                 continue;
             }

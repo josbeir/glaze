@@ -6,7 +6,7 @@ namespace Glaze\Template;
 use Cake\Utility\Inflector;
 use Glaze\Content\ContentPage;
 use Glaze\Template\Collection\PageCollection;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 
 /**
  * Builds nested section trees from discovered content pages.
@@ -27,7 +27,7 @@ final class SectionTree
         ];
 
         foreach ($pages as $page) {
-            $relativePath = Normalization::pathKey($page->relativePath);
+            $relativePath = Path::key($page->relativePath);
             $sectionPath = self::resolveSectionPath($page, $relativePath);
 
             self::ensurePathNodes($nodes, $sectionPath);
@@ -208,7 +208,7 @@ final class SectionTree
     {
         $metaSection = $page->meta['section'] ?? null;
         if (is_string($metaSection) && trim($metaSection) !== '') {
-            return Normalization::pathKey($metaSection);
+            return Path::key($metaSection);
         }
 
         return self::pathDirectory($relativePath);
@@ -264,7 +264,7 @@ final class SectionTree
             return '';
         }
 
-        return Normalization::pathKey($directory);
+        return Path::key($directory);
     }
 
     /**

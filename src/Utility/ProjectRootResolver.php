@@ -19,7 +19,7 @@ final class ProjectRootResolver
      */
     public static function resolve(?string $rootOption): string
     {
-        $normalizedOption = Normalization::optionalPath($rootOption);
+        $normalizedOption = Path::optional($rootOption);
         if ($normalizedOption !== null) {
             return $normalizedOption;
         }
@@ -34,11 +34,11 @@ final class ProjectRootResolver
      */
     protected static function resolveCurrentDirectory(): ?string
     {
-        $shellDirectory = Normalization::optionalPath(getenv('PWD') ?: null);
+        $shellDirectory = Path::optional(getenv('PWD') ?: null);
         if ($shellDirectory !== null && is_dir($shellDirectory)) {
             return $shellDirectory;
         }
 
-        return Normalization::optionalPath(getcwd() ?: '.');
+        return Path::optional(getcwd() ?: '.');
     }
 }

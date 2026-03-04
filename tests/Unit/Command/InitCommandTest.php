@@ -15,7 +15,7 @@ use Glaze\Scaffold\ScaffoldSchemaLoader;
 use Glaze\Scaffold\TemplateRenderer;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use RuntimeException;
@@ -50,10 +50,10 @@ final class InitCommandTest extends TestCase
         $command = $this->createCommand();
 
         $title = $this->callProtected($command, 'defaultTitle', 'my-site');
-        $absoluteUnix = $this->callProtected($command, 'isAbsolutePath', '/tmp/new-site');
-        $absoluteWindows = $this->callProtected($command, 'isAbsolutePath', 'C:\\tmp\\new-site');
-        $notAbsolute = $this->callProtected($command, 'isAbsolutePath', 'tmp/new-site');
-        $emptyPath = $this->callProtected($command, 'isAbsolutePath', '');
+        $absoluteUnix = Path::isAbsolute('/tmp/new-site');
+        $absoluteWindows = Path::isAbsolute('C:\\tmp\\new-site');
+        $notAbsolute = Path::isAbsolute('tmp/new-site');
+        $emptyPath = Path::isAbsolute('');
 
         $this->assertSame('My Site', $title);
         $this->assertTrue($absoluteUnix);
@@ -165,7 +165,7 @@ final class InitCommandTest extends TestCase
         $options = $this->callProtected($command, 'resolveScaffoldOptions', $arguments, $io);
 
         $this->assertInstanceOf(ScaffoldOptions::class, $options);
-        $this->assertSame(Normalization::path(getcwd() . '/relative-site'), $options->targetDirectory);
+        $this->assertSame(Path::normalize(getcwd() . '/relative-site'), $options->targetDirectory);
         $this->assertSame('relative-site', $options->siteName);
         $this->assertSame('page', $options->pageTemplate);
         $this->assertSame('/docs', $options->basePath);
@@ -215,7 +215,7 @@ final class InitCommandTest extends TestCase
             throw new RuntimeException('Unable to resolve current working directory.');
         }
 
-        $cwdPrefix = Normalization::path($cwd);
+        $cwdPrefix = Path::normalize($cwd);
         if ($cwdPrefix === '') {
             throw new RuntimeException('Resolved current working directory cannot be empty.');
         }

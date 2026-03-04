@@ -7,7 +7,7 @@ use Cake\Chronos\Chronos;
 use Cake\Utility\Hash;
 use Glaze\Content\ContentPage;
 use Glaze\Template\Collection\PageCollection;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Throwable;
 
 /**
@@ -314,10 +314,10 @@ final class SiteIndex
     {
         $metaSection = Hash::get($page->meta, 'section');
         if (is_string($metaSection) && trim($metaSection) !== '') {
-            return Normalization::pathKey($metaSection);
+            return Path::key($metaSection);
         }
 
-        $normalizedPath = Normalization::pathKey($page->relativePath);
+        $normalizedPath = Path::key($page->relativePath);
         $directory = dirname($normalizedPath);
         if ($directory === '.' || $directory === '/') {
             return '';

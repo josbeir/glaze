@@ -6,7 +6,7 @@ namespace Glaze\Template;
 use Glaze\Content\ContentAsset;
 use Glaze\Content\ContentPage;
 use Glaze\Template\Collection\ContentAssetCollection;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -157,14 +157,14 @@ final class ContentAssetResolver
      */
     protected function resolveAbsoluteDirectory(?string $relativePath): string
     {
-        $fragment = Normalization::optionalPathFragment($relativePath ?? '');
+        $fragment = Path::optionalFragment($relativePath ?? '');
         $normalizedRoot = rtrim(str_replace('\\', '/', $this->contentPath), '/');
 
         if ($fragment === null) {
             return $normalizedRoot;
         }
 
-        $safeFragment = Normalization::normalizePathSegments($fragment);
+        $safeFragment = Path::normalizeSegments($fragment);
         if ($safeFragment === '') {
             return $normalizedRoot;
         }
@@ -179,7 +179,7 @@ final class ContentAssetResolver
      */
     protected function relativePageDirectory(ContentPage $page): string
     {
-        $relativeSourcePath = Normalization::pathFragment($page->relativePath);
+        $relativeSourcePath = Path::fragment($page->relativePath);
         if ($relativeSourcePath === '') {
             return '';
         }
@@ -203,16 +203,16 @@ final class ContentAssetResolver
      */
     protected function appendRelativePath(string $parent, ?string $child): string
     {
-        $childFragment = Normalization::optionalPathFragment($child ?? '');
+        $childFragment = Path::optionalFragment($child ?? '');
         if ($childFragment === null) {
             return $parent;
         }
 
         if ($parent === '') {
-            return Normalization::normalizePathSegments($childFragment);
+            return Path::normalizeSegments($childFragment);
         }
 
-        return Normalization::normalizePathSegments($parent . '/' . $childFragment);
+        return Path::normalizeSegments($parent . '/' . $childFragment);
     }
 
     /**
@@ -227,7 +227,7 @@ final class ContentAssetResolver
 
         $suffix = ltrim(substr($normalizedPath, strlen($normalizedRoot)), '/');
 
-        return Normalization::pathFragment($suffix);
+        return Path::fragment($suffix);
     }
 
     /**
@@ -238,7 +238,7 @@ final class ContentAssetResolver
     protected function toUrlPath(string $relativePath): string
     {
         $assetPath = '/' . trim($relativePath, '/');
-        $baseFragment = Normalization::optionalPathFragment($this->basePath ?? '');
+        $baseFragment = Path::optionalFragment($this->basePath ?? '');
 
         if ($baseFragment === null) {
             return $assetPath;

@@ -15,6 +15,7 @@ use Glaze\Config\BuildConfigFactory;
 use Glaze\Scaffold\PageScaffoldOptions;
 use Glaze\Scaffold\PageScaffoldService;
 use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Glaze\Utility\ProjectRootResolver;
 use RuntimeException;
 use Throwable;
@@ -159,10 +160,10 @@ final class NewCommand extends BaseCommand
     protected function resolvePageInput(Arguments $args, ConsoleIo $io, BuildConfig $config): array
     {
         $nonInteractive = (bool)$args->getOption('yes');
-                $pathPrefix = Normalization::optionalPathFragment($args->getOption('path'));
+                $pathPrefix = Path::optionalFragment($args->getOption('path'));
 
         $slugInput = $this->normalizeString($args->getOption('slug'));
-                $normalizedSlugInput = Normalization::optionalPathFragment($slugInput);
+                $normalizedSlugInput = Path::optionalFragment($slugInput);
 
         $title = $this->normalizeString($args->getOption('title'))
             ?? $this->normalizeString($args->getArgument('title'));
@@ -463,7 +464,7 @@ final class NewCommand extends BaseCommand
      */
     protected function normalizeRootOption(mixed $rootOption): ?string
     {
-        return Normalization::optionalPath($rootOption);
+        return Path::optional($rootOption);
     }
 
     /**

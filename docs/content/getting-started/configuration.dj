@@ -14,6 +14,12 @@ A `glaze.neon` file is optional. Start minimal and add settings only when you ne
 ```neon
 pageTemplate: page
 
+paths:
+  content: content
+  template: templates
+  static: static
+  public: public
+
 site:
   title: My Site
   description: Notes on web, PHP, and experiments.
@@ -118,13 +124,38 @@ devServer:
 
 ## `pageTemplate`
 
-Default Sugar template name used to render pages. The value is a template name without the `.sugar.php` extension, resolved relative to `templates/`.
+Default Sugar template name used to render pages. The value is a template name without the `.sugar.php` extension, resolved relative to `paths.template` (default: `templates`).
 
 ```neon
 pageTemplate: page
 ```
 
 This means pages render with `templates/page.sugar.php` unless a per-page `template` frontmatter value overrides it.
+
+## `paths`
+
+Configure key project directories in one place.
+
+```neon
+paths:
+  content: content
+  template: templates
+  static: static
+  public: public
+```
+
+- `content` -- content source directory (used for page discovery)
+- `template` -- Sugar template directory (used by page rendering)
+- `static` -- static asset source directory copied during builds
+- `public` -- build output directory
+
+Values can be relative to the project root or absolute paths:
+
+```neon
+paths:
+  template: /my/absolute/path
+  static: myStatic
+```
 
 ## `site`
 

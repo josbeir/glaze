@@ -8,7 +8,7 @@ use Glaze\Config\CachePath;
 use Glaze\Config\DjotOptions;
 use Glaze\Config\SiteConfig;
 use Glaze\Config\TemplateViteOptions;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -54,12 +54,68 @@ final class BuildConfigTest extends TestCase
         $this->assertFalse($config->templateViteOptions->devEnabled);
         $this->assertSame('/', $config->templateViteOptions->assetBaseUrl);
         $this->assertSame(
-            Normalization::path('/tmp/glaze-project/public/.vite/manifest.json'),
-            Normalization::path($config->templateViteOptions->manifestPath),
+            Path::normalize('/tmp/glaze-project/public/.vite/manifest.json'),
+            Path::normalize($config->templateViteOptions->manifestPath),
         );
         $this->assertSame('http://127.0.0.1:5173', $config->templateViteOptions->devServerUrl);
         $this->assertTrue($config->templateViteOptions->injectClient);
         $this->assertNull($config->templateViteOptions->defaultEntry);
+    }
+
+    /**
+     * Ensure paths can be configured from the `paths` block with relative and absolute values.
+     */
+    public function testPathsCanBeConfiguredFromProjectFile(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "paths:\n"
+            . "  content: source-content\n"
+            . "  template: /my/absolute/templates\n"
+            . "  static: my-static\n"
+            . "  public: dist\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame('source-content', $config->contentDir);
+        $this->assertSame('/my/absolute/templates', $config->templateDir);
+        $this->assertSame('my-static', $config->staticDir);
+        $this->assertSame('dist', $config->outputDir);
+        $this->assertSame($projectRoot . '/source-content', $config->contentPath());
+        $this->assertSame('/my/absolute/templates', $config->templatePath());
+        $this->assertSame($projectRoot . '/my-static', $config->staticPath());
+        $this->assertSame($projectRoot . '/dist', $config->outputPath());
+    }
+
+    /**
+     * Ensure invalid or missing path values fall back to default directories.
+     */
+    public function testPathConfigurationFallsBackToDefaults(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "paths:\n"
+            . "  content: ''\n"
+            . "  template: ''\n"
+            . "  static: true\n"
+            . "  public: null\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertSame('content', $config->contentDir);
+        $this->assertSame('templates', $config->templateDir);
+        $this->assertSame('static', $config->staticDir);
+        $this->assertSame('public', $config->outputDir);
+        $this->assertSame($projectRoot . '/content', $config->contentPath());
+        $this->assertSame($projectRoot . '/templates', $config->templatePath());
+        $this->assertSame($projectRoot . '/static', $config->staticPath());
+        $this->assertSame($projectRoot . '/public', $config->outputPath());
     }
 
     /**
@@ -187,8 +243,8 @@ final class BuildConfigTest extends TestCase
         $this->assertTrue($vite->devEnabled);
         $this->assertSame('/build/', $vite->assetBaseUrl);
         $this->assertSame(
-            Normalization::path($projectRoot . '/public/custom-manifest.json'),
-            Normalization::path($vite->manifestPath),
+            Path::normalize($projectRoot . '/public/custom-manifest.json'),
+            Path::normalize($vite->manifestPath),
         );
         $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
         $this->assertFalse($vite->injectClient);
@@ -215,8 +271,8 @@ final class BuildConfigTest extends TestCase
         $this->assertTrue($vite->devEnabled);
         $this->assertSame('/build/', $vite->assetBaseUrl);
         $this->assertSame(
-            Normalization::path($projectRoot . '/public/custom-manifest.json'),
-            Normalization::path($vite->manifestPath),
+            Path::normalize($projectRoot . '/public/custom-manifest.json'),
+            Path::normalize($vite->manifestPath),
         );
         $this->assertSame('http://0.0.0.0:5179', $vite->devServerUrl);
         $this->assertFalse($vite->injectClient);

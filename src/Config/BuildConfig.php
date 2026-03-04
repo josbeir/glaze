@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Config;
 
 use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use RuntimeException;
 
 /**
@@ -21,10 +22,10 @@ final class BuildConfig
      * Constructor.
      *
      * @param string $projectRoot Absolute project root path.
-     * @param string $contentDir Relative content directory.
-     * @param string $templateDir Relative template directory.
-     * @param string $staticDir Relative static asset directory.
-     * @param string $outputDir Relative output directory.
+     * @param string $contentDir Relative or absolute content directory.
+     * @param string $templateDir Relative or absolute template directory.
+     * @param string $staticDir Relative or absolute static asset directory.
+     * @param string $outputDir Relative or absolute output directory.
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param string $extensionsDir Relative directory scanned for auto-discoverable extension classes.
@@ -72,7 +73,7 @@ final class BuildConfig
         bool $includeDrafts = false,
         ?ProjectConfigurationReader $projectConfigurationReader = null,
     ): self {
-        $root = Normalization::path($projectRoot);
+        $root = Path::normalize($projectRoot);
         $reader = $projectConfigurationReader ?? new ProjectConfigurationReader();
         $config = $reader->read($root);
 
@@ -89,8 +90,14 @@ final class BuildConfig
         /** @var array<string, mixed> $djotConfig */
         $djotConfig = is_array($config['djot'] ?? null) ? $config['djot'] : [];
 
+        $pathConfig = self::extractPathConfig($config);
+
         return new self(
             projectRoot: $root,
+            contentDir: $pathConfig['content'],
+            templateDir: $pathConfig['template'],
+            staticDir: $pathConfig['static'],
+            outputDir: $pathConfig['public'],
             pageTemplate: self::extractPageTemplate($config),
             extensionsDir: self::extractExtensionsDir($config),
             enabledExtensions: self::extractEnabledExtensions($config),
@@ -110,7 +117,7 @@ final class BuildConfig
      */
     public function contentPath(): string
     {
-        return $this->resolvePath($this->contentDir);
+        return Path::resolve($this->projectRoot, $this->contentDir);
     }
 
     /**
@@ -118,7 +125,7 @@ final class BuildConfig
      */
     public function templatePath(): string
     {
-        return $this->resolvePath($this->templateDir);
+        return Path::resolve($this->projectRoot, $this->templateDir);
     }
 
     /**
@@ -126,7 +133,7 @@ final class BuildConfig
      */
     public function staticPath(): string
     {
-        return $this->resolvePath($this->staticDir);
+        return Path::resolve($this->projectRoot, $this->staticDir);
     }
 
     /**
@@ -134,7 +141,7 @@ final class BuildConfig
      */
     public function outputPath(): string
     {
-        return $this->resolvePath($this->outputDir);
+        return Path::resolve($this->projectRoot, $this->outputDir);
     }
 
     /**
@@ -144,7 +151,7 @@ final class BuildConfig
      */
     public function cachePath(CachePath|string|null $path = null): string
     {
-        $baseCachePath = $this->resolvePath($this->cacheDir);
+        $baseCachePath = Path::resolve($this->projectRoot, $this->cacheDir);
         if ($path === null) {
             return $baseCachePath;
         }
@@ -154,19 +161,42 @@ final class BuildConfig
             return $baseCachePath;
         }
 
-        return Normalization::path($baseCachePath . '/' . ltrim($suffix, '/'));
+        return Path::normalize($baseCachePath . '/' . ltrim($suffix, '/'));
     }
 
     /**
-     * Resolve a relative path against the project root.
+     * Extract configurable project paths from the `paths` block.
      *
-     * @param string $relativePath Relative path fragment.
+     * @param array<string, mixed> $config Raw project configuration.
+     * @return array{content: string, template: string, static: string, public: string}
      */
-    protected function resolvePath(string $relativePath): string
+    private static function extractPathConfig(array $config): array
     {
-        return Normalization::path(
-            $this->projectRoot . '/' . ltrim($relativePath, '/'),
-        );
+        /** @var array<string, mixed> $paths */
+        $paths = is_array($config['paths'] ?? null) ? $config['paths'] : [];
+
+        return [
+            'content' => self::extractConfiguredPath($paths, 'content', 'content'),
+            'template' => self::extractConfiguredPath($paths, 'template', 'templates'),
+            'static' => self::extractConfiguredPath($paths, 'static', 'static'),
+            'public' => self::extractConfiguredPath($paths, 'public', 'public'),
+        ];
+    }
+
+    /**
+     * Extract and normalize a single path value with default fallback.
+     *
+     * @param array<string, mixed> $paths Project path map.
+     * @param string $key Path key in the `paths` block.
+     * @param string $default Default path value.
+     */
+    private static function extractConfiguredPath(array $paths, string $key, string $default): string
+    {
+        $value = $paths[$key] ?? null;
+
+        return is_string($value) && trim($value) !== ''
+            ? Path::normalize(trim($value))
+            : $default;
     }
 
     /**

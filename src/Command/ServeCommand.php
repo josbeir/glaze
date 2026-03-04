@@ -13,6 +13,7 @@ use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Process\PhpServerProcess;
 use Glaze\Process\ViteServeProcess;
 use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Glaze\Utility\ProjectRootResolver;
 use InvalidArgumentException;
 use RuntimeException;
@@ -442,7 +443,7 @@ final class ServeCommand extends BaseCommand
             return null;
         }
 
-        return Normalization::optionalPath($rootOption);
+        return Path::optional($rootOption);
     }
 
     /**

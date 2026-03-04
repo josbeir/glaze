@@ -20,7 +20,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 use Sugar\Core\Extension\ExtensionInterface as SugarExtensionInterface;
 use Sugar\Core\Extension\RegistrationContext;
@@ -539,7 +539,7 @@ final class SiteBuilderTest extends TestCase
         $this->createSiteBuilder()->build($config, dispatcher: $dispatcher);
 
         $this->assertCount(1, $received);
-        $this->assertSame(Normalization::path($projectRoot), Normalization::path($received[0]));
+        $this->assertSame(Path::normalize($projectRoot), Path::normalize($received[0]));
     }
 
     /**

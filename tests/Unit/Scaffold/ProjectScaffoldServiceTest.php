@@ -9,7 +9,7 @@ use Glaze\Scaffold\ScaffoldRegistry;
 use Glaze\Scaffold\ScaffoldSchemaLoader;
 use Glaze\Scaffold\TemplateRenderer;
 use Glaze\Tests\Helper\FilesystemTestTrait;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use Nette\Neon\Neon;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -93,11 +93,11 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/.editorconfig');
         $this->assertFileExists($target . '/glaze.neon');
 
-        $normalizedCreated = array_map(static fn(string $path): string => Normalization::path($path), $created);
+        $normalizedCreated = array_map(static fn(string $path): string => Path::normalize($path), $created);
 
-        $this->assertContains(Normalization::path($target . '/glaze.neon'), $normalizedCreated);
-        $this->assertNotContains(Normalization::path($target . '/vite.config.js'), $normalizedCreated);
-        $this->assertNotContains(Normalization::path($target . '/package.json'), $normalizedCreated);
+        $this->assertContains(Path::normalize($target . '/glaze.neon'), $normalizedCreated);
+        $this->assertNotContains(Path::normalize($target . '/vite.config.js'), $normalizedCreated);
+        $this->assertNotContains(Path::normalize($target . '/package.json'), $normalizedCreated);
     }
 
     /**
@@ -134,6 +134,8 @@ final class ProjectScaffoldServiceTest extends TestCase
 
         $this->assertStringContainsString('# --- Available options (uncomment and adjust as needed) ---', $raw);
         $this->assertStringContainsString('# contentTypes:', $raw);
+        $this->assertStringContainsString('# paths:', $raw);
+        $this->assertStringContainsString('#   template: templates', $raw);
         $this->assertStringContainsString('# djot:', $raw);
         $this->assertStringContainsString('# devServer:', $raw);
     }
@@ -196,10 +198,10 @@ final class ProjectScaffoldServiceTest extends TestCase
         $this->assertFileExists($target . '/package.json');
         $this->assertFileExists($target . '/templates/layout/base.sugar.php');
 
-        $normalizedCreated = array_map(static fn(string $path): string => Normalization::path($path), $created);
+        $normalizedCreated = array_map(static fn(string $path): string => Path::normalize($path), $created);
 
-        $this->assertContains(Normalization::path($target . '/vite.config.js'), $normalizedCreated);
-        $this->assertContains(Normalization::path($target . '/package.json'), $normalizedCreated);
+        $this->assertContains(Path::normalize($target . '/vite.config.js'), $normalizedCreated);
+        $this->assertContains(Path::normalize($target . '/package.json'), $normalizedCreated);
 
         $viteLayout = file_get_contents($target . '/templates/layout/base.sugar.php');
         $this->assertIsString($viteLayout);

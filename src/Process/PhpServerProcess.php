@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Process;
 
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use InvalidArgumentException;
 use Symfony\Component\Process\Process;
 
@@ -226,7 +226,7 @@ final class PhpServerProcess implements ProcessInterface
             return null;
         }
 
-        $cliRoot = Normalization::optionalPath(getenv('GLAZE_CLI_ROOT') ?: null);
+        $cliRoot = Path::optional(getenv('GLAZE_CLI_ROOT') ?: null);
         if ($cliRoot !== null) {
             $cliRouterPath = $cliRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
             if (is_file($cliRouterPath)) {

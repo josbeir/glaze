@@ -10,7 +10,7 @@ use Glaze\Command\NewCommand;
 use Glaze\Config\BuildConfig;
 use Glaze\Tests\Helper\ConsoleIoTestTrait;
 use Glaze\Tests\Helper\ContainerTestTrait;
-use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -490,12 +490,12 @@ final class NewCommandTest extends TestCase
         $emptySlug = $this->callProtected($command, 'slugifyPath', '///');
         $relativePath = $this->callProtected($command, 'relativeToRoot', '/other/path/file.dj', '/tmp/project');
         $rootOption = $this->callProtected($command, 'normalizeRootOption', ' /tmp/site ');
-        $normalizedPathPrefix = Normalization::optionalPathFragment('/posts/2026/');
+        $normalizedPathPrefix = Path::optionalFragment('/posts/2026/');
         $derivedTitle = $this->callProtected($command, 'deriveTitleFromPath', 'posts/my-post');
 
         $this->assertSame('index', $emptySlug);
         $this->assertSame('/other/path/file.dj', $relativePath);
-        $this->assertSame(Normalization::path('/tmp/site'), $rootOption);
+        $this->assertSame(Path::normalize('/tmp/site'), $rootOption);
         $this->assertSame('posts/2026', $normalizedPathPrefix);
         $this->assertSame('My Post', $derivedTitle);
     }
