@@ -57,6 +57,18 @@ contentTypes: []
 
 # Djot renderer options.
 djot:
+  # Whether to produce XHTML-compatible output.
+  xhtml: false
+  # Enable significant newlines mode (soft breaks become <br>, blocks can interrupt paragraphs).
+  significantNewlines: false
+  # Converter profile controlling which markup features are allowed.
+  # Available profiles: full, article, comment, minimal.
+  # Set to null (or omit) to disable profile filtering and keep default converter behavior.
+  # - full: all features enabled (trusted content)
+  # - article: all formatting, no raw HTML
+  # - comment: basic formatting, nofollow links
+  # - minimal: inline formatting and lists only
+  profile: null
   codeHighlighting:
     enabled: true
     theme: nord

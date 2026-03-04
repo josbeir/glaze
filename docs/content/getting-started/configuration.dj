@@ -61,6 +61,9 @@ contentTypes:
       template: docs
 
 djot:
+  xhtml: false
+  significantNewlines: false
+  profile: null
   codeHighlighting:
     enabled: true
     theme: nord
@@ -282,6 +285,48 @@ The resolved type is available in templates as `$page->type`.
 ## `djot`
 
 Djot rendering configuration namespace. Grouping options under `djot` keeps the file organized and leaves room for future Djot-specific features.
+
+### `djot.xhtml`
+
+Produce XHTML-compatible output (self-closing tags like `<br />` instead of `<br>`).
+
+```neon
+djot:
+  xhtml: true
+```
+
+- `xhtml` -- enable XHTML output mode (default `false`)
+
+### `djot.significantNewlines`
+
+Enable significant newlines mode. When active, soft line breaks in Djot source become `<br>` tags and block elements like lists can interrupt paragraphs without a blank line.
+
+```neon
+djot:
+  significantNewlines: true
+```
+
+- `significantNewlines` -- enable significant newlines (default `false`)
+
+### `djot.profile`
+
+Select a named converter profile that controls which Djot markup features are allowed during rendering. Profiles are provided by the [php-collective/djot-php](https://github.com/php-collective/djot-php) library.
+
+```neon
+djot:
+  profile: article
+```
+
+Available profiles:
+
+| Profile | Description |
+|---|---|
+| `full` | All features explicitly enabled; use for trusted content |
+| `article` | All formatting features, but raw HTML is blocked |
+| `comment` | Basic inline formatting, lists, blockquotes, code; links get `nofollow` |
+| `minimal` | Inline text formatting and lists only; suitable for chat or micro-posts |
+
+The `article` profile is a good default for sites that accept contributor content -- it allows all Djot formatting but prevents raw HTML nodes.
 
 ### `djot.codeHighlighting`
 

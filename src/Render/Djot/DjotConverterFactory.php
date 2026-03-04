@@ -11,6 +11,7 @@ use Djot\Extension\HeadingPermalinksExtension;
 use Djot\Extension\MentionsExtension;
 use Djot\Extension\SemanticSpanExtension;
 use Djot\Extension\SmartQuotesExtension;
+use Djot\Profile;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
 use Glaze\Config\DjotOptions;
@@ -66,7 +67,11 @@ class DjotConverterFactory
         ?string $relativePagePath = null,
         ?BuildConfig $config = null,
     ): DjotConverter {
-        $converter = new DjotConverter();
+        $converter = new DjotConverter(
+            xhtml: $djot->xhtml,
+            profile: $this->resolveProfile($djot),
+            significantNewlines: $djot->significantNewlines,
+        );
         $converter->addExtension(new InternalDjotLinkExtension(
             resourcePathRewriter: $this->resourcePathRewriter,
             siteConfig: $siteConfig,
@@ -89,6 +94,23 @@ class DjotConverterFactory
         $converter->addExtension(new CodeGroupExtension($phikiCodeBlockRenderer));
 
         return $converter;
+    }
+
+    /**
+     * Resolve a Profile instance from the configured profile name.
+     *
+     * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
+     * @return \Djot\Profile|null Named Profile instance, or null when no profile is configured.
+     */
+    protected function resolveProfile(DjotOptions $djot): ?Profile
+    {
+        return match ($djot->profile) {
+            'full' => Profile::full(),
+            'article' => Profile::article(),
+            'comment' => Profile::comment(),
+            'minimal' => Profile::minimal(),
+            default => null,
+        };
     }
 
     /**

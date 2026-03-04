@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Render\Djot;
 
+use Djot\Profile;
 use Glaze\Config\DjotOptions;
 use Glaze\Render\Djot\DjotConverterFactory;
 use Glaze\Render\Djot\PhikiCodeBlockRenderer;
@@ -33,5 +34,15 @@ class DjotConverterFactoryTestDouble extends DjotConverterFactory
     public function getSignature(Theme|array|string $theme, bool $withGutter): string
     {
         return $this->buildRendererSignature($theme, $withGutter);
+    }
+
+    /**
+     * Expose {@see resolveProfile()} for direct invocation in tests.
+     *
+     * @param \Glaze\Config\DjotOptions $djot Djot renderer options.
+     */
+    public function getProfile(DjotOptions $djot): ?Profile
+    {
+        return $this->resolveProfile($djot);
     }
 }

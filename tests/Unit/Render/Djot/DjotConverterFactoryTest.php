@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Render\Djot;
 
+use Djot\Profile;
 use Glaze\Config\DjotOptions;
 use Glaze\Render\Djot\PhikiThemeResolver;
 use Glaze\Support\ResourcePathRewriter;
@@ -148,5 +149,46 @@ final class DjotConverterFactoryTest extends TestCase
 
         $this->assertSame($sig1, $sig2, 'Key order must not affect the signature');
         $this->assertNotSame($sig1, $sig3, 'Different theme values must produce different signatures');
+    }
+
+    /**
+     * When no profile is configured, resolveProfile must return null.
+     */
+    public function testResolveProfileReturnsNullWhenNoProfileSet(): void
+    {
+        $djot = new DjotOptions();
+
+        $this->assertNotInstanceOf(Profile::class, $this->factory->getProfile($djot));
+    }
+
+    /**
+     * Each named profile must resolve to its corresponding Profile instance.
+     */
+    public function testResolveProfileReturnsCorrectInstanceForEachProfile(): void
+    {
+        $map = [
+            'full' => 'full',
+            'article' => 'article',
+            'comment' => 'comment',
+            'minimal' => 'minimal',
+        ];
+
+        foreach ($map as $name => $expectedName) {
+            $djot = new DjotOptions(profile: $name);
+            $profile = $this->factory->getProfile($djot);
+
+            $this->assertInstanceOf(Profile::class, $profile, sprintf("Profile '%s' should resolve to a Profile instance", $name));
+            $this->assertSame($expectedName, $profile->getName(), sprintf("Profile '%s' should have name '%s'", $name, $expectedName));
+        }
+    }
+
+    /**
+     * An unrecognised profile name must resolve to null.
+     */
+    public function testResolveProfileReturnsNullForUnknownProfile(): void
+    {
+        $djot = new DjotOptions(profile: 'unknown');
+
+        $this->assertNotInstanceOf(Profile::class, $this->factory->getProfile($djot));
     }
 }

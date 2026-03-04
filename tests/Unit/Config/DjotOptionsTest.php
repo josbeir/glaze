@@ -18,6 +18,9 @@ final class DjotOptionsTest extends TestCase
     {
         $options = new DjotOptions();
 
+        $this->assertFalse($options->xhtml);
+        $this->assertFalse($options->significantNewlines);
+        $this->assertNull($options->profile);
         $this->assertTrue($options->codeHighlightingEnabled);
         $this->assertSame('nord', $options->codeHighlightingTheme);
         $this->assertSame([], $options->codeHighlightingThemes);
@@ -56,6 +59,9 @@ final class DjotOptionsTest extends TestCase
     {
         $options = DjotOptions::fromProjectConfig([]);
 
+        $this->assertFalse($options->xhtml);
+        $this->assertFalse($options->significantNewlines);
+        $this->assertNull($options->profile);
         $this->assertTrue($options->codeHighlightingEnabled);
         $this->assertSame('nord', $options->codeHighlightingTheme);
         $this->assertSame([], $options->codeHighlightingThemes);
@@ -308,6 +314,101 @@ final class DjotOptionsTest extends TestCase
         ]);
 
         $this->assertTrue($options->semanticSpanEnabled);
+    }
+
+    /**
+     * Ensure xhtml flag is parsed from config.
+     */
+    public function testXhtmlIsConfigured(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'xhtml' => true,
+        ]);
+
+        $this->assertTrue($options->xhtml);
+    }
+
+    /**
+     * Ensure significant newlines flag is parsed from config.
+     */
+    public function testSignificantNewlinesIsConfigured(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'significantNewlines' => true,
+        ]);
+
+        $this->assertTrue($options->significantNewlines);
+    }
+
+    /**
+     * Ensure non-bool xhtml value falls back to default.
+     */
+    public function testNonBoolXhtmlFallsBackToDefault(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'xhtml' => 'yes',
+        ]);
+
+        $this->assertFalse($options->xhtml);
+    }
+
+    /**
+     * Ensure safe mode settings are parsed from config.
+     */
+    public function testProfileIsConfigured(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'profile' => 'article',
+        ]);
+
+        $this->assertSame('article', $options->profile);
+    }
+
+    /**
+     * Ensure all valid profile values are accepted.
+     */
+    public function testAllValidProfilesAreAccepted(): void
+    {
+        foreach (['full', 'article', 'comment', 'minimal'] as $profile) {
+            $options = DjotOptions::fromProjectConfig(['profile' => $profile]);
+            $this->assertSame($profile, $options->profile, sprintf("Profile '%s' should be accepted", $profile));
+        }
+    }
+
+    /**
+     * Ensure profile value is case-insensitive.
+     */
+    public function testProfileIsCaseInsensitive(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'profile' => 'ARTICLE',
+        ]);
+
+        $this->assertSame('article', $options->profile);
+    }
+
+    /**
+     * Ensure invalid profile value falls back to null.
+     */
+    public function testInvalidProfileFallsBackToNull(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'profile' => 'invalid',
+        ]);
+
+        $this->assertNull($options->profile);
+    }
+
+    /**
+     * Ensure non-string profile value falls back to null.
+     */
+    public function testNonStringProfileFallsBackToNull(): void
+    {
+        $options = DjotOptions::fromProjectConfig([
+            'profile' => true,
+        ]);
+
+        $this->assertNull($options->profile);
     }
 
     /**

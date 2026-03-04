@@ -20,8 +20,18 @@ use Glaze\Utility\Normalization;
 final readonly class DjotOptions
 {
     /**
+     * Named converter profiles recognised by the Djot library.
+     *
+     * Each profile maps to a static factory method on `Djot\Profile`.
+     */
+    public const VALID_PROFILES = ['full', 'article', 'comment', 'minimal'];
+
+    /**
      * Constructor.
      *
+     * @param bool $xhtml Whether XHTML-compatible output is enabled.
+     * @param bool $significantNewlines Whether significant newlines mode is enabled (soft breaks become br tags).
+     * @param string|null $profile Named converter profile (`full`, `article`, `comment`, `minimal`) or null for unrestricted.
      * @param bool $codeHighlightingEnabled Whether Phiki highlighting is enabled.
      * @param string $codeHighlightingTheme Configured Phiki theme (lower-cased).
      * @param array<string, string> $codeHighlightingThemes Optional named Phiki themes map (name => theme).
@@ -53,6 +63,9 @@ final readonly class DjotOptions
      * @param array<string, array<string, string>> $defaultAttributesDefaults Default attributes map.
      */
     public function __construct(
+        public bool $xhtml = false,
+        public bool $significantNewlines = false,
+        public ?string $profile = null,
         public bool $codeHighlightingEnabled = true,
         public string $codeHighlightingTheme = 'nord',
         public array $codeHighlightingThemes = [],
@@ -107,12 +120,23 @@ final readonly class DjotOptions
         $ss = self::section($djotConfig, 'semanticSpan');
         $da = self::section($djotConfig, 'defaultAttributes');
 
+        $profile = self::optStrVal($djotConfig['profile'] ?? null);
+        if ($profile !== null) {
+            $profile = strtolower($profile);
+            if (!in_array($profile, self::VALID_PROFILES, true)) {
+                $profile = null;
+            }
+        }
+
         $position = strtolower(self::strVal($ha['position'] ?? null, 'after'));
         if (!in_array($position, ['before', 'after'], true)) {
             $position = 'after';
         }
 
         return new self(
+            xhtml: self::boolVal($djotConfig['xhtml'] ?? null, false),
+            significantNewlines: self::boolVal($djotConfig['significantNewlines'] ?? null, false),
+            profile: $profile,
             codeHighlightingEnabled: self::boolVal($ch['enabled'] ?? null, true),
             codeHighlightingTheme: strtolower(self::strVal($ch['theme'] ?? null, 'nord')),
             codeHighlightingThemes: self::parseCodeHighlightingThemes($ch['themes'] ?? null),
