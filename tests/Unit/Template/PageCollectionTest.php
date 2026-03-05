@@ -337,6 +337,85 @@ final class PageCollectionTest extends TestCase
     }
 
     /**
+     * Create an unlisted content page for test scenarios.
+     *
+     * @param string $slug Page slug.
+     * @param string $urlPath Page URL path.
+     * @param array<string, mixed> $meta Page metadata.
+     * @param string $title Page title.
+     */
+    protected function makeUnlistedPage(
+        string $slug,
+        string $urlPath,
+        array $meta,
+        string $title,
+        ?string $type = null,
+    ): ContentPage {
+        return new ContentPage(
+            sourcePath: '/tmp/' . $slug . '.dj',
+            relativePath: $slug . '.dj',
+            slug: $slug,
+            urlPath: $urlPath,
+            outputRelativePath: trim($slug, '/') . '/index.html',
+            title: $title,
+            source: '# ' . $title,
+            draft: (bool)($meta['draft'] ?? false),
+            meta: $meta,
+            type: $type,
+            unlisted: true,
+        );
+    }
+
+    /**
+     * Validate withoutUnlisted() excludes unlisted pages from a collection.
+     */
+    public function testWithoutUnlistedExcludesUnlistedPages(): void
+    {
+        $pages = new PageCollection([
+            $this->makePage('blog/a', '/blog/a/', [], 'Post A', 'blog'),
+            $this->makeUnlistedPage('blog', '/blog/', [], 'Blog Overview', 'blog'),
+            $this->makePage('blog/b', '/blog/b/', [], 'Post B', 'blog'),
+        ]);
+
+        $listed = $pages->withoutUnlisted();
+
+        $this->assertCount(2, $listed);
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $listed->all());
+        $this->assertSame(['blog/a', 'blog/b'], $slugs);
+    }
+
+    /**
+     * Validate withUnlisted() is a no-op that preserves all pages.
+     */
+    public function testWithUnlistedReturnsIdenticalCollection(): void
+    {
+        $pages = new PageCollection([
+            $this->makePage('blog/a', '/blog/a/', [], 'Post A'),
+            $this->makeUnlistedPage('blog', '/blog/', [], 'Blog Overview'),
+        ]);
+
+        $withUnlisted = $pages->withUnlisted();
+
+        $this->assertSame($pages, $withUnlisted);
+        $this->assertCount(2, $withUnlisted);
+    }
+
+    /**
+     * Validate withoutUnlisted() on a collection with no unlisted pages returns all pages.
+     */
+    public function testWithoutUnlistedOnAllListedReturnsAll(): void
+    {
+        $pages = new PageCollection([
+            $this->makePage('a', '/a/', [], 'A'),
+            $this->makePage('b', '/b/', [], 'B'),
+        ]);
+
+        $listed = $pages->withoutUnlisted();
+
+        $this->assertCount(2, $listed);
+    }
+
+    /**
      * Invoke a protected method using scope-bound closure.
      *
      * @param object $object Object to invoke method on.

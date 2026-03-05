@@ -52,11 +52,22 @@ final class SiteContext
     }
 
     /**
-     * Return default-sorted regular pages.
+     * Return default-sorted regular pages, excluding unlisted pages.
      */
     public function regularPages(): PageCollection
     {
         return $this->siteIndex->regularPages();
+    }
+
+    /**
+     * Return all pages including unlisted ones.
+     *
+     * Unlike `regularPages()`, this collection retains pages marked as unlisted
+     * (e.g. `_index.dj` section overview pages).
+     */
+    public function allPages(): PageCollection
+    {
+        return $this->siteIndex->allPages();
     }
 
     /**

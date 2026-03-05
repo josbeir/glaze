@@ -103,6 +103,7 @@ final class ContentPageTest extends TestCase
         $this->assertSame($page->draft, $enriched->draft);
         $this->assertSame($page->meta, $enriched->meta);
         $this->assertSame($page->virtual, $enriched->virtual);
+        $this->assertSame($page->unlisted, $enriched->unlisted);
     }
 
     /**
@@ -113,6 +114,7 @@ final class ContentPageTest extends TestCase
         $page = ContentPage::virtual('/sitemap.xml', 'sitemap.xml', 'Sitemap');
 
         $this->assertTrue($page->virtual);
+        $this->assertTrue($page->unlisted);
         $this->assertFalse($page->draft);
         $this->assertSame('/sitemap.xml', $page->urlPath);
         $this->assertSame('sitemap.xml', $page->outputRelativePath);
@@ -152,6 +154,59 @@ final class ContentPageTest extends TestCase
         $enriched = $page->withToc([]);
 
         $this->assertTrue($enriched->virtual);
+    }
+
+    /**
+     * Ensure unlisted defaults to false for regular pages.
+     */
+    public function testUnlistedDefaultsToFalse(): void
+    {
+        $page = $this->createPage([]);
+
+        $this->assertFalse($page->unlisted);
+    }
+
+    /**
+     * Ensure unlisted flag can be set explicitly on construction.
+     */
+    public function testUnlistedCanBeSetExplicitly(): void
+    {
+        $page = new ContentPage(
+            sourcePath: '/tmp/content/_index.dj',
+            relativePath: 'blog/_index.dj',
+            slug: 'blog',
+            urlPath: '/blog/',
+            outputRelativePath: 'blog/index.html',
+            title: 'Blog',
+            source: '# Blog',
+            draft: false,
+            meta: [],
+            unlisted: true,
+        );
+
+        $this->assertTrue($page->unlisted);
+    }
+
+    /**
+     * Ensure withToc() preserves the unlisted flag.
+     */
+    public function testWithTocPreservesUnlistedFlag(): void
+    {
+        $page = new ContentPage(
+            sourcePath: '/tmp/content/_index.dj',
+            relativePath: 'blog/_index.dj',
+            slug: 'blog',
+            urlPath: '/blog/',
+            outputRelativePath: 'blog/index.html',
+            title: 'Blog',
+            source: '# Blog',
+            draft: false,
+            meta: [],
+            unlisted: true,
+        );
+        $enriched = $page->withToc([]);
+
+        $this->assertTrue($enriched->unlisted);
     }
 
     /**

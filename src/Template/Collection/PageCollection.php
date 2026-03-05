@@ -201,6 +201,31 @@ final class PageCollection implements IteratorAggregate, Countable
     }
 
     /**
+     * Return a new collection excluding unlisted pages.
+     *
+     * This is used internally by methods like `whereType()` and `SiteIndex::regularPages()`
+     * to filter unlisted pages by default. Templates can call `withUnlisted()`
+     * on the result to opt back in.
+     */
+    public function withoutUnlisted(): self
+    {
+        return $this->filter(static fn(ContentPage $page): bool => !$page->unlisted);
+    }
+
+    /**
+     * Return a new collection that includes unlisted pages.
+     *
+     * This is a no-op identity method provided for readability and discoverability.
+     * Call it on an already-filtered collection obtained from `SiteIndex` or
+     * `SiteContext` to make the intent explicit, or combine it with other query
+     * methods on the raw `PageCollection::from()` result.
+     */
+    public function withUnlisted(): self
+    {
+        return $this;
+    }
+
+    /**
      * Filter pages by resolved content type.
      *
      * @param string $type Content type name.

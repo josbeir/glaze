@@ -53,7 +53,7 @@ final class SiteIndex
     }
 
     /**
-     * Return all indexed pages.
+     * Return all indexed pages, including unlisted and virtual ones.
      *
      * @return array<\Glaze\Content\ContentPage>
      */
@@ -63,7 +63,22 @@ final class SiteIndex
     }
 
     /**
-     * Return default-sorted regular page collection.
+     * Return a collection of all pages including unlisted ones, with default sorting.
+     *
+     * Unlike `regularPages()`, this collection retains pages marked as unlisted
+     * (e.g. `_index.dj` pages). Virtual pages are still excluded.
+     */
+    public function allPages(): PageCollection
+    {
+        return new PageCollection($this->pages);
+    }
+
+    /**
+     * Return default-sorted regular page collection, excluding unlisted pages.
+     *
+     * Unlisted pages (e.g. `_index.dj` or pages with `unlisted: true` in
+     * frontmatter) are filtered out by default. Use the raw `all()` method
+     * or call `withUnlisted()` on the returned collection if you need them.
      */
     public function regularPages(): PageCollection
     {
@@ -71,7 +86,11 @@ final class SiteIndex
             return $this->regularPagesCache;
         }
 
-        $pages = $this->pages;
+        $pages = array_filter(
+            $this->pages,
+            static fn(ContentPage $page): bool => !$page->unlisted,
+        );
+        $pages = array_values($pages);
 
         usort($pages, function (ContentPage $left, ContentPage $right): int {
             $weightComparison = $this->extractWeight($left) <=> $this->extractWeight($right);

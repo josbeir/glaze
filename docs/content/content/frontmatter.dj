@@ -39,6 +39,7 @@ Reserved keys are interpreted by Glaze runtime features:
 - `date`
 - `weight`
 - `draft`
+- `unlisted`
 - `type`
 - `template`
 - `description`
@@ -134,6 +135,19 @@ Marks the page as a draft. Draft pages are excluded from `glaze build` output un
 draft: true
 ---
 ```
+
+### `unlisted`
+
+Marks the page as unlisted. Unlisted pages are rendered and accessible by URL, but excluded from page collections (`regularPages()`, `type()`, `pages()`) by default. This is useful for section overview pages that should not appear alongside regular content in listings.
+
+```djot
+---
+unlisted: true
+---
+```
+
+{.info}
+Files named with a leading underscore (e.g. `_index.dj`) are automatically treated as unlisted. You can override this by setting `unlisted: false` explicitly in the frontmatter.
 
 ### `type`
 

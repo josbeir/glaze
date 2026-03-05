@@ -30,6 +30,7 @@ $page->urlPath          // string -- e.g. /blog/my-post/
 $page->slug             // string -- e.g. blog/my-post
 $page->relativePath     // string -- e.g. blog/my-post.dj
 $page->draft            // bool
+$page->unlisted         // bool -- excluded from collections by default
 $page->type             // ?string -- content type name
 $page->meta             // array<string, mixed> -- all frontmatter metadata
 $page->taxonomies       // array<string, array<string>> -- e.g. ['tags' => ['php', 'oss']]
@@ -148,6 +149,56 @@ $this->pages()->whereType('docs')
 
 // chained
 $this->type('blog')->byDate('desc')->take(5)
+```
+
+## Unlisted pages
+
+Pages marked as unlisted -- either via `unlisted: true` in frontmatter or by using an underscore-prefixed filename like `_index.dj` -- are excluded from `regularPages()`, `pages()`, `type()`, and section `pages()` by default.
+
+This is useful for section overview pages (e.g. `content/blog/_index.dj`) that should render at `/blog/` but should not appear alongside regular blog posts in listings.
+
+### Including unlisted pages
+
+Use `allPages()` to access all pages including unlisted ones:
+
+```php
+$this->allPages()                       // all pages (including unlisted)
+```
+
+On a `PageCollection`, use `withoutUnlisted()` and `withUnlisted()`:
+
+```php
+$collection->withoutUnlisted()          // filter unlisted out (already the default from regularPages)
+$collection->withUnlisted()             // identity method, signals intent to include unlisted
+```
+
+### Underscore filename convention
+
+Files with a leading underscore (e.g. `_index.dj`) are implicitly unlisted. This makes them ideal for section landing pages that provide overview content without polluting child page listings:
+
+```
+content/
+  blog/
+    _index.dj        <-- unlisted, renders at /blog/
+    first-post.dj    <-- listed, renders at /blog/first-post/
+    second-post.dj   <-- listed, renders at /blog/second-post/
+```
+
+The implicit unlisted flag from the underscore convention can be overridden with explicit frontmatter:
+
+```djot
+---
+unlisted: false
+---
+```
+
+### Accessing unlisted pages directly
+
+Unlisted pages are still rendered and accessible by URL. They can also be found using `bySlug()` and `byUrl()`:
+
+```php
+$overview = $this->bySlug('blog');
+$overview = $this->byUrl('/blog/');
 ```
 
 ## Grouping

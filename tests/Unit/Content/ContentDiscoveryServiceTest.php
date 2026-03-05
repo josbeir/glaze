@@ -6,6 +6,7 @@ namespace Glaze\Tests\Unit\Content;
 use Cake\Chronos\Chronos;
 use Closure;
 use Glaze\Content\ContentDiscoveryService;
+use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -526,6 +527,111 @@ final class ContentDiscoveryServiceTest extends TestCase
         } finally {
             restore_error_handler();
         }
+    }
+
+    /**
+     * Validate underscore-prefixed files are automatically marked as unlisted.
+     */
+    public function testDiscoverMarksUnderscorePrefixedFilesAsUnlisted(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+        file_put_contents($contentPath . '/blog/_index.dj', "+++\ntitle: Blog Overview\n+++\n# Blog\n");
+        file_put_contents($contentPath . '/blog/post.dj', "+++\ntitle: First Post\n+++\n# Post\n");
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(2, $pages);
+
+        $indexPage = $this->findPageBySlug($pages, 'blog');
+        $postPage = $this->findPageBySlug($pages, 'blog/post');
+
+        $this->assertInstanceOf(ContentPage::class, $indexPage);
+        $this->assertTrue($indexPage->unlisted);
+        $this->assertSame('Blog Overview', $indexPage->title);
+
+        $this->assertInstanceOf(ContentPage::class, $postPage);
+        $this->assertFalse($postPage->unlisted);
+    }
+
+    /**
+     * Validate explicit unlisted frontmatter overrides underscore filename convention.
+     */
+    public function testDiscoverExplicitUnlistedOverridesFilenameConvention(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/blog/_index.dj',
+            "+++\ntitle: Blog\nunlisted: false\n+++\n# Blog\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertFalse($pages[0]->unlisted);
+    }
+
+    /**
+     * Validate regular files can be explicitly marked as unlisted via frontmatter.
+     */
+    public function testDiscoverExplicitUnlistedFlagOnRegularFile(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/hidden.dj',
+            "+++\ntitle: Hidden\nunlisted: true\n+++\n# Hidden\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertTrue($pages[0]->unlisted);
+        $this->assertSame('Hidden', $pages[0]->title);
+    }
+
+    /**
+     * Validate regular pages default to listed when no explicit flag or convention applies.
+     */
+    public function testDiscoverRegularPagesDefaultToListed(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents($contentPath . '/about.dj', "# About\n");
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertFalse($pages[0]->unlisted);
+    }
+
+    /**
+     * Find a page by slug in a pages array.
+     *
+     * @param array<\Glaze\Content\ContentPage> $pages Pages list.
+     * @param string $slug Slug to find.
+     */
+    protected function findPageBySlug(array $pages, string $slug): ?ContentPage
+    {
+        foreach ($pages as $page) {
+            if ($page->slug === $slug) {
+                return $page;
+            }
+        }
+
+        return null;
     }
 
     /**

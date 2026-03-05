@@ -30,6 +30,7 @@ final class ContentDiscoveryService
         'date',
         'weight',
         'draft',
+        'unlisted',
         'type',
         'template',
         'description',
@@ -104,6 +105,7 @@ final class ContentDiscoveryService
                 meta: $meta,
                 taxonomies: $taxonomyValues,
                 type: $type,
+                unlisted: $this->resolveUnlisted($relativePath, $meta),
             );
         }
 
@@ -246,7 +248,8 @@ final class ContentDiscoveryService
             static fn(string $segment): bool => $segment !== '',
         );
 
-        if (count($segments) > 1 && strtolower(end($segments)) === 'index') {
+        $lastSegment = strtolower(end($segments) ?: '');
+        if (count($segments) > 1 && ($lastSegment === 'index' || $lastSegment === '_index')) {
             array_pop($segments);
         }
 
@@ -300,6 +303,26 @@ final class ContentDiscoveryService
     protected function resolveDraft(array $meta): bool
     {
         return (bool)($meta['draft'] ?? false);
+    }
+
+    /**
+     * Resolve unlisted state from metadata or filename convention.
+     *
+     * Files named `_index.dj` (at any nesting level) are implicitly unlisted.
+     * An explicit `unlisted` frontmatter flag always takes precedence.
+     *
+     * @param string $relativePath Relative source path.
+     * @param array<string, mixed> $meta Normalized metadata.
+     */
+    protected function resolveUnlisted(string $relativePath, array $meta): bool
+    {
+        if (array_key_exists('unlisted', $meta)) {
+            return (bool)$meta['unlisted'];
+        }
+
+        $filename = basename(str_replace('\\', '/', $relativePath));
+
+        return str_starts_with($filename, '_');
     }
 
     /**

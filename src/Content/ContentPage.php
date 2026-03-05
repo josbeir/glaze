@@ -45,6 +45,7 @@ final class ContentPage
      * @param string|null $type Resolved content type name.
      * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries collected during the render pass.
      * @param bool $virtual Whether this is a virtual page injected by an extension.
+     * @param bool $unlisted Whether this page is excluded from collections by default.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -60,6 +61,7 @@ final class ContentPage
         public readonly ?string $type = null,
         public readonly array $toc = [],
         public readonly bool $virtual = false,
+        public readonly bool $unlisted = false,
     ) {
     }
 
@@ -94,6 +96,7 @@ final class ContentPage
             draft: false,
             meta: $meta,
             virtual: true,
+            unlisted: true,
         );
     }
 
@@ -121,6 +124,7 @@ final class ContentPage
             type: $this->type,
             toc: $toc,
             virtual: $this->virtual,
+            unlisted: $this->unlisted,
         );
     }
 

@@ -171,6 +171,60 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
+     * Validate regularPages() excludes unlisted pages by default.
+     */
+    public function testRegularPagesExcludesUnlistedPages(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', ['weight' => 1], 'Home'),
+            $this->makeUnlistedPage('blog', '/blog/', 'blog/_index.dj', ['weight' => 5], 'Blog Overview'),
+            $this->makePage('blog/post-a', '/blog/post-a/', 'blog/post-a.dj', ['weight' => 10], 'Post A'),
+            $this->makePage('blog/post-b', '/blog/post-b/', 'blog/post-b.dj', ['weight' => 20], 'Post B'),
+        ]);
+
+        $regular = $index->regularPages();
+        $titles = array_map(static fn(ContentPage $p): string => $p->title, $regular->all());
+
+        $this->assertCount(3, $regular);
+        $this->assertNotContains('Blog Overview', $titles);
+        $this->assertContains('Home', $titles);
+        $this->assertContains('Post A', $titles);
+        $this->assertContains('Post B', $titles);
+    }
+
+    /**
+     * Validate allPages() includes unlisted pages.
+     */
+    public function testAllPagesIncludesUnlistedPages(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', ['weight' => 1], 'Home'),
+            $this->makeUnlistedPage('blog', '/blog/', 'blog/_index.dj', ['weight' => 5], 'Blog Overview'),
+            $this->makePage('blog/post', '/blog/post/', 'blog/post.dj', ['weight' => 10], 'Post'),
+        ]);
+
+        $allPages = $index->allPages();
+
+        $this->assertCount(3, $allPages);
+        $titles = array_map(static fn(ContentPage $p): string => $p->title, $allPages->all());
+        $this->assertContains('Blog Overview', $titles);
+    }
+
+    /**
+     * Validate unlisted pages are still findable by slug and URL path.
+     */
+    public function testUnlistedPagesAreStillFindableBySlugAndUrl(): void
+    {
+        $index = new SiteIndex([
+            $this->makeUnlistedPage('blog', '/blog/', 'blog/_index.dj', ['weight' => 5], 'Blog Overview'),
+            $this->makePage('blog/post', '/blog/post/', 'blog/post.dj', ['weight' => 10], 'Post'),
+        ]);
+
+        $this->assertSame('Blog Overview', $index->findBySlug('blog')?->title);
+        $this->assertSame('Blog Overview', $index->findByUrlPath('/blog/')?->title);
+    }
+
+    /**
      * Validate sections() returns top-level section nodes ordered by section weight.
      */
     public function testSectionsReturnsOrderedSectionMap(): void
@@ -396,6 +450,39 @@ final class SiteIndexTest extends TestCase
             draft: false,
             meta: $meta,
             taxonomies: $taxonomies,
+        );
+    }
+
+    /**
+     * Create an unlisted content page for test scenarios.
+     *
+     * @param string $slug Page slug.
+     * @param string $urlPath Page URL path.
+     * @param string $relativePath Relative source path.
+     * @param array<string, mixed> $meta Page metadata.
+     * @param string $title Page title.
+     * @param array<string, array<string>> $taxonomies Page taxonomies.
+     */
+    protected function makeUnlistedPage(
+        string $slug,
+        string $urlPath,
+        string $relativePath,
+        array $meta,
+        string $title,
+        array $taxonomies = [],
+    ): ContentPage {
+        return new ContentPage(
+            sourcePath: '/tmp/' . str_replace('/', '-', $slug) . '.dj',
+            relativePath: $relativePath,
+            slug: $slug,
+            urlPath: $urlPath,
+            outputRelativePath: $slug === 'index' ? 'index.html' : trim($slug, '/') . '/index.html',
+            title: $title,
+            source: '# ' . $title,
+            draft: false,
+            meta: $meta,
+            taxonomies: $taxonomies,
+            unlisted: true,
         );
     }
 }

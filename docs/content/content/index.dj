@@ -19,8 +19,27 @@ All generated paths end with a trailing slash.
 | `content/index.dj` | `/` |
 | `content/about.dj` | `/about/` |
 | `content/blog/index.dj` | `/blog/` |
+| `content/blog/_index.dj` | `/blog/` (unlisted) |
 | `content/blog/my-post.dj` | `/blog/my-post/` |
 | `content/blog/2026/hello.dj` | `/blog/2026/hello/` |
+
+### Underscore-prefixed index files
+
+Files named `_index.dj` behave like `index.dj` (they resolve to the parent directory URL)
+but are automatically marked as **unlisted**. Unlisted pages are rendered and accessible
+by URL, but excluded from page collections by default. This makes them ideal as section
+overview pages that should not appear alongside regular content in listings.
+
+```
+content/
+  blog/
+    _index.dj        <- renders at /blog/, excluded from collections
+    first-post.dj    <- renders at /blog/first-post/, included in collections
+    second-post.dj   <- renders at /blog/second-post/, included in collections
+```
+
+See [Frontmatter](frontmatter.dj) for the `unlisted` field and [Page Collections](../templating/page-collections.dj) for
+collection filtering details.
 
 ### Overriding the URL
 
@@ -70,6 +89,7 @@ Reserved fields Glaze acts on:
 | `date` | datetime | Publish date; exposed as a `Chronos` instance in templates |
 | `weight` | int | Sort order in collections (lower values sort first) |
 | `draft` | bool | Excluded from `glaze build` unless `--drafts` is passed |
+| `unlisted` | bool | Rendered but excluded from collections; auto-set for `_index.dj` files |
 | `type` | string | Explicit content type override |
 | `template` | string | Per-page template override (without `.sugar.php`) |
 | `description` | string | Default meta description |
