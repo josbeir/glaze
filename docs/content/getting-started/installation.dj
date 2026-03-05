@@ -11,7 +11,6 @@ or per-project to pin a specific version. The only prerequisites are PHP 8.2+ an
 ## Requirements
 
 - PHP 8.2 or higher
-- Composer 2 or higher
 - GD or Imagick extension (for Glide image transforms; GD ships with most PHP builds)
 
 ## Install

@@ -25,5 +25,5 @@ hero:
     -
       icon: vite
       title: Optional Vite
-      description: "Add CSS and JS asset bundling when you need it. Skip it when you don't. One flag: --vite."
+      description: "Add CSS and JS asset bundling when you need it. Skip it when you don't."
 ---
