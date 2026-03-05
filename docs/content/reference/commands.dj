@@ -238,6 +238,61 @@ Notes:
 - `{host}` and `{port}` placeholders in `vite.command` are replaced at runtime.
 - If your configured command cannot start (missing script/config/dependencies), `glaze serve` exits with an error.
 
+## `routes`
+
+![Routes](routes_command.png)
+
+List all discovered content routes without running a full build.
+
+Outputs a table of every URL that would be generated from `content/`, including
+taxonomy index pages. Virtual routes added by extensions (sitemap, RSS, llms.txt)
+are not included since extensions are not invoked.
+
+```bash
+glaze routes
+```
+
+Options:
+
+- `--root <path>` project root
+- `--type <types>` filter by content type; accepts comma-separated values (for example `post,note`)
+- `--taxonomy <filters>` filter by taxonomy; accepts `key` (any value) or `key=value`; comma-separated for multiple (for example `tag=php,category=tutorial`)
+- `--truncate <n>` truncate cell values to `n` visible characters (default `60`; `0` disables)
+- `--drafts` include draft pages
+
+Examples:
+
+```bash
+# all routes
+glaze routes
+
+# filter by a single type
+glaze routes --type post
+
+# filter by multiple types
+glaze routes --type post,note
+
+# filter by taxonomy key (any value present)
+glaze routes --taxonomy tag
+
+# filter by taxonomy key=value
+glaze routes --taxonomy tag=php
+
+# combine type and taxonomy filters, show full paths without truncation
+glaze routes --type post --taxonomy tag=php --truncate 0
+
+# include draft pages
+glaze routes --drafts
+```
+
+Column reference:
+
+- **URL Path** — public URL of the page
+- **Type** — content type name, or `-` when untyped
+- **Template** — effective Sugar template name resolved from frontmatter or `build.pageTemplate`
+- **Source** — source file path relative to `content/`, or `-` for taxonomy-generated pages
+- **Flags** — `draft` and/or `unlisted` when applicable
+
 ## `cc`
 
 Clear the compiled Sugar template cache and/or the Glide image transformation cache.
@@ -275,5 +330,6 @@ glaze cc --images
 
 1. `init` (once)
 2. `serve` during development
-3. `cc` to clear caches when changing configuration
-4. `build` for deployment artifacts
+3. `routes` to inspect discovered routes
+4. `cc` to clear caches when changing configuration
+5. `build` for deployment artifacts

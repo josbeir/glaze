@@ -14,6 +14,7 @@ use Glaze\Command\CacheCommand;
 use Glaze\Command\HelpCommand;
 use Glaze\Command\InitCommand;
 use Glaze\Command\NewCommand;
+use Glaze\Command\RoutesCommand;
 use Glaze\Command\ServeCommand;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\NeonConfigEngine;
@@ -54,6 +55,7 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
         $commands->add('cc', CacheCommand::class);
         $commands->add('init', InitCommand::class);
         $commands->add('new', NewCommand::class);
+        $commands->add('routes', RoutesCommand::class);
         $commands->add('serve', ServeCommand::class);
 
         return $commands;
