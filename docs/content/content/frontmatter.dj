@@ -66,7 +66,27 @@ title: Getting started with Glaze
 
 ### `slug`
 
-Overrides the URL path derived from the file path. Useful for custom routes like `/` for the home page.
+Overrides the URL path derived from the file path.
+
+A **relative slug** (no leading `/`) is resolved relative to the directory the file lives in.
+A file at `blog/my-post.dj` with `slug: custom-title` produces the slug `blog/custom-title`:
+
+```djot
+---
+slug: custom-title
+---
+```
+
+An **absolute slug** (leading `/`) ignores the directory context and is used as-is.
+This is the correct way to place a page at an arbitrary URL regardless of where the file lives:
+
+```djot
+---
+slug: /custom-title
+---
+```
+
+Useful for placing `index.dj` at `/`, or any page at a route that differs from its folder:
 
 ```djot
 ---
@@ -74,7 +94,7 @@ slug: /
 ---
 ```
 
-Slug values are normalized (lowercased and slugified).
+Slug values are normalized (lowercased and slugified) in both cases.
 
 ### `date`
 

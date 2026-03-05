@@ -266,6 +266,12 @@ final class ContentDiscoveryService
     /**
      * Resolve final slug with frontmatter override support.
      *
+     * A relative slug (no leading `/`) is scoped to the directory the file lives in,
+     * so a page at `blog/my-post.dj` with `slug: custom` resolves to `blog/custom`.
+     *
+     * An absolute slug (leading `/`) ignores the directory context entirely and is
+     * slugified as-is, e.g. `slug: /custom` resolves to `custom` from any location.
+     *
      * @param string $relativePath Relative source path.
      * @param array<string, mixed> $meta Normalized metadata.
      */
@@ -273,7 +279,16 @@ final class ContentDiscoveryService
     {
         $slug = $meta['slug'] ?? null;
         if (is_string($slug) && trim($slug) !== '') {
-            return $this->slugifyPath($slug);
+            $normalized = str_replace('\\', '/', $slug);
+
+            if (str_starts_with($normalized, '/')) {
+                return $this->slugifyPath($normalized);
+            }
+
+            $directory = dirname(str_replace('\\', '/', $relativePath));
+            $prefix = $directory === '.' || $directory === '' ? '' : trim($directory, '/') . '/';
+
+            return $this->slugifyPath($prefix . $normalized);
         }
 
         return $this->toSlug($relativePath);

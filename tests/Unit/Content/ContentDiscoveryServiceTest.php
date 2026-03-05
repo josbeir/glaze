@@ -507,6 +507,92 @@ final class ContentDiscoveryServiceTest extends TestCase
     }
 
     /**
+     * Validate a relative slug is scoped to the file's directory.
+     */
+    public function testDiscoverRelativeSlugIsScopedToDirectory(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/blog/post.dj',
+            "+++\nslug: my-custom-post\n+++\n# Post\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertSame('blog/my-custom-post', $pages[0]->slug);
+        $this->assertSame('/blog/my-custom-post/', $pages[0]->urlPath);
+    }
+
+    /**
+     * Validate an absolute slug (leading '/') ignores directory context.
+     */
+    public function testDiscoverAbsoluteSlugIgnoresDirectory(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/blog', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/blog/post.dj',
+            "+++\nslug: /my-custom-post\n+++\n# Post\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertSame('my-custom-post', $pages[0]->slug);
+        $this->assertSame('/my-custom-post/', $pages[0]->urlPath);
+    }
+
+    /**
+     * Validate a relative slug in a deeply nested file is scoped to its full directory.
+     */
+    public function testDiscoverRelativeSlugScopedToDeeplyNestedDirectory(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath . '/docs/api/v2', 0755, true);
+
+        file_put_contents(
+            $contentPath . '/docs/api/v2/reference.dj',
+            "+++\nslug: endpoints\n+++\n# Endpoints\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertSame('docs/api/v2/endpoints', $pages[0]->slug);
+    }
+
+    /**
+     * Validate a relative slug on a root-level file has no prefix prepended.
+     */
+    public function testDiscoverRelativeSlugAtRootHasNoPrefix(): void
+    {
+        $rootPath = $this->createTempDirectory();
+        $contentPath = $rootPath . '/content';
+        mkdir($contentPath, 0755, true);
+
+        file_put_contents(
+            $contentPath . '/about.dj',
+            "+++\nslug: about-the-author\n+++\n# About\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $this->assertSame('about-the-author', $pages[0]->slug);
+    }
+
+    /**
      * Ensure protected helper methods handle fallback and error branches.
      */
     public function testProtectedHelpersHandleFallbackPaths(): void
