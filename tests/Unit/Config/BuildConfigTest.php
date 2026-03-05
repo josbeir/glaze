@@ -10,6 +10,7 @@ use Glaze\Config\DjotOptions;
 use Glaze\Config\NeonConfigEngine;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Config\SiteConfig;
+use Glaze\Config\TaxonomyConfig;
 use Glaze\Config\TemplateViteOptions;
 use Glaze\Utility\Path;
 use PHPUnit\Framework\TestCase;
@@ -40,7 +41,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame([], $config->imageOptions);
         $this->assertSame([], $config->contentTypes);
         $this->assertSame([], $config->enabledExtensions);
-        $this->assertSame(['tags'], $config->taxonomies);
+        $this->assertEquals(['tags' => new TaxonomyConfig('tags')], $config->taxonomies);
         $this->assertSame('extensions', $config->extensionsDir);
         $this->assertFalse($config->includeDrafts);
 
@@ -314,7 +315,86 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame(['tags', 'categories'], $config->taxonomies);
+        $this->assertEquals(
+            ['tags' => new TaxonomyConfig('tags'), 'categories' => new TaxonomyConfig('categories')],
+            $config->taxonomies,
+        );
+    }
+
+    /**
+     * Ensure taxonomies can be configured with map syntax including full options.
+     */
+    public function testTaxonomiesCanBeConfiguredWithMapSyntax(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n"
+            . "  tags:\n"
+            . "    generatePages: true\n"
+            . "    basePath: /topics\n"
+            . "    termTemplate: taxonomy/tags\n"
+            . "    listTemplate: taxonomy/tags-list\n"
+            . "  categories: {}\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $tags = $config->taxonomies['tags'] ?? null;
+        $this->assertInstanceOf(TaxonomyConfig::class, $tags);
+        $this->assertSame('tags', $tags->name);
+        $this->assertTrue($tags->generatePages);
+        $this->assertSame('/topics', $tags->resolvedBasePath());
+        $this->assertSame('taxonomy/tags', $tags->resolvedTermTemplate());
+        $this->assertSame('taxonomy/tags-list', $tags->resolvedListTemplate());
+
+        $categories = $config->taxonomies['categories'] ?? null;
+        $this->assertInstanceOf(TaxonomyConfig::class, $categories);
+        $this->assertSame('categories', $categories->name);
+        $this->assertFalse($categories->generatePages);
+        $this->assertSame('/categories', $categories->resolvedBasePath());
+        $this->assertSame('taxonomy/term', $categories->resolvedTermTemplate());
+        $this->assertSame('taxonomy/list', $categories->resolvedListTemplate());
+    }
+
+    /**
+     * Ensure map-syntax taxonomy with generatePages: false is respected.
+     */
+    public function testTaxonomyMapSyntaxGeneratePagesDefaultsFalse(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  tags:\n    generatePages: false\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $tags = $config->taxonomies['tags'] ?? null;
+        $this->assertInstanceOf(TaxonomyConfig::class, $tags);
+        $this->assertFalse($tags->generatePages);
+    }
+
+    /**
+     * Ensure duplicate taxonomy names in map syntax are silently deduplicated.
+     */
+    public function testTaxonomyMapSyntaxDeduplicatesNames(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/glaze-config-' . uniqid('', true);
+        mkdir($projectRoot, 0755, true);
+        // NEON map keys are unique by nature — duplicate keys won't parse as duplicates
+        // but the extractor should still only emit one entry per name
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  - tags\n  - TAGS\n  - Tags\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        $this->assertCount(1, $config->taxonomies);
+        $this->assertArrayHasKey('tags', $config->taxonomies);
     }
 
     /**
@@ -352,21 +432,24 @@ final class BuildConfigTest extends TestCase
 
         file_put_contents($projectRoot . '/glaze.neon', "taxonomies: true\n");
         $fallback = BuildConfig::fromProjectRoot($projectRoot);
-        $this->assertSame(['tags'], $fallback->taxonomies);
+        $this->assertEquals(['tags' => new TaxonomyConfig('tags')], $fallback->taxonomies);
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
             "taxonomies:\n  - Tags\n  - categories\n  - ''\n  - 42\n  - tags\n",
         );
         $normalized = BuildConfig::fromProjectRoot($projectRoot);
-        $this->assertSame(['tags', 'categories'], $normalized->taxonomies);
+        $this->assertEquals(
+            ['tags' => new TaxonomyConfig('tags'), 'categories' => new TaxonomyConfig('categories')],
+            $normalized->taxonomies,
+        );
 
         file_put_contents(
             $projectRoot . '/glaze.neon',
             "taxonomies:\n  - ''\n  - 42\n",
         );
         $emptyNormalized = BuildConfig::fromProjectRoot($projectRoot);
-        $this->assertSame(['tags'], $emptyNormalized->taxonomies);
+        $this->assertEquals(['tags' => new TaxonomyConfig('tags')], $emptyNormalized->taxonomies);
     }
 
     /**
@@ -911,7 +994,7 @@ final class BuildConfigTest extends TestCase
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
 
-        $this->assertSame(['tags'], $config->taxonomies);
+        $this->assertEquals(['tags' => new TaxonomyConfig('tags')], $config->taxonomies);
     }
 
     /**
@@ -1041,7 +1124,7 @@ final class BuildConfigTest extends TestCase
 
         $this->assertSame($fromRoot->projectRoot, $fromConfigure->projectRoot);
         $this->assertSame($fromRoot->pageTemplate, $fromConfigure->pageTemplate);
-        $this->assertSame($fromRoot->taxonomies, $fromConfigure->taxonomies);
+        $this->assertEquals($fromRoot->taxonomies, $fromConfigure->taxonomies);
         $this->assertSame($fromRoot->includeDrafts, $fromConfigure->includeDrafts);
         $this->assertSame($fromRoot->contentDir, $fromConfigure->contentDir);
         $this->assertSame($fromRoot->templateDir, $fromConfigure->templateDir);

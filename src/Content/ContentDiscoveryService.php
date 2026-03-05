@@ -50,20 +50,20 @@ final class ContentDiscoveryService
      * Discover all Djot pages in a content directory.
      *
      * @param string $contentPath Absolute content directory path.
-     * @param array<string> $taxonomies Enabled taxonomy keys.
+     * @param array<string, \Glaze\Config\TaxonomyConfig> $taxonomies Taxonomy configurations keyed by taxonomy name.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
      * @return array<\Glaze\Content\ContentPage>
      */
     public function discover(
         string $contentPath,
-        array $taxonomies = ['tags'],
+        array $taxonomies = [],
         array $contentTypes = [],
     ): array {
         if (!is_dir($contentPath)) {
             return [];
         }
 
-        $normalizedTaxonomies = $this->normalizeTaxonomyKeys($taxonomies);
+        $normalizedTaxonomies = $this->normalizeTaxonomyKeys(array_keys($taxonomies));
 
         $pages = [];
         $iterator = new RecursiveIteratorIterator(

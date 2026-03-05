@@ -20,9 +20,20 @@ paths:
 extensions: []
 
 # Taxonomy keys used for content classification (defaults to [tags]).
+# Simple list syntax:
 # taxonomies:
 #   - tags
 #   - categories
+#
+# Map syntax (enables per-taxonomy page generation):
+# taxonomies:
+#   tags:
+#     generatePages: true
+#     basePath: /tags
+#     termTemplate: taxonomy/term
+#     listTemplate: taxonomy/list
+#   categories:
+#     generatePages: false
 
 # Site-wide project metadata exposed in templates via `site`.
 site:

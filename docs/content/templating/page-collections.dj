@@ -151,6 +151,34 @@ $this->pages()->whereType('docs')
 $this->type('blog')->byDate('desc')->take(5)
 ```
 
+## Taxonomies
+
+Taxonomy data is available through `$this->taxonomy()` and `$this->taxonomyTerm()`. Taxonomies must be declared in `glaze.neon` to be extracted from frontmatter.
+
+```php
+$this->taxonomy('tags')                  // TaxonomyCollection (iterable term => PageCollection map)
+$this->taxonomyTerm('tags', 'php')       // PageCollection for a single term
+```
+
+### `TaxonomyCollection`
+
+```php
+$this->taxonomy('tags')->terms()         // ['php', 'tutorial', ...]
+$this->taxonomy('tags')->hasTerm('php')  // bool
+$this->taxonomy('tags')->term('php')     // PageCollection
+$this->taxonomy('tags')->count()         // number of distinct terms
+```
+
+Iterating a `TaxonomyCollection` yields `$term => PageCollection` pairs:
+
+```sugar
+<template s:foreach="$this->taxonomy('tags') as $term => $pages">
+    <a href="/tags/<?= $term ?>/"><?= $term ?> (<?= count($pages) ?>)</a>
+</template>
+```
+
+For auto-generated taxonomy listing pages (configured via `generatePages: true`), see [Taxonomies](../content/taxonomies.dj).
+
 ## Unlisted pages
 
 Pages marked as unlisted -- either via `unlisted: true` in frontmatter or by using an underscore-prefixed filename like `_index.dj` -- are excluded from `regularPages()`, `pages()`, `type()`, and section `pages()` by default.

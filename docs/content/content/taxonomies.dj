@@ -1,0 +1,181 @@
+---
+title: Taxonomies
+description: "Classify and filter content with taxonomy terms. Optionally auto-generate tag and category listing pages."
+weight: 55
+---
+# Taxonomies
+
+Taxonomies let you classify content pages with arbitrary term sets — tags, categories, topics, authors — and then query or group them in templates. When page generation is enabled, Glaze automatically creates a list page and one term page per distinct term value found across all content pages.
+
+## Configuring taxonomies
+
+Define taxonomy keys in `glaze.neon`. Any key listed here is accepted as a frontmatter field on content pages and indexed during build.
+
+### Simple list syntax
+
+```neon
+taxonomies:
+  - tags
+  - categories
+```
+
+### Map syntax
+
+The map syntax enables per-taxonomy options including automatic page generation:
+
+```neon
+taxonomies:
+  tags:
+    generatePages: true
+    basePath: /tags
+    termTemplate: taxonomy/tags-term
+    listTemplate: taxonomy/tags-list
+  categories:
+    generatePages: false
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `generatePages` | `false` | Auto-generate list and term pages for this taxonomy |
+| `basePath` | `/{name}` | URL prefix for generated pages (e.g. `/tags`) |
+| `termTemplate` | `taxonomy/term` | Sugar template for individual term pages |
+| `listTemplate` | `taxonomy/list` | Sugar template for the taxonomy list (all terms) page |
+
+A bare key with no options (`categories: {}`) is equivalent to `generatePages: false`. Both syntax styles may be mixed in the same config.
+
+## Assigning terms in frontmatter
+
+Use the taxonomy key as a frontmatter field and provide a list of term values:
+
+```djot
+---
+title: My post
+tags:
+  - php
+  - tutorial
+categories:
+  - web
+---
+```
+
+Terms are lowercased and slugified when used in generated URLs (e.g. `PHP 8` becomes `php-8`), but the raw value is preserved in the `term` metadata field available inside generated templates.
+
+## Querying taxonomies in templates
+
+Taxonomy data is available through `$this` (the `SiteContext`) in Sugar templates.
+
+### `$this->taxonomy(string $name)`
+
+Returns a `TaxonomyCollection` — an iterable, countable map of term name to `PageCollection`.
+
+```php
+$this->taxonomy('tags')->terms()         // ['php', 'tutorial', ...]
+$this->taxonomy('tags')->hasTerm('php')  // bool
+$this->taxonomy('tags')->term('php')     // PageCollection
+$this->taxonomy('tags')->count()         // number of distinct terms
+```
+
+Iterate a `TaxonomyCollection` to render a tag cloud, archive list, or full term index:
+
+```sugar
+<ul>
+    <template s:foreach="$this->taxonomy('tags') as $term => $pages">
+        <li>
+            <a href="/tags/<?= $term ?>/"><?= $term ?></a>
+            <span class="badge badge-sm"><?= count($pages) ?></span>
+        </li>
+    </template>
+</ul>
+```
+
+### `$this->taxonomyTerm(string $name, string $term)`
+
+Returns a `PageCollection` of pages tagged with a specific term:
+
+```sugar
+<ul>
+    <li s:foreach="$this->taxonomyTerm('tags', 'php') as $post">
+        <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+    </li>
+</ul>
+```
+
+## Auto-generated pages
+
+When `generatePages: true` is set on a taxonomy, Glaze automatically generates a set of pages during build and serves them in the development server:
+
+| URL | Template (default) | Description |
+| --- | --- | --- |
+| `{basePath}/` | `taxonomy/list` | All distinct terms with their page counts |
+| `{basePath}/{term}/` | `taxonomy/term` | Pages tagged with that term |
+
+Generated pages are marked as `unlisted` so they are excluded from `regularPages()` and do not appear in section navigation. They are still rendered and accessible by URL — direct links work normally.
+
+### Term page template
+
+Create the file at the path matching `termTemplate` (relative to `templates/`, default: `templates/taxonomy/term.sugar.php`). The following metadata is available via `$page->meta(...)`:
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `taxonomy` | `string` | Taxonomy name, e.g. `tags` |
+| `term` | `string` | Raw term value, e.g. `PHP 8` |
+
+```sugar
+<h1>Posts tagged: <?= $page->meta('term') ?></h1>
+
+<ul>
+    <li s:foreach="$this->taxonomyTerm($page->meta('taxonomy'), $page->meta('term')) as $post">
+        <a href="<?= $post->urlPath ?>"><?= $post->title ?></a>
+    </li>
+</ul>
+```
+
+### List page template
+
+Create the file at the path matching `listTemplate` (relative to `templates/`, default: `templates/taxonomy/list.sugar.php`). The following metadata is available via `$page->meta(...)`:
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `taxonomy` | `string` | Taxonomy name, e.g. `tags` |
+
+```sugar
+<h1><?= ucfirst($page->meta('taxonomy')) ?></h1>
+
+<ul>
+    <template s:foreach="$this->taxonomy($page->meta('taxonomy')) as $term => $pages">
+        <li>
+            <a href="<?= $page->urlPath ?><?= $term ?>/"><?= $term ?></a>
+            <span class="badge badge-sm"><?= count($pages) ?></span>
+        </li>
+    </template>
+</ul>
+```
+
+### Example
+
+Given this config:
+
+```neon
+taxonomies:
+  tags:
+    generatePages: true
+    termTemplate: taxonomy/tags-term
+    listTemplate: taxonomy/tags-list
+```
+
+With one page tagged `php` and `tutorial`, Glaze produces:
+
+| URL | Template |
+| --- | --- |
+| `/tags/` | `templates/taxonomy/tags-list.sugar.php` |
+| `/tags/php/` | `templates/taxonomy/tags-term.sugar.php` |
+| `/tags/tutorial/` | `templates/taxonomy/tags-term.sugar.php` |
+
+Required template directory layout:
+
+```
+templates/
+  taxonomy/
+    tags-list.sugar.php
+    tags-term.sugar.php
+```

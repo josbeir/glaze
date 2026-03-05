@@ -31,11 +31,13 @@ final class SiteBuilder
      * @param \Glaze\Content\ContentDiscoveryService $discoveryService Content discovery service.
      * @param \Glaze\Render\PageRenderPipeline $pageRenderPipeline Shared page render pipeline.
      * @param \Glaze\Build\ContentAssetPublisher $assetPublisher Asset publishing service.
+     * @param \Glaze\Build\TaxonomyPageFactory $taxonomyPageFactory Factory for auto-generated taxonomy pages.
      */
     public function __construct(
         protected ContentDiscoveryService $discoveryService,
         protected PageRenderPipeline $pageRenderPipeline,
         protected ContentAssetPublisher $assetPublisher,
+        protected TaxonomyPageFactory $taxonomyPageFactory = new TaxonomyPageFactory(),
     ) {
     }
 
@@ -52,13 +54,15 @@ final class SiteBuilder
             $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
             $config,
         );
-        $page = $this->matchPageByPath($pages, $requestPath);
+        $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
+        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies);
+        $page = $this->matchPageByPath(array_merge($pages, $taxonomyPages), $requestPath);
         if (!$page instanceof ContentPage) {
             return null;
         }
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
-        $siteIndex = new SiteIndex($pages, $assetResolver);
+        $siteIndex = new SiteIndex($realPages, $assetResolver);
         $dispatcher = new EventDispatcher();
         $extensionRegistry = ExtensionLoader::load($config, $dispatcher);
 
@@ -109,8 +113,10 @@ final class SiteBuilder
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
+        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies);
+        $allPages = array_merge($pages, $taxonomyPages);
         $manifestPath = $config->cachePath(CachePath::BuildManifest);
-        $currentManifest = BuildManifest::fromBuild($config, $pages);
+        $currentManifest = BuildManifest::fromBuild($config, $allPages);
         $previousManifest = $cleanOutput ? null : BuildManifest::load($manifestPath);
         $fullBuild = $cleanOutput || $currentManifest->requiresFullBuild($previousManifest);
         $changedOutputPaths = [];
@@ -131,13 +137,13 @@ final class SiteBuilder
         $siteIndex = new SiteIndex($realPages, $assetResolver);
 
         $writtenFiles = [];
-        $totalPages = count($pages);
+        $totalPages = count($allPages);
         $completedPages = 0;
         if (is_callable($progressCallback)) {
             $progressCallback($completedPages, $totalPages, '', 0.0);
         }
 
-        foreach ($pages as $page) {
+        foreach ($allPages as $page) {
             if ($page->virtual) {
                 $completedPages++;
                 if (is_callable($progressCallback)) {

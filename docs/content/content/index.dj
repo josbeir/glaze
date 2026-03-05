@@ -43,7 +43,10 @@ collection filtering details.
 
 ### Overriding the URL
 
-Use the `slug` frontmatter field to set a custom URL path for a page:
+Use the `slug` frontmatter field to set a custom URL path for a page.
+
+A **relative slug** (no leading `/`) is resolved relative to the file's directory.
+A file at `blog/my-post.dj` with `slug: custom-title` produces `/blog/custom-title/`:
 
 ```djot
 ---
@@ -52,7 +55,24 @@ slug: about-the-author
 ---
 ```
 
-The slug is lowercased and slugified automatically.
+An **absolute slug** (leading `/`) ignores the directory context entirely:
+
+```djot
+---
+slug: /about-the-author
+---
+```
+
+Use an absolute slug when you want a page to appear at a URL unrelated to where the file
+lives, or to place `index.dj` at `/`:
+
+```djot
+---
+slug: /
+---
+```
+
+Slug values are lowercased and slugified automatically. Full details: [Frontmatter § slug](frontmatter.dj#slug).
 
 ## Writing a page
 

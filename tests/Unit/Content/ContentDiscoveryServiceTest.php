@@ -5,6 +5,7 @@ namespace Glaze\Tests\Unit\Content;
 
 use Cake\Chronos\Chronos;
 use Closure;
+use Glaze\Config\TaxonomyConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\ContainerTestTrait;
@@ -195,7 +196,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         );
 
         $service = $this->createService();
-        $pages = $service->discover($contentPath);
+        $pages = $service->discover($contentPath, ['tags' => new TaxonomyConfig('tags')]);
 
         $this->assertCount(1, $pages);
         $page = $pages[0];
@@ -350,7 +351,10 @@ final class ContentDiscoveryServiceTest extends TestCase
         );
 
         $service = $this->createService();
-        $pages = $service->discover($contentPath, ['tags', 'categories']);
+        $pages = $service->discover(
+            $contentPath,
+            ['tags' => new TaxonomyConfig('tags'), 'categories' => new TaxonomyConfig('categories')],
+        );
 
         $this->assertCount(1, $pages);
         $page = $pages[0];
@@ -377,7 +381,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
-            ['tags'],
+            ['tags' => new TaxonomyConfig('tags')],
             [
                 'blog' => [
                     'paths' => [
@@ -417,7 +421,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
-            ['tags'],
+            ['tags' => new TaxonomyConfig('tags')],
             [
                 'blog' => [
                     'paths' => [
@@ -460,7 +464,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $this->expectExceptionMessage('unknown content type');
         $service->discover(
             $contentPath,
-            ['tags'],
+            ['tags' => new TaxonomyConfig('tags')],
             [
                 'blog' => [
                     'paths' => [
@@ -489,7 +493,7 @@ final class ContentDiscoveryServiceTest extends TestCase
         $service = $this->createService();
         $pages = $service->discover(
             $contentPath,
-            ['tags'],
+            ['tags' => new TaxonomyConfig('tags')],
             [
                 'blog' => [
                     'paths' => [

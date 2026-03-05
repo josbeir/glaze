@@ -35,7 +35,7 @@ final class BuildConfig
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
      * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Configured content type rules.
-     * @param array<string> $taxonomies Enabled taxonomy keys.
+     * @param array<string, \Glaze\Config\TaxonomyConfig> $taxonomies Taxonomy configurations keyed by taxonomy name.
      * @param \Glaze\Config\DjotOptions $djotOptions Typed Djot renderer options.
      * @param \Glaze\Config\TemplateViteOptions $templateViteOptions Typed Sugar Vite extension options.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
@@ -54,7 +54,7 @@ final class BuildConfig
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
         public readonly array $contentTypes = [],
-        public readonly array $taxonomies = ['tags'],
+        public readonly array $taxonomies = [],
         public readonly DjotOptions $djotOptions = new DjotOptions(),
         public readonly TemplateViteOptions $templateViteOptions = new TemplateViteOptions(),
         ?SiteConfig $site = null,
@@ -354,31 +354,74 @@ final class BuildConfig
     }
 
     /**
-     * Extract taxonomy keys from project configuration.
+     * Extract taxonomy configurations from project configuration.
      *
-     * Filters to lower-cased non-empty strings and deduplicates. Falls back
-     * to `['tags']` when the list is absent or resolves to empty.
+     * Supports both list syntax (simple taxonomy names, no page generation) and
+     * map syntax (full `TaxonomyConfig` options per taxonomy name). Falls back to
+     * a single `tags` taxonomy with `generatePages: false` when absent or empty.
+     *
+     * ```neon
+     * # List syntax — no page generation:
+     * taxonomies:
+     *   - tags
+     *   - categories
+     *
+     * # Map syntax — full config options:
+     * taxonomies:
+     *   tags:
+     *     generatePages: true
+     *     basePath: /tags
+     *     termTemplate: taxonomy/tags
+     *     listTemplate: taxonomy/tags-list
+     *   categories: {}
+     * ```
      *
      * @param array<string, mixed> $config Raw project configuration.
-     * @return array<string>
+     * @return array<string, \Glaze\Config\TaxonomyConfig>
      */
     private static function extractTaxonomies(array $config): array
     {
         $raw = $config['taxonomies'] ?? null;
         if (!is_array($raw)) {
-            return ['tags'];
+            return ['tags' => new TaxonomyConfig('tags')];
         }
 
         $taxonomies = [];
-        foreach ($raw as $item) {
-            if (is_string($item) && trim($item) !== '') {
-                $taxonomies[] = strtolower(trim($item));
+
+        foreach ($raw as $key => $value) {
+            // List syntax: taxonomies: [tags, categories]
+            if (is_int($key) && is_string($value)) {
+                $name = strtolower(trim($value));
+                if ($name !== '' && !isset($taxonomies[$name])) {
+                    $taxonomies[$name] = new TaxonomyConfig($name);
+                }
+
+                continue;
+            }
+
+            // Map syntax: taxonomies: { tags: { generatePages: true, ... } }
+            if (is_string($key)) {
+                $name = strtolower(trim($key));
+                if ($name === '') {
+                    continue;
+                }
+
+                if (isset($taxonomies[$name])) {
+                    continue;
+                }
+
+                $opts = is_array($value) ? $value : [];
+                $taxonomies[$name] = new TaxonomyConfig(
+                    name: $name,
+                    generatePages: (bool)($opts['generatePages'] ?? false),
+                    basePath: is_string($opts['basePath'] ?? null) ? trim($opts['basePath']) : '',
+                    termTemplate: is_string($opts['termTemplate'] ?? null) ? trim($opts['termTemplate']) : '',
+                    listTemplate: is_string($opts['listTemplate'] ?? null) ? trim($opts['listTemplate']) : '',
+                );
             }
         }
 
-        $unique = array_values(array_unique($taxonomies));
-
-        return $unique !== [] ? $unique : ['tags'];
+        return $taxonomies !== [] ? $taxonomies : ['tags' => new TaxonomyConfig('tags')];
     }
 
     /**

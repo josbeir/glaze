@@ -299,6 +299,135 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
+     * Ensure taxonomy pages are rendered when generatePages is enabled in config.
+     */
+    public function testBuildRendersTaxonomyPages(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/blog', 0755, true);
+        mkdir($projectRoot . '/templates/taxonomy', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  tags:\n    generatePages: true\n    termTemplate: taxonomy/tag-term\n    listTemplate: taxonomy/tag-list\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/blog/post.dj',
+            "+++\ntags:\n  - php\n  - tutorial\n+++\n# Post\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/templates/taxonomy/tag-term.sugar.php',
+            '<p class="taxonomy"><?= $page->meta("taxonomy") ?></p>'
+            . '<p class="term"><?= $page->meta("term") ?></p>'
+            . '<p class="count"><?= $this->taxonomyTerm($page->meta("taxonomy"), $page->meta("term"))->count() ?></p>',
+        );
+        file_put_contents(
+            $projectRoot . '/templates/taxonomy/tag-list.sugar.php',
+            '<p class="taxonomy"><?= $page->meta("taxonomy") ?></p>'
+            . '<?php foreach ($this->taxonomy($page->meta("taxonomy")) as $term => $pages): ?>'
+            . '<span class="term"><?= $term ?></span>'
+            . '<?php endforeach; ?>',
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $builder->build($config);
+
+        // List page
+        $this->assertFileExists($projectRoot . '/public/tags/index.html');
+        $listHtml = (string)file_get_contents($projectRoot . '/public/tags/index.html');
+        $this->assertStringContainsString('<p class="taxonomy">tags</p>', $listHtml);
+        $this->assertStringContainsString('<span class="term">php</span>', $listHtml);
+        $this->assertStringContainsString('<span class="term">tutorial</span>', $listHtml);
+
+        // Term pages
+        $this->assertFileExists($projectRoot . '/public/tags/php/index.html');
+        $phpHtml = (string)file_get_contents($projectRoot . '/public/tags/php/index.html');
+        $this->assertStringContainsString('<p class="taxonomy">tags</p>', $phpHtml);
+        $this->assertStringContainsString('<p class="term">php</p>', $phpHtml);
+        $this->assertStringContainsString('<p class="count">1</p>', $phpHtml);
+
+        $this->assertFileExists($projectRoot . '/public/tags/tutorial/index.html');
+        $tutorialHtml = (string)file_get_contents($projectRoot . '/public/tags/tutorial/index.html');
+        $this->assertStringContainsString('<p class="term">tutorial</p>', $tutorialHtml);
+    }
+
+    /**
+     * Ensure renderRequest serves taxonomy term pages when generatePages is enabled.
+     */
+    public function testRenderRequestServesTaxonomyTermPage(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates/taxonomy', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  tags:\n    generatePages: true\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "+++\ntags:\n  - php\n+++\n# Home\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $content |> raw() ?>',
+        );
+        file_put_contents(
+            $projectRoot . '/templates/taxonomy/term.sugar.php',
+            '<p><?= $page->meta("term") ?></p>',
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+
+        $termHtml = $builder->renderRequest($config, '/tags/php/');
+        $this->assertIsString($termHtml);
+        $this->assertStringContainsString('<p>php</p>', $termHtml);
+
+        $listHtml = $builder->renderRequest($config, '/tags/');
+        $this->assertIsString($listHtml);
+
+        $notFound = $builder->renderRequest($config, '/tags/nonexistent/');
+        $this->assertNull($notFound);
+    }
+
+    /**
+     * Ensure taxonomy pages are not included in regularPages() when rendered.
+     */
+    public function testTaxonomyPagesAreExcludedFromRegularPages(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content', 0755, true);
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "taxonomies:\n  tags:\n    generatePages: true\n",
+        );
+        file_put_contents(
+            $projectRoot . '/content/index.dj',
+            "+++\ntags:\n  - php\n+++\n# Home\n",
+        );
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<p class="count"><?= $this->regularPages()->count() ?></p>',
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $html = $builder->renderRequest($config, '/');
+
+        $this->assertIsString($html);
+        // Only one real content page; taxonomy pages must not appear in regularPages()
+        $this->assertStringContainsString('<p class="count">1</p>', $html);
+    }
+
+    /**
      * Ensure static build output rewrites relative image sources with slug overrides.
      */
     public function testBuildRewritesRelativeImageSourceWhenSlugIsOverridden(): void

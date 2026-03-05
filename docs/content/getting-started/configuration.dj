@@ -42,8 +42,13 @@ images:
       h: 630
 
 taxonomies:
-  - tags
-  - categories
+  tags:
+    generatePages: true
+    basePath: /tags
+    termTemplate: taxonomy/tags-term
+    listTemplate: taxonomy/tags-list
+  categories:
+    generatePages: false
 
 contentTypes:
   blog:
@@ -204,7 +209,13 @@ Raw query parameters still work when presets are defined. Raw values override pr
 
 ## `taxonomies`
 
-Lists which frontmatter keys are treated as taxonomy fields. Values are extracted from page frontmatter and made available through collection query helpers.
+Declares which frontmatter keys are treated as taxonomy fields. Values are extracted from page frontmatter, indexed during build, and made available through collection query helpers in templates.
+
+The default taxonomy when no `taxonomies` key is present in `glaze.neon` is `tags`.
+
+See [Taxonomies](../content/taxonomies.dj) for a full reference including template query examples.
+
+### Simple list syntax
 
 ```neon
 taxonomies:
@@ -213,6 +224,30 @@ taxonomies:
 ```
 
 With this config, `tags: [php, oss]` in a page's frontmatter becomes accessible via `$this->taxonomyTerm('tags', 'php')` in templates.
+
+### Map syntax
+
+The map syntax enables per-taxonomy options:
+
+```neon
+taxonomies:
+  tags:
+    generatePages: true
+    basePath: /tags
+    termTemplate: taxonomy/tags-term
+    listTemplate: taxonomy/tags-list
+  categories:
+    generatePages: false
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `generatePages` | `false` | Auto-generate a list page and one term page per distinct term |
+| `basePath` | `/{name}` | URL prefix for generated pages (e.g. `/tags`) |
+| `termTemplate` | `taxonomy/term` | Sugar template for individual term pages |
+| `listTemplate` | `taxonomy/list` | Sugar template for the taxonomy list (all terms) page |
+
+Both syntax styles may be mixed in the same config. A bare key with no options (`categories: {}`) is equivalent to `generatePages: false`.
 
 ## `contentTypes`
 
