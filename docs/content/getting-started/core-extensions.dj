@@ -1,6 +1,6 @@
 ---
 title: Core extensions
-description: "Built-in opt-in extensions that ship with Glaze: sitemap, llms-txt, search-index, and how to configure them."
+description: "Built-in opt-in extensions that ship with Glaze: sitemap, rss, llms-txt, search-index, and how to configure them."
 weight: 80
 ---
 # Core extensions
@@ -120,6 +120,67 @@ extensions:
 | `pitch` | string | Overrides the `> quote` line. Falls back to the auto-resolved project pitch. |
 | `context` | string | Overrides the context paragraph below the quote. |
 | `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the listing. |
+
+---
+
+### `rss`
+
+Generates an RSS 2.0 `feed.xml` in the output directory after each successful build.
+
+Each built page becomes an `<item>` with a title, canonical link, description, publication date, and a permalink `<guid>`. Items are sorted newest-first by publication date; pages with no resolvable date appear at the end in URL-path order.
+
+```neon
+extensions:
+    - rss
+```
+
+Dates are resolved from frontmatter keys `date`, `pubDate`, and `publishedAt` (in that order). Descriptions come from `description`, `summary`, or `excerpt`.
+
+Use `site.baseUrl` and `site.basePath` in `glaze.neon` to produce correct absolute URLs and the `<atom:link rel="self">` element required by feed readers:
+
+```neon
+site:
+    baseUrl: https://example.com
+
+extensions:
+    - rss
+```
+
+#### Options
+
+Switch to map syntax to pass options:
+
+```neon
+extensions:
+    rss:
+        filename: blog.xml
+        title: My Blog
+        description: Latest posts from My Blog.
+        types:
+            - blog
+            - news
+        exclude:
+            - /drafts
+            - /private
+```
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `filename` | string | Output filename written in the build output directory. Default: `feed.xml`. |
+| `title` | string | Overrides the feed channel `<title>`. Falls back to `site.title`. |
+| `description` | string | Overrides the channel `<description>`. Falls back to `site.description`. |
+| `types` | list&lt;string&gt; | Content type names to include. When omitted, all non-excluded pages are included. |
+| `exclude` | list&lt;string&gt; | URL path prefixes whose pages are omitted from the feed. |
+
+#### Feed discovery
+
+Add a `<link rel="alternate">` tag to your layout template so browsers and feed readers can auto-discover the feed:
+
+```html
+<link rel="alternate" type="application/rss+xml"
+      title="<?= h($site->title) ?>"
+      href="<?= $site->baseUrl ?>/feed.xml">
+```
 
 ---
 

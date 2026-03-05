@@ -42,7 +42,7 @@ final class LlmsTxtExtension implements ConfigurableExtension
     /**
      * Collected pages keyed by URL path for uniqueness.
      *
-     * @var array<string, array{title: string, description: string, urlPath: string, source: string}>
+     * @var array<string, array{title: string, description: string, urlPath: string, source: string, type: string|null}>
      */
     protected array $pages = [];
 
@@ -123,6 +123,7 @@ final class LlmsTxtExtension implements ConfigurableExtension
             'description' => $this->resolveDescription($event),
             'urlPath' => $event->page->urlPath,
             'source' => $event->page->source,
+            'type' => $event->page->type,
         ];
     }
 
@@ -137,29 +138,22 @@ final class LlmsTxtExtension implements ConfigurableExtension
         $pages = array_values($this->pages);
         usort($pages, static fn(array $left, array $right): int => strcmp($left['urlPath'], $right['urlPath']));
 
-        $documentationPages = $pages;
-
         $lines = [];
         $lines[] = '# ' . ($this->title ?? $event->config->site->title ?? 'Glaze Site');
         $lines[] = '';
-        $lines[] = '> ' . ($this->pitch ?? $this->resolveProjectPitch($event, $documentationPages));
+        $lines[] = '> ' . ($this->pitch ?? $this->resolveProjectPitch($event, $pages));
         $lines[] = '';
-        $lines[] = $this->context ?? $this->resolveProjectContext($event, $documentationPages);
+        $lines[] = $this->context ?? $this->resolveProjectContext($event, $pages);
         $lines[] = '';
 
-        $lines[] = '## Documentation';
-        if ($documentationPages === []) {
-            $lines[] = '- No documentation pages found.';
-        } else {
-            foreach ($documentationPages as $page) {
-                $lines[] = $this->formatPageEntry($page, $event);
-            }
+        foreach ($this->renderPageSections($pages, $event) as $line) {
+            $lines[] = $line;
         }
 
         if (is_file($event->config->outputPath() . '/llms-full.txt')) {
             $lines[] = '';
             $lines[] = '## Optional: llms-full.txt';
-            $lines[] = '- [Full Documentation]('
+            $lines[] = '- [Full Content]('
                 . $this->absoluteUrl('/llms-full.txt', $event)
                 . '): A single file containing all content for deep context.';
         }
@@ -168,6 +162,91 @@ final class LlmsTxtExtension implements ConfigurableExtension
             $event->config->outputPath() . '/llms.txt',
             implode(PHP_EOL, $lines) . PHP_EOL,
         );
+    }
+
+    /**
+     * Render page sections, grouping by content type when types are configured.
+     *
+     * When `$config->contentTypes` is non-empty, pages are grouped by their `type`
+     * value. Each type becomes its own `## TypeName` section (title-cased). Pages
+     * with no type are collected last under `## Pages`. A blank line separates
+     * adjacent sections.
+     *
+     * When no content types are configured, all pages are emitted under a single
+     * `## Pages` heading.
+     *
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Sorted pages.
+     * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
+     * @return array<string> Output lines to append.
+     */
+    protected function renderPageSections(array $pages, BuildCompletedEvent $event): array
+    {
+        if ($event->config->contentTypes === []) {
+            return $this->renderSection('Pages', $pages, $event);
+        }
+
+        if ($pages === []) {
+            return $this->renderSection('Pages', [], $event);
+        }
+
+        $typed = [];
+        $untyped = [];
+
+        foreach ($pages as $page) {
+            if ($page['type'] !== null) {
+                $typed[$page['type']][] = $page;
+            } else {
+                $untyped[] = $page;
+            }
+        }
+
+        ksort($typed);
+
+        $sections = [];
+
+        foreach ($typed as $type => $typePages) {
+            $sections[] = $this->renderSection(ucfirst($type), $typePages, $event);
+        }
+
+        if ($untyped !== []) {
+            $sections[] = $this->renderSection('Pages', $untyped, $event);
+        }
+
+        $lines = [];
+
+        foreach ($sections as $i => $sectionLines) {
+            array_push($lines, ...$sectionLines);
+
+            if (isset($sections[$i + 1])) {
+                $lines[] = '';
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Render a single labelled documentation section.
+     *
+     * @param string $heading Section heading text (without `##` prefix).
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Pages to list.
+     * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
+     * @return array<string> Output lines.
+     */
+    protected function renderSection(string $heading, array $pages, BuildCompletedEvent $event): array
+    {
+        $lines = [];
+        $lines[] = '## ' . $heading;
+
+        if ($pages === []) {
+            $lines[] = '- No pages found.';
+        } else {
+            foreach ($pages as $page) {
+                $lines[] = $this->formatPageEntry($page, $event);
+            }
+        }
+
+        return $lines;
     }
 
     /**
@@ -226,12 +305,12 @@ final class LlmsTxtExtension implements ConfigurableExtension
      * Resolve a one-sentence project pitch for the llms.txt header quote.
      *
      * Reads `site.meta.llmsPitch` when configured and falls back to the site
-     * description or a generic project sentence.
+     * description or a generic sentence.
      *
      * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
-     * @param array<array{title: string, description: string, urlPath: string, source: string}> $documentationPages Documentation pages.
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Pages.
      */
-    protected function resolveProjectPitch(BuildCompletedEvent $event, array $documentationPages): string
+    protected function resolveProjectPitch(BuildCompletedEvent $event, array $pages): string
     {
         $pitch = $event->config->site->siteMeta('llmsPitch');
         if (is_string($pitch) && trim($pitch) !== '') {
@@ -242,24 +321,24 @@ final class LlmsTxtExtension implements ConfigurableExtension
             return trim($event->config->site->description);
         }
 
-        $bestDescription = $this->bestDescription($documentationPages);
+        $bestDescription = $this->bestDescription($pages);
         if ($bestDescription !== null) {
             return $bestDescription;
         }
 
-        return 'Documentation index for ' . ($event->config->site->title ?? 'this project') . '.';
+        return 'Content index for ' . ($event->config->site->title ?? 'this project') . '.';
     }
 
     /**
      * Resolve the contextual project paragraph for llms.txt.
      *
      * Reads `site.meta.llmsContext` when configured and otherwise provides a
-     * default explanation of architecture and intended use.
+     * default explanation intended to guide an LLM consumer.
      *
      * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
-     * @param array<array{title: string, description: string, urlPath: string, source: string}> $documentationPages Documentation pages.
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Pages.
      */
-    protected function resolveProjectContext(BuildCompletedEvent $event, array $documentationPages): string
+    protected function resolveProjectContext(BuildCompletedEvent $event, array $pages): string
     {
         $context = $event->config->site->siteMeta('llmsContext');
         if (is_string($context) && trim($context) !== '') {
@@ -267,7 +346,7 @@ final class LlmsTxtExtension implements ConfigurableExtension
         }
 
         $descriptionSegments = [];
-        foreach ($documentationPages as $page) {
+        foreach ($pages as $page) {
             $description = trim($page['description']);
             if ($description === '') {
                 continue;
@@ -287,18 +366,18 @@ final class LlmsTxtExtension implements ConfigurableExtension
             return implode(' ', $descriptionSegments);
         }
 
-        $sourceSummary = $this->bestSourceSummary($documentationPages);
+        $sourceSummary = $this->bestSourceSummary($pages);
         if ($sourceSummary !== null) {
             return $sourceSummary;
         }
 
-        return 'Use the documentation links below for architecture, usage, and implementation details.';
+        return 'Use the links below for details.';
     }
 
     /**
      * Format a page as a structured markdown list entry.
      *
-     * @param array{title: string, description: string, urlPath: string, source: string} $page Page data.
+     * @param array{title: string, description: string, urlPath: string, source: string, type: string|null} $page Page data.
      * @param \Glaze\Build\Event\BuildCompletedEvent $event Build context.
      */
     protected function formatPageEntry(array $page, BuildCompletedEvent $event): string
@@ -314,7 +393,7 @@ final class LlmsTxtExtension implements ConfigurableExtension
     /**
      * Resolve the best available page description for header pitch fallback.
      *
-     * @param array<array{title: string, description: string, urlPath: string, source: string}> $pages Candidate pages.
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Candidate pages.
      */
     protected function bestDescription(array $pages): ?string
     {
@@ -337,7 +416,7 @@ final class LlmsTxtExtension implements ConfigurableExtension
     /**
      * Resolve a brief source-based fallback context sentence.
      *
-     * @param array<array{title: string, description: string, urlPath: string, source: string}> $pages Candidate pages.
+     * @param array<array{title: string, description: string, urlPath: string, source: string, type: string|null}> $pages Candidate pages.
      */
     protected function bestSourceSummary(array $pages): ?string
     {

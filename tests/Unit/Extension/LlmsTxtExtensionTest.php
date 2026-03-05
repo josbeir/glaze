@@ -410,7 +410,7 @@ final class LlmsTxtExtensionTest extends TestCase
         $ext->write(new BuildCompletedEvent([], $config, 0.0));
 
         $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
-        $this->assertStringContainsString('> Documentation index for MyProject.', $content);
+        $this->assertStringContainsString('> Content index for MyProject.', $content);
     }
 
     // -------------------------------------------------------------------------
@@ -476,7 +476,7 @@ final class LlmsTxtExtensionTest extends TestCase
         $ext->write(new BuildCompletedEvent([], $config, 0.0));
 
         $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
-        $this->assertStringContainsString('Use the documentation links below', $content);
+        $this->assertStringContainsString('Use the links below for details.', $content);
     }
 
     // -------------------------------------------------------------------------
@@ -496,7 +496,7 @@ final class LlmsTxtExtensionTest extends TestCase
 
         $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
         $this->assertStringContainsString('## Optional: llms-full.txt', $content);
-        $this->assertStringContainsString('Full Documentation', $content);
+        $this->assertStringContainsString('Full Content', $content);
     }
 
     /**
@@ -510,7 +510,7 @@ final class LlmsTxtExtensionTest extends TestCase
         $ext->write(new BuildCompletedEvent([], $config, 0.0));
 
         $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
-        $this->assertStringContainsString('No documentation pages found.', $content);
+        $this->assertStringContainsString('No pages found.', $content);
     }
 
     /**
@@ -607,8 +607,163 @@ final class LlmsTxtExtensionTest extends TestCase
         $this->assertStringContainsString('Desc B.', $content);
         $this->assertStringContainsString('Desc C.', $content);
         // The 4th description must not appear in the context paragraph (only in the page entry)
-        $contextArea = explode('## Documentation', $content)[0];
+        $contextArea = explode('## Pages', $content)[0];
         $this->assertStringNotContainsString('Desc D should be excluded.', $contextArea);
+    }
+
+    // -------------------------------------------------------------------------
+    // write() — content type grouping
+    // -------------------------------------------------------------------------
+
+    /**
+     * write() emits a flat ## Documentation section when no content types are configured.
+     */
+    public function testWriteUsesFlatDocumentationSectionWithoutContentTypes(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        [$projectRoot, $config] = $this->makeConfig();
+        $ext->collect($this->makePageWithMeta('/blog/post', [], $config, type: 'blog'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Pages', $content);
+        $this->assertStringNotContainsString('## Blog', $content);
+    }
+
+    /**
+     * write() groups typed pages under per-type headings when content types are configured.
+     */
+    public function testWriteGroupsPagesByContentType(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
+            'docs' => ['paths' => [['match' => 'docs', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+
+        $ext->collect($this->makePageWithMeta('/blog/post', ['description' => 'A post.'], $config, type: 'blog'));
+        $ext->collect($this->makePageWithMeta('/docs/guide', ['description' => 'A guide.'], $config, type: 'docs'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Blog', $content);
+        $this->assertStringContainsString('/blog/post', $content);
+        $this->assertStringContainsString('## Docs', $content);
+        $this->assertStringContainsString('/docs/guide', $content);
+        $this->assertStringNotContainsString('## Documentation', $content);
+    }
+
+    /**
+     * write() places typed sections before the untyped ## Pages section.
+     */
+    public function testWritePlacesUntypedPagesInPagesSectionLast(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+
+        $ext->collect($this->makePageWithMeta('/blog/post', [], $config, type: 'blog'));
+        $ext->collect($this->makePageWithMeta('/about', [], $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Blog', $content);
+        $this->assertStringContainsString('## Pages', $content);
+        $this->assertStringNotContainsString('## Documentation', $content);
+
+        $posBlog = strpos($content, '## Blog');
+        $posPages = strpos($content, '## Pages');
+        $this->assertNotFalse($posBlog);
+        $this->assertNotFalse($posPages);
+        $this->assertLessThan($posPages, $posBlog);
+    }
+
+    /**
+     * write() sorts content type sections alphabetically.
+     */
+    public function testWriteSortsContentTypeSectionsAlphabetically(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'tutorials' => ['paths' => [['match' => 'tutorials', 'createPattern' => null]], 'defaults' => []],
+            'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+
+        $ext->collect($this->makePageWithMeta('/tutorials/intro', [], $config, type: 'tutorials'));
+        $ext->collect($this->makePageWithMeta('/blog/post', [], $config, type: 'blog'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $posBlog = strpos($content, '## Blog');
+        $posTutorials = strpos($content, '## Tutorials');
+        $this->assertNotFalse($posBlog);
+        $this->assertNotFalse($posTutorials);
+        $this->assertLessThan($posTutorials, $posBlog);
+    }
+
+    /**
+     * write() emits ## Documentation with no-pages message when content types are configured but no pages were collected.
+     */
+    public function testWriteWithNoPagesFallsBackToDocumentationSectionWhenTypesConfigured(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Pages', $content);
+        $this->assertStringContainsString('No pages found.', $content);
+    }
+
+    /**
+     * write() emits only ## Pages when content types are configured but all pages are untyped.
+     */
+    public function testWriteWithAllUntypedPagesUsesPagesSectionOnly(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'blog' => ['paths' => [['match' => 'blog', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+        $ext->collect($this->makePageWithMeta('/about', [], $config));
+        $ext->collect($this->makePageWithMeta('/contact', [], $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Pages', $content);
+        $this->assertStringNotContainsString('## Blog', $content);
+        $this->assertStringNotContainsString('## Documentation', $content);
+    }
+
+    /**
+     * write() title-cases the content type name for the section heading.
+     */
+    public function testWriteTitleCasesContentTypeSectionHeading(): void
+    {
+        $ext = new LlmsTxtExtension();
+
+        $contentTypes = [
+            'release-notes' => ['paths' => [['match' => 'release-notes', 'createPattern' => null]], 'defaults' => []],
+        ];
+        [$projectRoot, $config] = $this->makeConfig(contentTypes: $contentTypes);
+        $ext->collect($this->makePageWithMeta('/release-notes/v1', [], $config, type: 'release-notes'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $content = (string)file_get_contents($projectRoot . '/public/llms.txt');
+        $this->assertStringContainsString('## Release-notes', $content);
     }
 
     // -------------------------------------------------------------------------
@@ -623,18 +778,21 @@ final class LlmsTxtExtensionTest extends TestCase
      * @param string|null $siteTitle Optional site title.
      * @param string|null $baseUrl   Optional site base URL.
      * @param array<string, mixed> $siteMeta Optional site meta values (e.g. llmsPitch, llmsContext).
+     * @param array<string, array{paths: array<array{match: string, createPattern: string|null}>, defaults: array<string, mixed>}> $contentTypes Optional content type rules.
      * @return array{0: string, 1: \Glaze\Config\BuildConfig}
      */
     private function makeConfig(
         ?string $siteTitle = null,
         ?string $baseUrl = null,
         array $siteMeta = [],
+        array $contentTypes = [],
     ): array {
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/public', 0755, true);
 
         $config = new BuildConfig(
             projectRoot: $projectRoot,
+            contentTypes: $contentTypes,
             site: new SiteConfig(title: $siteTitle, baseUrl: $baseUrl, meta: $siteMeta),
         );
 
@@ -649,6 +807,7 @@ final class LlmsTxtExtensionTest extends TestCase
      * @param \Glaze\Config\BuildConfig $config Build config.
      * @param string $title Optional page title.
      * @param string $source Optional raw page source text.
+     * @param string|null $type Optional content type.
      */
     private function makePageWithMeta(
         string $urlPath,
@@ -656,6 +815,7 @@ final class LlmsTxtExtensionTest extends TestCase
         BuildConfig $config,
         string $title = 'Test Page',
         string $source = '',
+        ?string $type = null,
     ): PageWrittenEvent {
         $page = new ContentPage(
             sourcePath: '',
@@ -667,6 +827,7 @@ final class LlmsTxtExtensionTest extends TestCase
             source: $source,
             draft: false,
             meta: $meta,
+            type: $type,
         );
 
         return new PageWrittenEvent($page, '/tmp/output' . $urlPath . '/index.html', $config);
