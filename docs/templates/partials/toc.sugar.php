@@ -11,8 +11,9 @@
 		<li s:if="$entry->level <= 3" style="padding-left: <?= max(0, ($entry->level - 2) * 12) ?>px">
 			<a
 				href="#<?= $entry->id ?>"
+				title="<?= $entry->text ?>"
 				:class="{ 'text-primary bg-base-200': activeToc === '<?= $entry->id ?>' }"
-				class="block py-1 px-2 rounded-md text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors duration-150 leading-snug"
+				class="block py-1 px-2 rounded-md text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors duration-150 leading-snug truncate"
 			>
 				<?= $entry->text ?>
 			</a>
