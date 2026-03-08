@@ -116,6 +116,10 @@ final class SugarPageRenderer
             $this->cache = new FileCache($this->cachePath);
         }
 
+        if (!is_dir($this->cachePath)) {
+            mkdir($this->cachePath, 0755, true);
+        }
+
         return $this->cache;
     }
 
@@ -126,18 +130,16 @@ final class SugarPageRenderer
      */
     protected function createEngine(?object $templateContext = null): Engine
     {
-        if (!is_dir($this->cachePath)) {
-            mkdir($this->cachePath, 0755, true);
-        }
-
         $builder = Engine::builder()
             ->withTemplateLoader($this->getLoader())
             ->withCache($this->getCache())
             ->withDebug($this->debug)
             ->withTemplateContext($templateContext)
-            ->withExtension(new ComponentExtension(['components']));
-
-        $builder->withExtension(new ResourcePathSugarExtension($this->siteConfig, $this->resourcePathRewriter));
+            ->withExtension(new ComponentExtension(['components']))
+            ->withExtension(new ResourcePathSugarExtension(
+                $this->siteConfig,
+                $this->resourcePathRewriter,
+            ));
 
         foreach ($this->additionalExtensions as $extension) {
             $builder->withExtension($extension);

@@ -1,0 +1,336 @@
+---
+title: Djot
+description: "Complete guide to Djot in Glaze: rendering options, code highlighting, table of contents, source includes, and all djot.* configuration."
+weight: 75
+---
+# Djot
+
+Glaze uses [Djot](https://djot.net/) as its content format. Djot is a markup language designed by John MacFarlane (the author of Pandoc and CommonMark) to fix the ambiguities in Markdown. If you're coming from Markdown, the syntax is very similar — see [Why not Markdown?](../reference/why-not-markdown.dj) for a quick comparison.
+
+Djot support is provided by [php-collective/djot-php](https://github.com/php-collective/djot-php).
+
+All rendering options live under the `djot` key in `glaze.neon`. None are required — Glaze ships with sensible defaults.
+
+## Base options
+
+### `djot.xhtml`
+
+Produce XHTML-compatible output (self-closing tags like `<br />` instead of `<br>`).
+
+```neon
+djot:
+  xhtml: true
+```
+
+Default: `false`.
+
+### `djot.significantNewlines`
+
+When active, soft line breaks in Djot source become `<br>` tags and block elements like lists can interrupt paragraphs without a blank line.
+
+```neon
+djot:
+  significantNewlines: true
+```
+
+Default: `false`.
+
+### `djot.profile`
+
+Select a named converter profile that controls which Djot markup features are allowed during rendering. Profiles are provided by [php-collective/djot-php](https://github.com/php-collective/djot-php).
+
+```neon
+djot:
+  profile: article
+```
+
+| Profile | Description |
+|---|---|
+| `full` | All features explicitly enabled; use for trusted content |
+| `article` | All formatting features, but raw HTML is blocked |
+| `comment` | Basic inline formatting, lists, blockquotes, code; links get `nofollow` |
+| `minimal` | Inline text formatting and lists only; suitable for chat or micro-posts |
+
+The `article` profile is a good default for sites with contributor content — it allows all Djot formatting but prevents raw HTML nodes.
+
+Default: `null` (library default).
+
+## Code highlighting
+
+Syntax highlighting for fenced code blocks is powered by [Phiki](https://github.com/phikiphp/phiki).
+
+```neon
+djot:
+  codeHighlighting:
+    enabled: true
+    theme: github-dark
+    themes:
+      dark: github-dark
+      light: github-light
+    withGutter: true
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Enable or disable syntax highlighting |
+| `theme` | `nord` | Single Phiki theme name; used when `themes` is not set |
+| `themes` | `{}` | Named theme map for multi-theme output (e.g. `dark`/`light`) |
+| `withGutter` | `false` | Show line-number gutter beside code blocks |
+
+When `themes` is configured, it takes precedence over `theme`. Phiki emits CSS variables per named theme so you can switch between them in CSS:
+
+```neon
+djot:
+  codeHighlighting:
+    themes:
+      dark: github-dark
+      light: github-light
+```
+
+## Table of contents
+
+Glaze collects headings in a single render pass and makes them available as structured data. No second parse is needed.
+
+### Inline `[[toc]]` directive
+
+Place `[[toc]]` as a standalone paragraph in your Djot source to inject a `<nav>` element at that position:
+
+```djot
+[[toc]]
+
+## Introduction
+
+## Installation
+
+## Configuration
+```
+
+The injected markup looks like:
+
+```html
+<nav class="toc">
+  <ul>
+    <li><a href="#Introduction">Introduction</a></li>
+    <li><a href="#Installation">Installation</a></li>
+    <li><a href="#Configuration">Configuration</a></li>
+  </ul>
+</nav>
+```
+
+### Template access
+
+The `$page->toc` property holds the collected `TocEntry` list in document order, indpendently of whether `[[toc]]` appears in the source. Use it to build sidebar navigation or any custom TOC layout:
+
+```php
+<?php foreach ($page->toc as $entry): ?>
+<a
+  href="#<?= $entry->id ?>"
+  class="level-<?= $entry->level ?>"
+><?= $entry->text ?></a>
+<?php endforeach; ?>
+```
+
+Each `TocEntry` exposes:
+
+| Property | Type | Description |
+|---|---|---|
+| `$entry->level` | `int` | Heading level (1–6) |
+| `$entry->id` | `string` | Anchor id matching the rendered heading element |
+| `$entry->text` | `string` | Plain-text heading label |
+
+## Heading anchors
+
+Injects anchor permalink links into headings during rendering, powered by `HeadingPermalinksExtension`.
+
+```neon
+djot:
+  headerAnchors:
+    enabled: true
+    symbol: "#"
+    position: after
+    cssClass: permalink-wrapper
+    ariaLabel: Anchor link
+    levels: [2, 3, 4]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable heading anchor injection |
+| `symbol` | `#` | Anchor text shown inside the heading link |
+| `position` | `after` | Link placement: `before` or `after` heading text |
+| `cssClass` | `permalink-wrapper` | CSS class added to each anchor link |
+| `ariaLabel` | `Anchor link` | Accessibility label for anchor links |
+| `levels` | `[1,2,3,4,5,6]` | Heading levels that receive anchors |
+
+## Source includes
+
+Glaze preprocesses Djot source before rendering and expands `<!--@include:-->` directives. This lets you split long documents into composable partial files without duplicating content.
+
+### Syntax
+
+```djot
+<!--@include: ./partials/intro.dj-->
+```
+
+The path is resolved relative to the file containing the directive. All included paths must stay inside the content root — any path that escapes it (via `../`) throws an error at build time.
+
+### Line ranges
+
+Include only a slice of the target file using a `{start,end}` suffix. Line numbers are 1-based and inclusive.
+
+```djot
+<!--@include: ./partials/example.dj{3,12}-->
+<!--@include: ./partials/example.dj{5,}-->
+<!--@include: ./partials/example.dj{,10}-->
+```
+
+- `{3,12}` — lines 3 through 12
+- `{5,}` — from line 5 to the end of the file
+- `{,10}` — from the start of the file through line 10
+
+### Heading anchors
+
+Include only the section under a specific heading by appending `#slug`. The section spans from the matched heading to the next heading at the same or higher level.
+
+```djot
+<!--@include: ./api-reference.dj#basic-usage-->
+```
+
+The slug is derived from the heading text using the same algorithm that generates `id` attributes: strip `#`, trim whitespace, replace whitespace sequences with `-`.
+
+### Recursive includes
+
+Included files are fully expanded — their own `<!--@include:-->` directives are processed too. Circular includes are detected and cause a build-time error.
+
+### Common use case
+
+Shared code snippets or notes that appear in multiple pages:
+
+```djot
+## Installation
+
+<!--@include: ../_partials/install-note.dj-->
+
+Run the following command:
+```
+
+## Autolink
+
+Converts bare URLs in source into anchor links automatically.
+
+```neon
+djot:
+  autolink:
+    enabled: true
+    allowedSchemes: [https, http, mailto]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable autolinking |
+| `allowedSchemes` | `[https, http, mailto]` | URL schemes to linkify |
+
+## External links
+
+Adds configurable attributes to external links. Internal hosts are excluded.
+
+```neon
+djot:
+  externalLinks:
+    enabled: true
+    internalHosts: [example.com]
+    target: _blank
+    rel: noopener noreferrer
+    nofollow: false
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable external link enrichment |
+| `internalHosts` | `[]` | Hostnames treated as internal; matching links are left unchanged |
+| `target` | `_blank` | `target` attribute added to external links |
+| `rel` | `noopener noreferrer` | `rel` attribute added to external links |
+| `nofollow` | `false` | Append `nofollow` to the `rel` attribute |
+
+## Smart quotes
+
+Replaces straight quotation marks with typographic curly quotes. Locale-based defaults apply when no explicit characters are configured.
+
+```neon
+djot:
+  smartQuotes:
+    enabled: true
+    locale: en
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable smart quote conversion |
+| `locale` | `null` | Locale for default quote characters (e.g. `en`, `de`, `fr`) |
+| `openDouble` | `null` | Explicit opening double-quote character; overrides locale default |
+| `closeDouble` | `null` | Explicit closing double-quote character; overrides locale default |
+| `openSingle` | `null` | Explicit opening single-quote character; overrides locale default |
+| `closeSingle` | `null` | Explicit closing single-quote character; overrides locale default |
+
+## Mentions
+
+Converts `@username` references into anchor links using a configurable URL template.
+
+```neon
+djot:
+  mentions:
+    enabled: true
+    urlTemplate: '/users/view/{username}'
+    cssClass: mention
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable mention expansion |
+| `urlTemplate` | `/users/view/{username}` | URL template; `{username}` is replaced with the matched username |
+| `cssClass` | `mention` | CSS class added to rendered mention links |
+
+## Semantic spans
+
+Promotes spans with special class attributes to their semantic HTML equivalents.
+
+Supported mappings:
+
+| Djot span syntax | Output element |
+|---|---|
+| `[text]{mark=...}` | `<mark>` |
+| `[text]{ins=...}` | `<ins>` |
+| `[text]{del=...}` | `<del>` |
+| `[text]{kbd=...}` | `<kbd>` |
+
+```neon
+djot:
+  semanticSpan:
+    enabled: true
+```
+
+Default: `false`.
+
+## Default attributes
+
+Injects default HTML attributes onto Djot element types at render time.
+
+```neon
+djot:
+  defaultAttributes:
+    enabled: true
+    defaults:
+      heading:
+        class: my-heading
+      paragraph:
+        class: prose
+      code_block:
+        data-enhanced: "true"
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable or disable default attribute injection |
+| `defaults` | `{}` | Map of Djot node type names to attribute name → value maps |
+
+Node type names correspond to Djot AST element names (e.g. `heading`, `paragraph`, `code_block`, `link`, `image`).

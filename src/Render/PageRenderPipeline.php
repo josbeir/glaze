@@ -67,7 +67,7 @@ final class PageRenderPipeline
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex ??= new SiteIndex([$page], $assetResolver);
 
-        $renderResult = $this->djotRenderer->renderWithToc(
+        $renderResult = $this->djotRenderer->render(
             source: $page->source,
             djot: $config->djotOptions,
             siteConfig: $config->site,
@@ -124,7 +124,7 @@ final class PageRenderPipeline
      */
     public function extractToc(ContentPage $page, BuildConfig $config): array
     {
-        return $this->djotRenderer->renderWithToc(
+        return $this->djotRenderer->render(
             source: $page->source,
             djot: $config->djotOptions,
             siteConfig: $config->site,

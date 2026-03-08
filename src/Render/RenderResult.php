@@ -4,14 +4,14 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 /**
- * Value object returned by `DjotRenderer::renderWithToc()`.
+ * Value object returned by `DjotRenderer::render()`.
  *
  * Bundles together the final rendered HTML and the list of table-of-contents
  * entries collected during the same render pass so callers never need to
  * parse the document twice.
  *
  * Example:
- *   $result = $renderer->renderWithToc($source, $djot);
+ *   $result = $renderer->render($source, $djot);
  *   echo $result->html;
  *   foreach ($result->toc as $entry) { ... }
  */

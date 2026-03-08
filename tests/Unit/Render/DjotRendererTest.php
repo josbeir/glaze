@@ -24,7 +24,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderHighlightsCodeBlocksByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("```php\necho 1;\n```\n");
+        $html = $renderer->render("```php\necho 1;\n```\n")->html;
 
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertStringContainsString('language-php', $html);
@@ -40,7 +40,7 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render(
             "```php\necho 1;\n```\n",
             $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
-        );
+        )->html;
 
         $this->assertStringNotContainsString('class="phiki', $html);
         $this->assertStringContainsString('<pre><code class="language-php">', $html);
@@ -55,7 +55,7 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render(
             "```unknownlang\nhello\n```\n",
             $this->withCodeHighlighting(['enabled' => true, 'theme' => 'nord', 'withGutter' => true]),
-        );
+        )->html;
 
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertStringNotContainsString('language-php', $html);
@@ -77,7 +77,7 @@ final class DjotRendererTest extends TestCase
                 'themes' => ['dark' => 'github-dark', 'light' => 'github-light'],
                 'withGutter' => false,
             ]),
-        );
+        )->html;
 
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertStringContainsString('phiki-themes', $html);
@@ -91,7 +91,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderMapsNeonFenceLanguageToYamlGrammar(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("```neon\nsite:\n  title: Glaze\n```\n");
+        $html = $renderer->render("```neon\nsite:\n  title: Glaze\n```\n")->html;
 
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertStringContainsString('language-yaml', $html);
@@ -104,7 +104,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderUsesCustomDjotFenceGrammar(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("```djot\n# Intro\n```\n");
+        $html = $renderer->render("```djot\n# Intro\n```\n")->html;
 
         $this->assertStringContainsString('class="phiki', $html);
         $this->assertMatchesRegularExpression('/language-djot/i', $html);
@@ -119,7 +119,7 @@ final class DjotRendererTest extends TestCase
         $renderer = $this->createRenderer();
         $html = $renderer->render(
             "::: code-group\n\n```js [config.js]\nconst config = {}\n```\n\n```ts [config.ts]\nconst config: Record<string, mixed> = {}\n```\n\n:::\n",
-        );
+        )->html;
 
         $this->assertStringContainsString('class="glaze-code-group"', $html);
         $this->assertStringContainsString('class="glaze-code-group-tab"', $html);
@@ -138,7 +138,7 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render(
             "::: code-group\n\n```php [example.php]\necho 1;\n```\n\n:::\n",
             $this->withCodeHighlighting(['enabled' => false, 'theme' => 'nord', 'withGutter' => false]),
-        );
+        )->html;
 
         $this->assertStringContainsString('class="glaze-code-group"', $html);
         $this->assertStringContainsString('class="glaze-code-group-tab"', $html);
@@ -153,7 +153,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderRewritesInternalDjotLinksToExtensionlessPaths(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render('[Quick start](quick-start.dj)');
+        $html = $renderer->render('[Quick start](quick-start.dj)')->html;
 
         $this->assertStringContainsString('href="quick-start"', $html);
         $this->assertStringNotContainsString('href="quick-start.dj"', $html);
@@ -165,7 +165,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderPreservesSuffixWhenRewritingDjotLinks(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render('[Guide](guide.dj?mode=full#top)');
+        $html = $renderer->render('[Guide](guide.dj?mode=full#top)')->html;
 
         $this->assertStringContainsString('href="guide?mode=full#top"', $html);
     }
@@ -181,7 +181,7 @@ final class DjotRendererTest extends TestCase
             $this->defaultDjotOptions(),
             new SiteConfig(basePath: '/docs'),
             'guides/intro.dj',
-        );
+        )->html;
 
         $this->assertStringContainsString('href="/docs/images/logo.png"', $html);
     }
@@ -197,7 +197,7 @@ final class DjotRendererTest extends TestCase
             $this->defaultDjotOptions(),
             new SiteConfig(basePath: '/docs'),
             'guides/intro.dj',
-        );
+        )->html;
 
         $this->assertStringContainsString('src="/docs/images/hero.jpg"', $html);
         $this->assertStringContainsString('alt="Hero"', $html);
@@ -209,7 +209,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotInjectHeadingAnchorsByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("# Intro\n");
+        $html = $renderer->render("# Intro\n")->html;
 
         $this->assertStringNotContainsString('class="header-anchor"', $html);
     }
@@ -230,7 +230,7 @@ final class DjotRendererTest extends TestCase
                 'ariaLabel' => 'Copy section link',
                 'levels' => [2],
             ]),
-        );
+        )->html;
 
         $this->assertStringContainsString('id="Setup"', $html);
         $this->assertStringContainsString('href="#Setup"', $html);
@@ -240,12 +240,12 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
-     * Ensure renderWithToc() returns a RenderResult with HTML and TOC entries.
+     * Ensure render() returns a RenderResult with HTML and TOC entries.
      */
-    public function testRenderWithTocReturnsTocEntriesForHeadings(): void
+    public function testRenderTocReturnsTocEntriesForHeadings(): void
     {
         $renderer = $this->createRenderer();
-        $result = $renderer->renderWithToc("# Intro\n\n## Setup\n\n### Requirements\n");
+        $result = $renderer->render("# Intro\n\n## Setup\n\n### Requirements\n");
 
         $this->assertInstanceOf(RenderResult::class, $result);
         $this->assertCount(3, $result->toc);
@@ -261,12 +261,12 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
-     * Ensure renderWithToc() injects TOC HTML in place of the [[toc]] directive.
+     * Ensure render() injects TOC HTML in place of the [[toc]] directive.
      */
-    public function testRenderWithTocInjectsTocHtmlForTocDirective(): void
+    public function testRenderTocInjectsTocHtmlForTocDirective(): void
     {
         $renderer = $this->createRenderer();
-        $result = $renderer->renderWithToc("[[toc]]\n\n## Setup\n\n## Usage\n");
+        $result = $renderer->render("[[toc]]\n\n## Setup\n\n## Usage\n");
 
         $this->assertStringNotContainsString('[[toc]]', $result->html);
         $this->assertStringContainsString('<nav class="toc">', $result->html);
@@ -275,12 +275,12 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
-     * Ensure renderWithToc() returns an empty toc list for pages with no headings.
+     * Ensure render() returns an empty toc list for pages with no headings.
      */
-    public function testRenderWithTocReturnsEmptyTocForPageWithNoHeadings(): void
+    public function testRenderTocReturnsEmptyTocForPageWithNoHeadings(): void
     {
         $renderer = $this->createRenderer();
-        $result = $renderer->renderWithToc("Just a paragraph.\n");
+        $result = $renderer->render("Just a paragraph.\n");
 
         $this->assertInstanceOf(RenderResult::class, $result);
         $this->assertSame([], $result->toc);
@@ -288,12 +288,12 @@ final class DjotRendererTest extends TestCase
     }
 
     /**
-     * Ensure renderWithToc() assigns id attributes to headings so TOC links resolve.
+     * Ensure render() assigns id attributes to headings so TOC links resolve.
      */
-    public function testRenderWithTocAssignsHeadingIdAttributes(): void
+    public function testRenderTocAssignsHeadingIdAttributes(): void
     {
         $renderer = $this->createRenderer();
-        $result = $renderer->renderWithToc("## Getting Started\n");
+        $result = $renderer->render("## Getting Started\n");
 
         $this->assertStringContainsString('id="Getting-Started"', $result->html);
         $this->assertSame('Getting-Started', $result->toc[0]->id);
@@ -305,7 +305,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotAutolinkUrlsByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("Visit https://example.com today.\n");
+        $html = $renderer->render("Visit https://example.com today.\n")->html;
 
         $this->assertStringNotContainsString('<a href="https://example.com">', $html);
     }
@@ -319,7 +319,7 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render(
             "Visit https://example.com today.\n",
             $this->withAutolink(['enabled' => true, 'allowedSchemes' => ['https', 'http', 'mailto']]),
-        );
+        )->html;
 
         $this->assertStringContainsString('<a href="https://example.com">', $html);
     }
@@ -330,7 +330,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotAddExternalLinkAttributesByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("[link](https://external.com)\n");
+        $html = $renderer->render("[link](https://external.com)\n")->html;
 
         $this->assertStringNotContainsString('target="_blank"', $html);
     }
@@ -350,7 +350,7 @@ final class DjotRendererTest extends TestCase
                 'rel' => 'noopener noreferrer',
                 'nofollow' => false,
             ]),
-        );
+        )->html;
 
         $this->assertStringContainsString('target="_blank"', $html);
         $this->assertStringContainsString('rel="noopener noreferrer"', $html);
@@ -371,7 +371,7 @@ final class DjotRendererTest extends TestCase
                 'rel' => 'noopener noreferrer',
                 'nofollow' => false,
             ]),
-        );
+        )->html;
 
         $this->assertStringNotContainsString('target="_blank"', $html);
     }
@@ -382,7 +382,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotApplySmartQuotesByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("She said \"hello\".\n");
+        $html = $renderer->render("She said \"hello\".\n")->html;
 
         // Djot already outputs English curly quotes by default; German opening quote should not appear
         $this->assertStringNotContainsString("\u{201E}", $html);
@@ -404,7 +404,7 @@ final class DjotRendererTest extends TestCase
                 'openSingle' => null,
                 'closeSingle' => null,
             ]),
-        );
+        )->html;
 
         // German locale uses „ (U+201E) as the opening double quote
         $this->assertStringContainsString("\u{201E}", $html);
@@ -416,7 +416,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotExpandMentionsByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("Hello @johndoe!\n");
+        $html = $renderer->render("Hello @johndoe!\n")->html;
 
         $this->assertStringNotContainsString('/users/view/johndoe', $html);
     }
@@ -434,7 +434,7 @@ final class DjotRendererTest extends TestCase
                 'urlTemplate' => '/users/view/{username}',
                 'cssClass' => 'mention',
             ]),
-        );
+        )->html;
 
         $this->assertStringContainsString('href="/users/view/johndoe"', $html);
         $this->assertStringContainsString('data-username="johndoe"', $html);
@@ -447,7 +447,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotApplySemanticSpansByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("[text]{kbd=Enter}\n");
+        $html = $renderer->render("[text]{kbd=Enter}\n")->html;
 
         $this->assertStringNotContainsString('<kbd>', $html);
     }
@@ -465,7 +465,7 @@ final class DjotRendererTest extends TestCase
         $html = $renderer->render(
             "[text]{kbd=Enter}\n",
             $this->withSemanticSpan(['enabled' => true]),
-        );
+        )->html;
 
         $this->assertStringContainsString('<kbd>', $html);
     }
@@ -476,7 +476,7 @@ final class DjotRendererTest extends TestCase
     public function testRenderDoesNotAddDefaultAttributesByDefault(): void
     {
         $renderer = $this->createRenderer();
-        $html = $renderer->render("# Heading\n");
+        $html = $renderer->render("# Heading\n")->html;
 
         $this->assertStringNotContainsString('class="my-heading"', $html);
     }
@@ -493,7 +493,7 @@ final class DjotRendererTest extends TestCase
                 'enabled' => true,
                 'defaults' => ['heading' => ['class' => 'my-heading']],
             ]),
-        );
+        )->html;
 
         $this->assertStringContainsString('class="my-heading"', $html);
     }
