@@ -436,18 +436,14 @@
 	}
 
 	.prose :where(.glaze-code-group > .glaze-code-group-tab) {
+		@apply relative py-2 px-3 text-sm font-medium text-base-content/65;
 		order: 1;
-		@apply relative py-2 px-5 text-base font-medium text-base-content/65;
 		appearance: none;
 		cursor: pointer;
 		border: 0;
 		border-radius: 0;
 		background: transparent;
 		box-shadow: none;
-	}
-
-	.prose :where(.glaze-code-group > .glaze-code-group-tab)::before {
-		font-size: 0.95rem;
 	}
 
 	.prose :where(.glaze-code-group > .glaze-code-group-tab[aria-label$=".js"])::before {

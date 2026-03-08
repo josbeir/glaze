@@ -13,6 +13,7 @@ site:
 	license: 'MIT License'
 	licenseLink: 'https://github.com/josbeir/glaze/blob/main/LICENSE.md'
 djot:
+	profile: full
 	codeHighlighting:
 		enabled: true
 		themes:
