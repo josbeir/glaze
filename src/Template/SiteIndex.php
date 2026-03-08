@@ -194,6 +194,11 @@ final class SiteIndex
 
     /**
      * Return root section node.
+     *
+     * The tree is built from all pages (including unlisted ones) so that
+     * unlisted `_index.dj` pages can serve as section index nodes,
+     * providing labels and weights. Unlisted pages are filtered from
+     * section page collections by the tree builder.
      */
     public function tree(): Section
     {
@@ -201,7 +206,7 @@ final class SiteIndex
             return $this->treeCache;
         }
 
-        $this->treeCache = SectionTree::build($this->regularPages()->all(), $this->assetResolver);
+        $this->treeCache = SectionTree::build($this->pages, $this->assetResolver);
 
         return $this->treeCache;
     }

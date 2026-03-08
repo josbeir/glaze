@@ -185,6 +185,12 @@ Pages marked as unlisted -- either via `unlisted: true` in frontmatter or by usi
 
 This is useful for section overview pages (e.g. `content/blog/_index.dj`) that should render at `/blog/` but should not appear alongside regular blog posts in listings.
 
+Unlisted section index pages are still used by the section tree:
+
+- `section('blog')?->label()` uses the `_index.dj` page title
+- section ordering uses the `_index.dj` page `weight`
+- `section('blog')?->index()` returns that index page
+
 ### Including unlisted pages
 
 Use `allPages()` to access all pages including unlisted ones:
@@ -275,6 +281,17 @@ Glaze derives sections from the content folder structure. Place pages inside sub
     </li>
 </ul>
 ```
+
+To define a custom section label and ordering without listing the index page in the menu, add an unlisted `_index.dj` inside the section folder:
+
+```djot
+---
+title: Getting Started
+weight: 10
+---
+```
+
+With that file at `content/getting-started/_index.dj`, templates get `Getting Started` from `$section->label()`, but `_index.dj` will not appear in `$section->pages()`.
 
 Sections are ordered by index page `weight` when `index.dj` exists, otherwise by the minimum subtree weight. Labels come from index page titles when available.
 

@@ -218,6 +218,8 @@ For custom PHP logic callable from templates, see [Extensions](extensions.dj).
 
 Glaze derives sections from the content folder structure. Place pages inside subfolders and they automatically belong to that section. Use `$this->sections()` for clean sidebar navigation:
 
+For section metadata, place an `_index.dj` file inside the folder (for example `content/docs/_index.dj`). Even though `_index.dj` is unlisted, it provides `Section->label()`, `Section->weight()`, and `Section->index()`.
+
 ```sugar
 <ul class="menu">
     <li s:foreach="$this->sections() as $section">

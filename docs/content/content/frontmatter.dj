@@ -160,6 +160,8 @@ draft: true
 
 Marks the page as unlisted. Unlisted pages are rendered and accessible by URL, but excluded from page collections (`regularPages()`, `type()`, `pages()`) by default. This is useful for section overview pages that should not appear alongside regular content in listings.
 
+When the file is a section index page (for example `content/docs/_index.dj`), it still acts as section metadata. Its title is used for `Section->label()` and its `weight` controls section ordering, while the page remains excluded from `section()->pages()`.
+
 ```djot
 ---
 unlisted: true

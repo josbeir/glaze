@@ -341,6 +341,87 @@ final class SiteIndexTest extends TestCase
     }
 
     /**
+     * Validate unlisted _index pages serve as section index providing label and weight.
+     *
+     * An unlisted `_index.dj` page should provide the section label and weight
+     * without appearing in the section's pages() collection.
+     */
+    public function testUnlistedIndexPageProvidesSectionLabelAndWeight(): void
+    {
+        $blogIndex = $this->makeUnlistedPage('blog', '/blog/', 'blog/_index.dj', ['weight' => 5], 'Blog Articles');
+        $postA = $this->makePage('blog/post-a', '/blog/post-a/', 'blog/post-a.dj', ['weight' => 10], 'Post A');
+        $postB = $this->makePage('blog/post-b', '/blog/post-b/', 'blog/post-b.dj', ['weight' => 20], 'Post B');
+
+        $index = new SiteIndex([$blogIndex, $postA, $postB]);
+
+        $blog = $index->sectionNode('blog') ?? $this->fail('Missing blog section');
+
+        // Label comes from the unlisted _index page
+        $this->assertSame('Blog Articles', $blog->label());
+
+        // Weight comes from the unlisted _index page
+        $this->assertSame(5, $blog->weight());
+
+        // Index page reference is set
+        $this->assertSame('blog', $blog->index()?->slug);
+
+        // Unlisted _index page does not appear in section pages
+        $this->assertCount(2, $blog->pages());
+        $titles = array_map(static fn(ContentPage $p): string => $p->title, $blog->pages()->all());
+        $this->assertNotContains('Blog Articles', $titles);
+        $this->assertSame(['Post A', 'Post B'], $titles);
+    }
+
+    /**
+     * Validate section ordering uses unlisted _index page weights.
+     *
+     * Sections with unlisted index pages should be ordered by the index page
+     * weight, just like sections with listed index pages.
+     */
+    public function testSectionOrderingUsesUnlistedIndexPageWeight(): void
+    {
+        $refIndex = $this->makeUnlistedPage('reference', '/reference/', 'reference/_index.dj', ['weight' => 5], 'Reference');
+        $commands = $this->makePage('reference/commands', '/reference/commands/', 'reference/commands.dj', ['weight' => 100], 'Commands');
+        $install = $this->makePage('getting-started/install', '/getting-started/install/', 'getting-started/install.dj', ['weight' => 20], 'Install');
+        $routing = $this->makePage('content/routing', '/content/routing/', 'content/routing.dj', ['weight' => 45], 'Routing');
+
+        $index = new SiteIndex([$refIndex, $commands, $install, $routing]);
+
+        $sectionKeys = array_keys($index->sections());
+        // reference first (unlisted _index weight 5), then getting-started (min weight 20), then content (min weight 45)
+        $this->assertSame(['reference', 'getting-started', 'content'], $sectionKeys);
+        $this->assertSame('Reference', $index->sections()['reference']->label());
+    }
+
+    /**
+     * Validate unlisted _index pages in nested sections work correctly.
+     */
+    public function testNestedUnlistedIndexPages(): void
+    {
+        $docsIndex = $this->makeUnlistedPage('docs', '/docs/', 'docs/_index.dj', ['weight' => 1], 'Documentation');
+        $guidesIndex = $this->makeUnlistedPage('docs/guides', '/docs/guides/', 'docs/guides/_index.dj', ['weight' => 9], 'Guides');
+        $guidePage = $this->makePage('docs/guides/first', '/docs/guides/first/', 'docs/guides/first.dj', ['weight' => 11], 'First Guide');
+
+        $index = new SiteIndex([$docsIndex, $guidesIndex, $guidePage]);
+
+        $docs = $index->sectionNode('docs') ?? $this->fail('Missing docs section');
+        $guides = $index->sectionNode('docs/guides') ?? $this->fail('Missing docs/guides section');
+
+        // Labels come from unlisted _index pages
+        $this->assertSame('Documentation', $docs->label());
+        $this->assertSame('Guides', $guides->label());
+
+        // Index references are set
+        $this->assertSame('docs', $docs->index()?->slug);
+        $this->assertSame('docs/guides', $guides->index()?->slug);
+
+        // Unlisted _index pages don't appear in section pages
+        $this->assertCount(0, $docs->pages());
+        $this->assertCount(1, $guides->pages());
+        $this->assertSame('First Guide', $guides->pages()->first()?->title);
+    }
+
+    /**
      * Validate previous()/next() navigate across section boundaries with weight interleaving.
      */
     public function testPreviousAndNextCrossSectionBoundaries(): void

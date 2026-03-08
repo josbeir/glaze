@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace Glaze\Template;
 
+use Cake\Chronos\Chronos;
 use Cake\Utility\Inflector;
 use Glaze\Content\ContentPage;
 use Glaze\Template\Collection\PageCollection;
 use Glaze\Utility\Path;
+use Throwable;
 
 /**
  * Builds nested section trees from discovered content pages.
@@ -89,12 +91,36 @@ final class SectionTree
         $label = self::resolveLabel($path, $node['index']);
         $weight = self::resolveWeight($node['index'], $node['pages'], $children);
 
+        $listedPages = array_values(array_filter(
+            $node['pages'],
+            static fn(ContentPage $page): bool => !$page->unlisted,
+        ));
+
+        usort($listedPages, static function (ContentPage $left, ContentPage $right): int {
+            $weightComparison = self::extractWeight($left) <=> self::extractWeight($right);
+            if ($weightComparison !== 0) {
+                return $weightComparison;
+            }
+
+            $dateComparison = self::extractDateTimestamp($right) <=> self::extractDateTimestamp($left);
+            if ($dateComparison !== 0) {
+                return $dateComparison;
+            }
+
+            $titleComparison = strcmp(mb_strtolower($left->title), mb_strtolower($right->title));
+            if ($titleComparison !== 0) {
+                return $titleComparison;
+            }
+
+            return strcmp($left->relativePath, $right->relativePath);
+        });
+
         return new Section(
             path: $path,
             label: $label,
             weight: $weight,
             indexPage: $node['index'],
-            pages: new PageCollection($node['pages']),
+            pages: new PageCollection($listedPages),
             children: $children,
             assetResolver: $assetResolver,
         );
@@ -189,13 +215,42 @@ final class SectionTree
     }
 
     /**
+     * Extract sortable timestamp from page metadata.
+     *
+     * @param \Glaze\Content\ContentPage $page Content page.
+     */
+    protected static function extractDateTimestamp(ContentPage $page): int
+    {
+        $value = $page->meta['date'] ?? null;
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return 0;
+        }
+
+        try {
+            return Chronos::parse($value)->getTimestamp();
+        } catch (Throwable) {
+            return 0;
+        }
+    }
+
+    /**
      * Determine whether a relative path targets an index file.
+     *
+     * Matches both `index.dj` and `_index.dj` variants so that unlisted
+     * index pages can serve as section metadata carriers.
      *
      * @param string $relativePath Normalized path.
      */
     protected static function isIndexPath(string $relativePath): bool
     {
-        return strtolower(basename($relativePath)) === 'index.dj';
+        $basename = strtolower(basename($relativePath));
+
+        return $basename === 'index.dj' || $basename === '_index.dj';
     }
 
     /**
