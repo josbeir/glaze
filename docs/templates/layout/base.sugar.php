@@ -14,7 +14,7 @@
 		<s-ifblock name="title">
 			<s-template s:block="title" /> |
 		</s-ifblock>
-		<?= $site->title ?? 'Glaze static site generator' ?>
+		<?= $site->title ?? 'Sugar Templates' ?>
 	</title>
 	<s-template s:include="../partials/meta" />
 	<link rel="icon" href="/favicon.ico" sizes="any" />
@@ -25,9 +25,9 @@
 		'assets/js/docs.js',
 	]" />
 </head>
-<body class="bg-base-100 min-h-screen" hx-boost="true" hx-indicator="#page-loader">
+<body class="bg-base-200 min-h-screen" hx-boost="true" hx-indicator="#page-loader">
 <div id="page-loader" aria-hidden="true"></div>
-<div class="drawer lg:drawer-open">
+<div class="bg-base-100 drawer mx-auto max-w-[100rem] lg:drawer-open">
 	<input id="docs-drawer" type="checkbox" class="drawer-toggle" />
 
 	<div class="drawer-content min-h-screen flex flex-col">
