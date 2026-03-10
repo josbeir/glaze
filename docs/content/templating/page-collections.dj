@@ -20,6 +20,9 @@ $this->type('blog')                    // pages with content type 'blog'
 $this->taxonomyTerm('tags', 'php')     // pages tagged 'php'
 ```
 
+{.alert .alert-info}
+> **On i18n sites**, `pages()`, `regularPages()`, `sections()`, and related navigation helpers only return pages in the **current page's language**. Cross-language results will not appear. Use `$this->localizedPages()` as a self-documenting alias for `regularPages()` when writing multilingual templates.
+
 ## `ContentPage` properties
 
 Every item in a collection is a `ContentPage` object:

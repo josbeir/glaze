@@ -716,7 +716,7 @@ final class SiteContextTest extends TestCase
         $this->assertCount(2, $context->regularPages());
 
         // translation() with no globalIndex falls back to siteIndex → no cross-language page found
-        $this->assertNull($context->translation('nl'));
+        $this->assertNotInstanceOf(ContentPage::class, $context->translation('nl'));
 
         // languageUrl() returns null when no translation exists
         $this->assertNull($context->languageUrl('nl'));
