@@ -181,7 +181,7 @@ final class RoutesCommand extends BaseCommand
 
         usort($allPages, static fn(ContentPage $a, ContentPage $b): int => strcmp($a->urlPath, $b->urlPath));
 
-        $showLanguage = array_any($allPages, static fn(ContentPage $p): bool => $p->language !== '');
+        $showLanguage = array_filter($allPages, static fn(ContentPage $p): bool => $p->language !== '') !== [];
         $rows = $this->buildTableRows($allPages, $config, $showLanguage);
 
         if ($rows === []) {

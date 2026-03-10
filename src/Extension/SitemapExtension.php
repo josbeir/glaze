@@ -262,7 +262,7 @@ final class SitemapExtension implements ConfigurableExtension
      */
     protected function buildSitemapXml(array $urls): string
     {
-        $hasAlternates = array_any($urls, static fn(array $url): bool => $url['alternates'] !== []);
+        $hasAlternates = array_filter($urls, static fn(array $url): bool => $url['alternates'] !== []) !== [];
 
         $rootXml = $hasAlternates
             ? '<urlset xmlns:xhtml="http://www.w3.org/1999/xhtml"/>'
