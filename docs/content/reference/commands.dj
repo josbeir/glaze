@@ -130,6 +130,7 @@ Options:
 - `--draft` mark page as draft
 - `--index` create page as `folder/index.dj` instead of `file.dj`
 - `--force` overwrite existing target file
+- `--lang <code>` target the content directory configured for this language code (requires i18n to be enabled)
 - `--yes` non-interactive mode
 
 Examples:
@@ -152,6 +153,9 @@ glaze new "Post title" --type blog --path posts --yes
 
 # create a bundle-style page with index.dj
 glaze new "Post title" --path "blog" --index --yes
+
+# create a page in the nl language content directory (requires i18n)
+glaze new "Mijn bericht" --lang nl --yes
 ```
 
 ## `serve`
