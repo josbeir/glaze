@@ -129,7 +129,7 @@ final class RoutesCommand extends BaseCommand
         $pages = $this->localizedDiscovery($config)->discover($config);
 
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
-        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies);
+        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies, $config->i18n);
 
         $allPages = array_merge($pages, $taxonomyPages);
 
