@@ -127,4 +127,53 @@ final class DevPageRequestHandlerTest extends TestCase
         /** @var \Glaze\Build\SiteBuilder */
         return $this->service(SiteBuilder::class);
     }
+
+    // -------------------------------------------------------------------------
+    // Custom 404 page via outputPath frontmatter
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure an unknown path returns a 404 response using the custom 404 page
+     * when a content file with outputPath set to 404.html exists.
+     */
+    public function testHandleServesCustomNotFoundPageWith404Status(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/not-found.dj',
+            "+++\ntitle: Page Not Found\noutputPath: 404.html\nunlisted: true\n+++\n# Not Found\n\nThis page does not exist.\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = $this->createHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/missing-page');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(404, $response->getStatusCode());
+        $body = (string)$response->getBody();
+        $this->assertStringContainsString('<h1>Not Found</h1>', $body);
+        $this->assertStringContainsString('This page does not exist.', $body);
+    }
+
+    /**
+     * Ensure the custom 404 page is directly accessible at its own URL.
+     */
+    public function testHandleReturnsCustomNotFoundPageAtOwnUrl(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/not-found.dj',
+            "+++\ntitle: Page Not Found\noutputPath: 404.html\nunlisted: true\n+++\n# Not Found\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = $this->createHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/404.html');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('<h1>Not Found</h1>', (string)$response->getBody());
+    }
 }

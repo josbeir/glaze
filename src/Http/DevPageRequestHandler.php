@@ -38,10 +38,12 @@ final class DevPageRequestHandler implements RequestHandlerInterface
         $lookupPath = $this->stripBasePathFromRequestPath($requestPath);
         $html = $this->siteBuilder->renderRequest($this->config, $lookupPath);
         if (!is_string($html)) {
+            $notFoundHtml = $this->siteBuilder->renderRequest($this->config, '/404.html');
+
             return (new Response(['charset' => 'UTF-8']))
                 ->withStatus(404)
                 ->withHeader('Content-Type', 'text/html; charset=UTF-8')
-                ->withStringBody('<h1>404 Not Found</h1>');
+                ->withStringBody(is_string($notFoundHtml) ? $notFoundHtml : '<h1>404 Not Found</h1>');
         }
 
         $canonicalPath = $this->canonicalDirectoryPath($requestPath);
