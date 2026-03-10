@@ -22,6 +22,8 @@ djot:
 		withGutter: false
 	headerAnchors:
 		enabled: true
+	externalLinks:
+		enabled: true
 images:
 	presets:
 		large:
