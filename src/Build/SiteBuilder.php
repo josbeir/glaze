@@ -12,6 +12,7 @@ use Glaze\Build\Event\PageRenderedEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
+use Glaze\Config\I18nConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
 use Glaze\Content\LocalizedContentDiscovery;
@@ -58,14 +59,14 @@ final class SiteBuilder
             $config,
         );
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
-        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies);
+        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies, $config->i18n);
         $page = $this->matchPageByPath(array_merge($pages, $taxonomyPages), $requestPath);
         if (!$page instanceof ContentPage) {
             return null;
         }
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
-        $siteIndex = new SiteIndex($realPages, $assetResolver);
+        [$globalIndex, $languageIndexes] = $this->buildIndexes($realPages, $assetResolver, $config->i18n);
         $dispatcher = new EventDispatcher();
         $extensionRegistry = ExtensionLoader::load($config, $dispatcher);
 
@@ -74,7 +75,8 @@ final class SiteBuilder
             page: $page,
             pageTemplate: $this->resolvePageTemplate($page, $config),
             debug: true,
-            siteIndex: $siteIndex,
+            siteIndex: $this->resolvePageSiteIndex($globalIndex, $languageIndexes, $page),
+            globalIndex: $languageIndexes !== null ? $globalIndex : null,
             extensionRegistry: $extensionRegistry,
             dispatcher: $dispatcher,
         )->html;
@@ -116,7 +118,7 @@ final class SiteBuilder
         $dispatcher->dispatch(BuildEvent::ContentDiscovered, $discoveredEvent);
         $pages = $discoveredEvent->pages;
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
-        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies);
+        $taxonomyPages = $this->taxonomyPageFactory->generate($realPages, $config->taxonomies, $config->i18n);
         $allPages = array_merge($pages, $taxonomyPages);
         $manifestPath = $config->cachePath(CachePath::BuildManifest);
         $currentManifest = BuildManifest::fromBuild($config, $allPages);
@@ -137,7 +139,7 @@ final class SiteBuilder
         }
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
-        $siteIndex = new SiteIndex($realPages, $assetResolver);
+        [$globalIndex, $languageIndexes] = $this->buildIndexes($realPages, $assetResolver, $config->i18n);
 
         $writtenFiles = [];
         $totalPages = count($allPages);
@@ -190,7 +192,8 @@ final class SiteBuilder
                 page: $page,
                 pageTemplate: $this->resolvePageTemplate($page, $config),
                 debug: false,
-                siteIndex: $siteIndex,
+                siteIndex: $this->resolvePageSiteIndex($globalIndex, $languageIndexes, $page),
+                globalIndex: $languageIndexes !== null ? $globalIndex : null,
                 extensionRegistry: $extensionRegistry,
                 dispatcher: $dispatcher,
             );
@@ -409,6 +412,69 @@ final class SiteBuilder
         }
 
         return array_values(array_filter($pages, static fn(ContentPage $page): bool => !$page->draft));
+    }
+
+    /**
+     * Build the global site index and, when i18n is enabled, a per-language index map.
+     *
+     * For single-language builds the second element of the returned tuple is `null` and
+     * callers should pass the global index directly as `siteIndex` with no `globalIndex`.
+     *
+     * For i18n builds the second element is a map of language code to a `SiteIndex`
+     * containing only that language's pages. Callers should use `resolvePageSiteIndex()`
+     * to select the correct index per page and pass `$globalIndex` as the `globalIndex`
+     * render parameter so cross-language translation lookups still work.
+     *
+     * @param array<\Glaze\Content\ContentPage> $realPages Non-virtual real pages.
+     * @param \Glaze\Template\ContentAssetResolver $assetResolver Asset resolver.
+     * @param \Glaze\Config\I18nConfig $i18nConfig I18n configuration.
+     * @return array{\Glaze\Template\SiteIndex, array<string, \Glaze\Template\SiteIndex>|null}
+     */
+    protected function buildIndexes(
+        array $realPages,
+        ContentAssetResolver $assetResolver,
+        I18nConfig $i18nConfig,
+    ): array {
+        $globalIndex = new SiteIndex($realPages, $assetResolver);
+
+        if (!$i18nConfig->isEnabled()) {
+            return [$globalIndex, null];
+        }
+
+        $byLanguage = [];
+        foreach ($realPages as $page) {
+            $byLanguage[$page->language][] = $page;
+        }
+
+        $languageIndexes = [];
+        foreach ($byLanguage as $lang => $langPages) {
+            $languageIndexes[$lang] = new SiteIndex($langPages, $assetResolver);
+        }
+
+        return [$globalIndex, $languageIndexes];
+    }
+
+    /**
+     * Resolve the appropriate `SiteIndex` for a given page.
+     *
+     * For i18n builds returns the language-scoped index when one exists for the
+     * page's language, falling back to the global index. For single-language builds
+     * (where `$languageIndexes` is `null`) always returns the global index.
+     *
+     * @param \Glaze\Template\SiteIndex $globalIndex Global index over all pages.
+     * @param array<string, \Glaze\Template\SiteIndex>|null $languageIndexes Per-language indexes, or null for single-language builds.
+     * @param \Glaze\Content\ContentPage $page Page being rendered.
+     */
+    protected function resolvePageSiteIndex(
+        SiteIndex $globalIndex,
+        ?array $languageIndexes,
+        ContentPage $page,
+    ): SiteIndex {
+        if ($languageIndexes === null) {
+            return $globalIndex;
+        }
+
+        return $languageIndexes[$page->language] ?? $globalIndex;
     }
 
     /**

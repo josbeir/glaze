@@ -14,6 +14,18 @@ use Glaze\Template\Extension\ExtensionRegistry;
 
 /**
  * Template context facade exposed to Sugar templates as `$this`.
+ *
+ * When i18n is enabled, two separate indices are maintained:
+ *
+ * - `$siteIndex` — a language-scoped index containing only the pages that belong
+ *   to the current page's language. All navigation helpers (`regularPages()`,
+ *   `sections()`, `taxonomy()`, `previous()`, `next()`, etc.) operate on this
+ *   index so that templates never accidentally expose pages from another language.
+ *
+ * - `$globalIndex` — the full site-wide index containing pages from all languages.
+ *   Used exclusively for cross-language lookups (`translations()`, `translation()`,
+ *   `languageUrl()`). When `$globalIndex` is `null` (single-language builds or
+ *   direct construction without a global index) `$siteIndex` is used as-is.
  */
 final class SiteContext
 {
@@ -25,7 +37,9 @@ final class SiteContext
     /**
      * Constructor.
      *
-     * @param \Glaze\Template\SiteIndex $siteIndex Site-wide page index.
+     * @param \Glaze\Template\SiteIndex $siteIndex Language-scoped page index used for navigation.
+     *   On i18n builds this should contain only pages for the current page's language.
+     *   On single-language builds pass the full site index.
      * @param \Glaze\Content\ContentPage $currentPage Current page being rendered.
      * @param \Glaze\Template\Extension\ExtensionRegistry $extensions Registered project extensions.
      * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
@@ -33,6 +47,8 @@ final class SiteContext
      * @param \Glaze\Support\ResourcePathRewriter $pathRewriter Path rewriter used by URL helpers.
      * @param \Glaze\Config\I18nConfig $i18nConfig I18n configuration for language helpers and string translation.
      * @param string $translationsPath Absolute path to the i18n translations directory.
+     * @param \Glaze\Template\SiteIndex|null $globalIndex Full site-wide index for cross-language lookups.
+     *   When null, `$siteIndex` is used for all lookups — correct for single-language builds.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
@@ -43,6 +59,7 @@ final class SiteContext
         protected ResourcePathRewriter $pathRewriter = new ResourcePathRewriter(),
         protected I18nConfig $i18nConfig = new I18nConfig(null, []),
         protected string $translationsPath = '',
+        protected ?SiteIndex $globalIndex = null,
     ) {
     }
 
@@ -63,7 +80,11 @@ final class SiteContext
     }
 
     /**
-     * Return default-sorted regular pages, excluding unlisted pages.
+     * Return default-sorted regular pages for the current language, excluding unlisted pages.
+     *
+     * On single-language builds this is identical to the full site index. On i18n builds the
+     * result is already scoped to the current language because `$siteIndex` is a
+     * language-specific index built by `SiteBuilder`.
      */
     public function regularPages(): PageCollection
     {
@@ -71,10 +92,11 @@ final class SiteContext
     }
 
     /**
-     * Return all pages including unlisted ones.
+     * Return all pages for the current language including unlisted ones.
      *
      * Unlike `regularPages()`, this collection retains pages marked as unlisted
-     * (e.g. `_index.dj` section overview pages).
+     * (e.g. `_index.dj` section overview pages). On i18n builds only pages for
+     * the current language are included.
      */
     public function allPages(): PageCollection
     {
@@ -418,41 +440,41 @@ final class SiteContext
     /**
      * Return all translations of the current page, keyed by language code.
      *
+     * Uses the global site-wide index so that translations across all languages
+     * are found even when the primary `$siteIndex` is language-scoped.
      * Returns an empty array when i18n is disabled or no translations exist.
      *
      * @return array<string, \Glaze\Content\ContentPage>
      */
     public function translations(): array
     {
-        return $this->siteIndex->translations($this->currentPage);
+        return $this->resolvedGlobalIndex()->translations($this->currentPage);
     }
 
     /**
      * Return the translation of the current page for a specific language code.
      *
+     * Uses the global site-wide index for the same reason as `translations()`.
      * Returns null when no translation exists for the given language.
      *
      * @param string $language Language code.
      */
     public function translation(string $language): ?ContentPage
     {
-        return $this->siteIndex->translation($this->currentPage, $language);
+        return $this->resolvedGlobalIndex()->translation($this->currentPage, $language);
     }
 
     /**
-     * Return pages from the site index filtered to the current page's language.
+     * Return pages for the current language, excluding unlisted pages.
      *
-     * Equivalent to `regularPages()` on single-language sites, or to
-     * `forLanguage($this->language())` when i18n is enabled.
+     * An alias for `regularPages()` retained for template backward compatibility.
+     * On single-language sites this is equivalent to `regularPages()`. On i18n
+     * builds both methods already return only the current language's pages because
+     * `$siteIndex` is language-scoped.
      */
     public function localizedPages(): PageCollection
     {
-        $language = $this->currentPage->language;
-        if ($language === '') {
-            return $this->siteIndex->regularPages();
-        }
-
-        return $this->siteIndex->forLanguage($language);
+        return $this->regularPages();
     }
 
     /**
@@ -488,6 +510,7 @@ final class SiteContext
     /**
      * Return the URL for a specific language version of the current page.
      *
+     * Uses the global site-wide index to find translations across all languages.
      * Returns null when no translation exists for the requested language or when
      * i18n is disabled. The returned URL has the site basePath applied.
      *
@@ -495,7 +518,7 @@ final class SiteContext
      */
     public function languageUrl(string $language): ?string
     {
-        $translated = $this->siteIndex->translation($this->currentPage, $language);
+        $translated = $this->resolvedGlobalIndex()->translation($this->currentPage, $language);
         if (!$translated instanceof ContentPage) {
             return null;
         }
@@ -518,6 +541,17 @@ final class SiteContext
         $normalized = '/' . trim($trimmed, '/');
 
         return $normalized === '/index' ? '/' : $normalized;
+    }
+
+    /**
+     * Return the global site-wide index for cross-language lookups.
+     *
+     * Falls back to `$siteIndex` when no explicit global index was provided,
+     * which is correct for single-language builds where the two are identical.
+     */
+    protected function resolvedGlobalIndex(): SiteIndex
+    {
+        return $this->globalIndex ?? $this->siteIndex;
     }
 
     /**

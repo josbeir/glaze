@@ -179,3 +179,18 @@ templates/
     tags-list.sugar.php
     tags-term.sugar.php
 ```
+
+## Taxonomies and i18n
+
+When [i18n is enabled](/content/i18n/), taxonomy pages generated via `generatePages: true` are automatically scoped per language. Glaze generates a separate set of list and term pages for each language, prefixed with the language URL prefix.
+
+For a site with `en` (default, no prefix) and `nl` (prefix `/nl`) and a `tags` taxonomy:
+
+| URL | Language | Template |
+| --- | --- | --- |
+| `/tags/` | `en` | `taxonomy/tags-list` |
+| `/tags/php/` | `en` | `taxonomy/tags-term` |
+| `/nl/tags/` | `nl` | `taxonomy/tags-list` |
+| `/nl/tags/php/` | `nl` | `taxonomy/tags-term` |
+
+Each generated page carries the correct `language` code, so `$page->language` reflects the language of that taxonomy page. Taxonomy queries inside templates (e.g. `$this->taxonomyTerm(...)`) are also scoped to the current language's pages.

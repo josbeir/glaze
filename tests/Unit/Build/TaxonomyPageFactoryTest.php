@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Glaze\Tests\Unit\Build;
 
 use Glaze\Build\TaxonomyPageFactory;
+use Glaze\Config\I18nConfig;
+use Glaze\Config\LanguageConfig;
 use Glaze\Config\TaxonomyConfig;
 use Glaze\Content\ContentPage;
 use PHPUnit\Framework\TestCase;
@@ -334,8 +336,9 @@ final class TaxonomyPageFactoryTest extends TestCase
      * Create a minimal content page with the given taxonomy values.
      *
      * @param array<string, array<string>> $taxonomies Taxonomy term values.
+     * @param string $language Optional language code for i18n test scenarios.
      */
-    protected function makePage(array $taxonomies): ContentPage
+    protected function makePage(array $taxonomies, string $language = ''): ContentPage
     {
         return new ContentPage(
             sourcePath: '/content/page.dj',
@@ -348,6 +351,187 @@ final class TaxonomyPageFactoryTest extends TestCase
             draft: false,
             meta: [],
             taxonomies: $taxonomies,
+            language: $language,
         );
+    }
+
+    // i18n: per-language taxonomy generation
+
+    /**
+     * Ensure generate() with a disabled i18n config behaves like a single-language build.
+     */
+    public function testGenerateWithDisabledI18nIsSingleLanguage(): void
+    {
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [$this->makePage(['tags' => ['php']])],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            new I18nConfig(null, []),
+        );
+
+        // List + 1 term, no prefix
+        $this->assertCount(2, $pages);
+        $this->assertSame('tags', $pages[0]->slug);
+        $this->assertSame('tags/php', $pages[1]->slug);
+        $this->assertSame('', $pages[0]->language);
+        $this->assertSame('', $pages[1]->language);
+    }
+
+    /**
+     * Ensure i18n builds generate per-language list and term pages with language-prefixed slugs.
+     */
+    public function testGenerateWithI18nCreatesPerLanguagePages(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [
+                $this->makePage(['tags' => ['php']], 'en'),
+                $this->makePage(['tags' => ['cake']], 'nl'),
+            ],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            $i18n,
+        );
+
+        // en (no prefix): list + php = 2; nl (prefix nl): list + cake = 2 → total 4
+        $this->assertCount(4, $pages);
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages);
+        $this->assertContains('tags', $slugs); // en list
+        $this->assertContains('tags/php', $slugs); // en term
+        $this->assertContains('nl/tags', $slugs); // nl list
+        $this->assertContains('nl/tags/cake', $slugs); // nl term
+    }
+
+    /**
+     * Ensure i18n list pages carry correct URL path and output path.
+     */
+    public function testI18nListPageProperties(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [
+                $this->makePage(['tags' => ['php']], 'en'),
+                $this->makePage(['tags' => ['cake']], 'nl'),
+            ],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            $i18n,
+        );
+
+        $enList = $this->findBySlug($pages, 'tags');
+        $nlList = $this->findBySlug($pages, 'nl/tags');
+
+        $this->assertInstanceOf(ContentPage::class, $enList);
+        $this->assertSame('/tags/', $enList->urlPath);
+        $this->assertSame('tags/index.html', $enList->outputRelativePath);
+        $this->assertSame('en', $enList->language);
+        $this->assertTrue($enList->unlisted);
+
+        $this->assertInstanceOf(ContentPage::class, $nlList);
+        $this->assertSame('/nl/tags/', $nlList->urlPath);
+        $this->assertSame('nl/tags/index.html', $nlList->outputRelativePath);
+        $this->assertSame('nl', $nlList->language);
+        $this->assertTrue($nlList->unlisted);
+    }
+
+    /**
+     * Ensure i18n term pages carry correct URL path and output path.
+     */
+    public function testI18nTermPageProperties(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [
+                $this->makePage(['tags' => ['php']], 'en'),
+                $this->makePage(['tags' => ['cake']], 'nl'),
+            ],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            $i18n,
+        );
+
+        $enTerm = $this->findBySlug($pages, 'tags/php');
+        $nlTerm = $this->findBySlug($pages, 'nl/tags/cake');
+
+        $this->assertInstanceOf(ContentPage::class, $enTerm);
+        $this->assertSame('/tags/php/', $enTerm->urlPath);
+        $this->assertSame('tags/php/index.html', $enTerm->outputRelativePath);
+        $this->assertSame('php', $enTerm->meta['term']);
+        $this->assertSame('en', $enTerm->language);
+
+        $this->assertInstanceOf(ContentPage::class, $nlTerm);
+        $this->assertSame('/nl/tags/cake/', $nlTerm->urlPath);
+        $this->assertSame('nl/tags/cake/index.html', $nlTerm->outputRelativePath);
+        $this->assertSame('cake', $nlTerm->meta['term']);
+        $this->assertSame('nl', $nlTerm->language);
+    }
+
+    /**
+     * Ensure i18n builds only generate taxonomy pages for languages that have pages.
+     */
+    public function testI18nSkipsLanguagesWithNoPages(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $frLang = new LanguageConfig('fr', 'Français', 'fr');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang, 'fr' => $frLang]);
+
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [
+                $this->makePage(['tags' => ['php']], 'en'),
+                // No 'nl' or 'fr' pages
+            ],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            $i18n,
+        );
+
+        // Only 'en' → list + 1 term = 2
+        $this->assertCount(2, $pages);
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages);
+        $this->assertNotContains('nl/tags', $slugs);
+        $this->assertNotContains('fr/tags', $slugs);
+    }
+
+    /**
+     * Ensure i18n builds collect terms independently per language.
+     */
+    public function testI18nTermsAreCollectedPerLanguage(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $factory = new TaxonomyPageFactory();
+        $pages = $factory->generate(
+            [
+                $this->makePage(['tags' => ['php', 'tutorial']], 'en'),
+                $this->makePage(['tags' => ['cake']], 'nl'),
+            ],
+            ['tags' => new TaxonomyConfig('tags', generatePages: true)],
+            $i18n,
+        );
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages);
+
+        // EN terms only appear under unprefixed taxonomy
+        $this->assertContains('tags/php', $slugs);
+        $this->assertContains('tags/tutorial', $slugs);
+        $this->assertNotContains('tags/cake', $slugs);
+
+        // NL terms only appear under nl-prefixed taxonomy
+        $this->assertContains('nl/tags/cake', $slugs);
+        $this->assertNotContains('nl/tags/php', $slugs);
+        $this->assertNotContains('nl/tags/tutorial', $slugs);
     }
 }

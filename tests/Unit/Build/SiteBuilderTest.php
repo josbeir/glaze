@@ -1209,4 +1209,90 @@ final class SiteBuilderTest extends TestCase
         /** @var \Glaze\Build\SiteBuilder */
         return $this->service(SiteBuilder::class);
     }
+
+    // -------------------------------------------------------------------------
+    // i18n: per-language SiteIndex scoping
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure build() correctly scopes template context to a per-language SiteIndex so that
+     * regularPages() does not leak pages from other language trees.
+     */
+    public function testBuildScopesNavigationToCurrentLanguageOnI18nSites(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        // EN content in a dedicated directory (avoids contaminating NL discovery)
+        mkdir($projectRoot . '/content/en', 0755, true);
+        file_put_contents($projectRoot . '/content/en/index.dj', "# Home\n");
+        file_put_contents($projectRoot . '/content/en/about.dj', "# About\n");
+
+        // NL content in its own directory
+        mkdir($projectRoot . '/content/nl', 0755, true);
+        file_put_contents($projectRoot . '/content/nl/index.dj', "# Start\n");
+
+        mkdir($projectRoot . '/templates', 0755, true);
+
+        // Template outputs count of regularPages() so we can assert language-scoping
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<html><body><?= $content |> raw() ?><p class="count"><?= $this->regularPages()->count() ?></p></body></html>',
+        );
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "i18n:\n  defaultLanguage: en\n  languages:\n    en:\n      label: English\n      urlPrefix: \"\"\n      contentDir: content/en\n    nl:\n      label: Nederlands\n      urlPrefix: nl\n      contentDir: content/nl\n",
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $builder->build($config);
+
+        // EN index page: regularPages() should only see EN pages (2)
+        $enHtml = (string)file_get_contents($projectRoot . '/public/index.html');
+        $this->assertStringContainsString('<p class="count">2</p>', $enHtml);
+
+        // NL index page: regularPages() should only see NL pages (1)
+        $nlHtml = (string)file_get_contents($projectRoot . '/public/nl/index.html');
+        $this->assertStringContainsString('<p class="count">1</p>', $nlHtml);
+    }
+
+    /**
+     * Ensure renderRequest() applies the language-scoped SiteIndex for i18n builds.
+     */
+    public function testRenderRequestScopesNavigationToCurrentLanguageOnI18nSites(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        mkdir($projectRoot . '/content/en', 0755, true);
+        file_put_contents($projectRoot . '/content/en/index.dj', "# Home\n");
+        file_put_contents($projectRoot . '/content/en/about.dj', "# About\n");
+
+        mkdir($projectRoot . '/content/nl', 0755, true);
+        file_put_contents($projectRoot . '/content/nl/index.dj', "# Start\n");
+
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<html><body><?= $content |> raw() ?><p class="count"><?= $this->regularPages()->count() ?></p></body></html>',
+        );
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "i18n:\n  defaultLanguage: en\n  languages:\n    en:\n      label: English\n      urlPrefix: \"\"\n      contentDir: content/en\n    nl:\n      label: Nederlands\n      urlPrefix: nl\n      contentDir: content/nl\n",
+        );
+
+        $builder = $this->createSiteBuilder();
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+
+        // EN index: 2 EN pages
+        $enHtml = $builder->renderRequest($config, '/');
+        $this->assertIsString($enHtml);
+        $this->assertStringContainsString('<p class="count">2</p>', $enHtml);
+
+        // NL index: 1 NL page
+        $nlHtml = $builder->renderRequest($config, '/nl/');
+        $this->assertIsString($nlHtml);
+        $this->assertStringContainsString('<p class="count">1</p>', $nlHtml);
+    }
 }

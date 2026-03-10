@@ -490,16 +490,20 @@ final class SiteContextTest extends TestCase
     }
 
     /**
-     * Validate localizedPages() returns only pages for the current page's language.
+     * Validate localizedPages() returns only pages for the current page's language
+     * when a language-scoped siteIndex is provided (i18n build pattern).
      */
     public function testLocalizedPagesFiltersToCurrentLanguage(): void
     {
         $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
         $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
         $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
-        $index = new SiteIndex([$enAbout, $enHome, $nlAbout]);
 
-        $context = new SiteContext($index, $enAbout);
+        // Simulate SiteBuilder: siteIndex scoped to EN, globalIndex has all pages
+        $enIndex = new SiteIndex([$enAbout, $enHome]);
+        $globalIndex = new SiteIndex([$enAbout, $enHome, $nlAbout]);
+
+        $context = new SiteContext(siteIndex: $enIndex, currentPage: $enAbout, globalIndex: $globalIndex);
 
         $pages = $context->localizedPages();
         $this->assertCount(2, $pages);
@@ -613,5 +617,108 @@ final class SiteContextTest extends TestCase
         // Both calls must return the same value (memoized loader)
         $this->assertSame('Value', $context->t('key'));
         $this->assertSame('Value', $context->t('key'));
+    }
+
+    // -------------------------------------------------------------------------
+    // Dual-index: language-scoped navigation + cross-language translation lookups
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate regularPages() and allPages() are scoped to the language-specific siteIndex
+     * and do not return pages from other languages when a globalIndex is provided.
+     */
+    public function testNavigationMethodsAreScopedToLanguageSiteIndex(): void
+    {
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+
+        $enIndex = new SiteIndex([$enPage, $enHome]);
+        $globalIndex = new SiteIndex([$enPage, $enHome, $nlPage]);
+
+        $context = new SiteContext(
+            siteIndex: $enIndex,
+            currentPage: $enHome,
+            globalIndex: $globalIndex,
+        );
+
+        // Navigation is scoped to the EN siteIndex only
+        $this->assertCount(2, $context->regularPages());
+        $this->assertCount(2, $context->allPages());
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $context->regularPages()->all());
+        $this->assertNotContains('nl/about', $slugs);
+    }
+
+    /**
+     * Validate translations() and translation() use the globalIndex for cross-language lookups
+     * even when siteIndex is language-scoped.
+     */
+    public function testTranslationMethodsUseGlobalIndexForCrossLanguageLookup(): void
+    {
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+
+        // siteIndex scoped to EN only
+        $enIndex = new SiteIndex([$enPage]);
+        // globalIndex has all languages
+        $globalIndex = new SiteIndex([$enPage, $nlPage]);
+
+        $context = new SiteContext(
+            siteIndex: $enIndex,
+            currentPage: $enPage,
+            globalIndex: $globalIndex,
+        );
+
+        // translation() must resolve the NL page from globalIndex even though siteIndex only has EN
+        $this->assertSame($nlPage, $context->translation('nl'));
+        $this->assertSame('/nl/about/', $context->languageUrl('nl'));
+
+        $translations = $context->translations();
+        $this->assertArrayHasKey('nl', $translations);
+    }
+
+    /**
+     * Validate localizedPages() is an alias for regularPages() and returns the same language-scoped collection.
+     */
+    public function testLocalizedPagesIsAliasForRegularPages(): void
+    {
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+
+        $enIndex = new SiteIndex([$enPage, $enHome]);
+        $globalIndex = new SiteIndex([$enPage, $enHome, $nlPage]);
+
+        $context = new SiteContext(
+            siteIndex: $enIndex,
+            currentPage: $enHome,
+            globalIndex: $globalIndex,
+        );
+
+        $this->assertSame($context->regularPages()->all(), $context->localizedPages()->all());
+    }
+
+    /**
+     * Validate that when globalIndex is null (single-language build), all methods
+     * fall back to siteIndex and behave correctly.
+     */
+    public function testSingleLanguageBuildWithNullGlobalIndexFallsBackToSiteIndex(): void
+    {
+        $pageA = $this->makePage('blog/a', '/blog/a/', 'blog/a.dj', ['translationKey' => 'a']);
+        $pageB = $this->makePage('blog/b', '/blog/b/', 'blog/b.dj', []);
+        $index = new SiteIndex([$pageA, $pageB]);
+
+        // $globalIndex omitted → null by default
+        $context = new SiteContext(siteIndex: $index, currentPage: $pageA);
+
+        // Navigation works normally
+        $this->assertCount(2, $context->regularPages());
+
+        // translation() with no globalIndex falls back to siteIndex → no cross-language page found
+        $this->assertNotInstanceOf(ContentPage::class, $context->translation('nl'));
+
+        // languageUrl() returns null when no translation exists
+        $this->assertNull($context->languageUrl('nl'));
     }
 }

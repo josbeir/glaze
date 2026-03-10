@@ -49,7 +49,10 @@ final class PageRenderPipeline
      * @param \Glaze\Content\ContentPage $page Page to render.
      * @param string $pageTemplate Template name to render with.
      * @param bool $debug Whether to enable template debug freshness checks.
-     * @param \Glaze\Template\SiteIndex|null $siteIndex Optional pre-built site index.
+     * @param \Glaze\Template\SiteIndex|null $siteIndex Language-scoped index for navigation.
+     *   When `$globalIndex` is also provided this should contain only the current language's pages.
+     * @param \Glaze\Template\SiteIndex|null $globalIndex Full site-wide index for cross-language lookups.
+     *   Pass when `$siteIndex` is limited to a specific language (i18n builds). Omit for single-language builds.
      * @param \Glaze\Template\Extension\ExtensionRegistry|null $extensionRegistry Optional pre-built extension registry.
      * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
@@ -59,6 +62,7 @@ final class PageRenderPipeline
         string $pageTemplate,
         bool $debug,
         ?SiteIndex $siteIndex = null,
+        ?SiteIndex $globalIndex = null,
         ?ExtensionRegistry $extensionRegistry = null,
         ?EventDispatcher $dispatcher = null,
     ): PageRenderOutput {
@@ -89,6 +93,7 @@ final class PageRenderPipeline
             translationsPath: $config->i18n->isEnabled()
                 ? $config->translationsPath()
                 : '',
+            globalIndex: $globalIndex,
         );
 
         $htmlContent = $renderResult->html;

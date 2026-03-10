@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Build;
 
 use Cake\Utility\Text;
+use Glaze\Config\I18nConfig;
 use Glaze\Config\TaxonomyConfig;
 use Glaze\Content\ContentPage;
 
@@ -44,15 +45,56 @@ final class TaxonomyPageFactory
     /**
      * Generate taxonomy list and term pages from discovered content pages.
      *
-     * Only processes taxonomies where `generatePages` is `true`. Skips any
-     * taxonomy that yields no terms. Term slugs are derived from the raw term
-     * string using the same `Text::slug` lowercasing applied to content slugs.
+     * Only processes taxonomies where `generatePages` is `true`. When i18n is
+     * enabled, generates a separate set of taxonomy pages per language using the
+     * language's URL prefix. Single-language builds produce an unscoped page set
+     * as before (no prefix applied).
      *
      * @param array<\Glaze\Content\ContentPage> $pages Real content pages to extract terms from.
      * @param array<string, \Glaze\Config\TaxonomyConfig> $taxonomies Taxonomy configurations keyed by taxonomy name.
-     * @return array<\Glaze\Content\ContentPage> Generated taxonomy pages (list + term pages per active taxonomy).
+     * @param \Glaze\Config\I18nConfig $i18nConfig I18n configuration used to group pages by language.
+     *   Pass a disabled config (the default) for single-language builds.
+     * @return array<\Glaze\Content\ContentPage> Generated taxonomy pages (list + term pages per active taxonomy per language).
      */
-    public function generate(array $pages, array $taxonomies): array
+    public function generate(array $pages, array $taxonomies, I18nConfig $i18nConfig = new I18nConfig(null, [])): array
+    {
+        if (!$i18nConfig->isEnabled()) {
+            return $this->generateForLanguage($pages, $taxonomies, '', '');
+        }
+
+        $generated = [];
+        $pagesByLanguage = [];
+        foreach ($pages as $page) {
+            $pagesByLanguage[$page->language][] = $page;
+        }
+
+        foreach ($i18nConfig->languages as $langCode => $langConfig) {
+            $langPages = $pagesByLanguage[$langCode] ?? [];
+            if ($langPages === []) {
+                continue;
+            }
+
+            foreach ($this->generateForLanguage($langPages, $taxonomies, $langCode, $langConfig->urlPrefix) as $page) {
+                $generated[] = $page;
+            }
+        }
+
+        return $generated;
+    }
+
+    /**
+     * Generate taxonomy list and term pages for a single language partition.
+     *
+     * Skips any taxonomy that has `generatePages` set to `false`. Terms are
+     * collected from `$pages` only (already scoped to the given language).
+     *
+     * @param array<\Glaze\Content\ContentPage> $pages Pages within this language group.
+     * @param array<string, \Glaze\Config\TaxonomyConfig> $taxonomies Taxonomy configurations.
+     * @param string $language Language code to assign to generated pages (empty for single-language builds).
+     * @param string $urlPrefix URL prefix for this language (e.g. `nl`). Empty for the default language.
+     * @return array<\Glaze\Content\ContentPage>
+     */
+    protected function generateForLanguage(array $pages, array $taxonomies, string $language, string $urlPrefix): array
     {
         $generated = [];
 
@@ -65,10 +107,10 @@ final class TaxonomyPageFactory
             $basePath = $config->resolvedBasePath();
             $baseSlug = trim(str_replace('\\', '/', $basePath), '/');
 
-            $generated[] = $this->makeListPage($config, $baseSlug, $basePath);
+            $generated[] = $this->makeListPage($config, $baseSlug, $basePath, $language, $urlPrefix);
 
             foreach ($terms as $term) {
-                $generated[] = $this->makeTermPage($config, $baseSlug, $basePath, $term);
+                $generated[] = $this->makeTermPage($config, $baseSlug, $basePath, $term, $language, $urlPrefix);
             }
         }
 
@@ -118,19 +160,39 @@ final class TaxonomyPageFactory
     /**
      * Create the taxonomy list page that enumerates all terms in a taxonomy.
      *
+     * When a non-empty `$urlPrefix` is provided (i18n build), the slug, URL path,
+     * and output path are prefixed accordingly so the list page sits under the
+     * language subtree (e.g. `/nl/tags/`).
+     *
      * @param \Glaze\Config\TaxonomyConfig $config Taxonomy configuration.
      * @param string $baseSlug Normalised base slug (e.g. `tags`).
      * @param string $basePath URL base path (e.g. `/tags`).
+     * @param string $language Language code for the generated page (empty for single-language builds).
+     * @param string $urlPrefix URL prefix for this language (e.g. `nl`). Empty for the default language.
      */
-    protected function makeListPage(TaxonomyConfig $config, string $baseSlug, string $basePath): ContentPage
-    {
-        $urlPath = '/' . trim($basePath, '/') . '/';
-        $outputRelativePath = $baseSlug . '/index.html';
+    protected function makeListPage(
+        TaxonomyConfig $config,
+        string $baseSlug,
+        string $basePath,
+        string $language = '',
+        string $urlPrefix = '',
+    ): ContentPage {
+        $prefix = trim($urlPrefix, '/');
+
+        if ($prefix !== '') {
+            $slug = $prefix . '/' . $baseSlug;
+            $urlPath = '/' . $prefix . '/' . trim($basePath, '/') . '/';
+            $outputRelativePath = $prefix . '/' . $baseSlug . '/index.html';
+        } else {
+            $slug = $baseSlug;
+            $urlPath = '/' . trim($basePath, '/') . '/';
+            $outputRelativePath = $baseSlug . '/index.html';
+        }
 
         return new ContentPage(
             sourcePath: '',
-            relativePath: $baseSlug . '/.taxonomy-list',
-            slug: $baseSlug,
+            relativePath: $slug . '/.taxonomy-list',
+            slug: $slug,
             urlPath: $urlPath,
             outputRelativePath: $outputRelativePath,
             title: ucfirst($config->name),
@@ -141,34 +203,49 @@ final class TaxonomyPageFactory
                 'template' => $config->resolvedListTemplate(),
             ],
             unlisted: true,
+            language: $language,
         );
     }
 
     /**
      * Create a term page listing all pages tagged with the given term.
      *
+     * When a non-empty `$urlPrefix` is provided (i18n build), the slug, URL path,
+     * and output path are prefixed accordingly so the term page sits under the
+     * language subtree (e.g. `/nl/tags/php/`).
+     *
      * @param \Glaze\Config\TaxonomyConfig $config Taxonomy configuration.
      * @param string $baseSlug Normalised base slug (e.g. `tags`).
      * @param string $basePath URL base path (e.g. `/tags`).
      * @param string $term Raw term string (e.g. `php`).
+     * @param string $language Language code for the generated page (empty for single-language builds).
+     * @param string $urlPrefix URL prefix for this language (e.g. `nl`). Empty for the default language.
      */
     protected function makeTermPage(
         TaxonomyConfig $config,
         string $baseSlug,
         string $basePath,
         string $term,
+        string $language = '',
+        string $urlPrefix = '',
     ): ContentPage {
         $termSlug = $this->slugifyTerm($term);
-        $slug = $baseSlug . '/' . $termSlug;
-        $urlPath = '/' . trim($basePath, '/') . '/' . $termSlug . '/';
-        $outputRelativePath = $slug . '/index.html';
+        $prefix = trim($urlPrefix, '/');
+
+        if ($prefix !== '') {
+            $slug = $prefix . '/' . $baseSlug . '/' . $termSlug;
+            $urlPath = '/' . $prefix . '/' . trim($basePath, '/') . '/' . $termSlug . '/';
+        } else {
+            $slug = $baseSlug . '/' . $termSlug;
+            $urlPath = '/' . trim($basePath, '/') . '/' . $termSlug . '/';
+        }
 
         return new ContentPage(
             sourcePath: '',
             relativePath: $slug . '/.taxonomy-term',
             slug: $slug,
             urlPath: $urlPath,
-            outputRelativePath: $outputRelativePath,
+            outputRelativePath: $slug . '/index.html',
             title: $term,
             source: '',
             draft: false,
@@ -178,6 +255,7 @@ final class TaxonomyPageFactory
                 'template' => $config->resolvedTermTemplate(),
             ],
             unlisted: true,
+            language: $language,
         );
     }
 }
