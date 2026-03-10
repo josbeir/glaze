@@ -8,7 +8,6 @@ pageTemplate: page
 # Example:
 #   i18n:
 #     defaultLanguage: en
-#     translationsDir: i18n
 #     languages:
 #       en:
 #         label: English
@@ -19,7 +18,6 @@ pageTemplate: page
 #         contentDir: content/nl
 i18n:
   defaultLanguage: null
-  translationsDir: i18n
   languages: {}
 
 # Directory paths relative to the project root.
@@ -30,6 +28,8 @@ paths:
   public: public
   # Directory scanned for auto-discoverable extension classes.
   extensions: extensions
+  # Directory containing NEON translation files.
+  translations: i18n
 
 # Explicitly enabled extensions, supports list and map notation.
 # examples:

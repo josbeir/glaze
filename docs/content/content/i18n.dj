@@ -19,7 +19,6 @@ Enable i18n by adding an `i18n` block to `glaze.neon`:
 ```neon
 i18n:
   defaultLanguage: en
-  translationsDir: i18n
   languages:
     en:
       label: English
@@ -38,12 +37,6 @@ i18n:
 
 Required. The primary language code. Pages in this language live at the root of
 the site (no URL prefix by default). Setting this key activates the i18n subsystem.
-
-### `translationsDir`
-
-Directory containing NEON string translation files, relative to the project root.
-Defaults to `i18n`. One file per language code is expected (e.g. `i18n/en.neon`,
-`i18n/nl.neon`).
 
 ### `languages`
 
@@ -133,7 +126,7 @@ translation of that key.
 
 ## String translations
 
-Place NEON files in the `translationsDir` directory (default: `i18n/`), one per
+Place NEON files in the `paths.translations` directory (default: `i18n/`), one per
 language:
 
 ```neon
@@ -147,20 +140,23 @@ nav:
 
 Keys may be flat or nested. Use dotted paths to address nested keys.
 
-Use `$this->t($key)` in templates to look up a translation for the current page's
-language. A `$fallback` value is returned when the key is not found in the current
-language, the default language, or anywhere else:
+Use `$this->t($key, $params, $fallback)` in templates to look up a translation for
+the current page's language. When the key is not found in the current language or
+the default language, the translation key itself is returned unless an explicit
+`$fallback` string is provided:
 
 ```sugar
 <?= $this->t('read_more') ?>
 <?= $this->t('posted_on', ['date' => $page->date->format('Y-m-d')]) ?>
 <?= $this->t('nav.home') ?>
+<?= $this->t('optional_promo', fallback: 'Check out our latest posts') ?>
 ```
 
 ### Fallback resolution
 
 When a key is missing from the current language file, Glaze automatically falls
-back to the default language file before giving up.
+back to the default language file. If it is missing there too, the explicit
+`$fallback` argument is returned, or the translation key itself when none is given.
 
 ## Plural forms
 
@@ -275,15 +271,16 @@ On single-language sites this is equivalent to `$this->regularPages()`.
    href="<?= $this->url($p->urlPath) ?>"><?= $p->title ?></a>
 ```
 
-### `$this->t($key, $params = [])`
+### `$this->t($key, $params = [], $fallback = '')`
 
 Translates a string key for the current page's language. Supports `{placeholder}`
-substitution via `$params`. Falls back to the default language, then returns `$key`
-when no translation is found.
+substitution via `$params`. Falls back to the default language, then returns `$fallback`
+(or `$key` when `$fallback` is omitted) when no translation is found.
 
 ```sugar
 <?= $this->t('read_more') ?>
 <?= $this->t('posted_on', ['date' => '2026-01']) ?>
+<?= $this->t('promo', fallback: 'Check out the latest posts') ?>
 ```
 
 ## The `glaze routes` command

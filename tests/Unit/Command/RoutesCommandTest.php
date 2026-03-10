@@ -437,11 +437,11 @@ NEON;
     /**
      * Create a temporary project with two-language i18n configuration.
      *
-     * English content files are written to `content/`, Dutch content to
+     * English content files are written to `content/en/`, Dutch content to
      * `content/nl/`. A `glaze.neon` is created with the i18n block pre-filled.
      * An optional extra NEON string may be appended for additional config.
      *
-     * @param array<string, string> $enFiles Map of EN content path → content (relative to `content/`).
+     * @param array<string, string> $enFiles Map of EN content path → content (relative to `content/en/`).
      * @param array<string, string> $nlFiles Map of NL content path → content (relative to `content/nl/`).
      * @param string|null $extraNeon Additional NEON configuration to append.
      * @throws \RuntimeException When a directory cannot be created.

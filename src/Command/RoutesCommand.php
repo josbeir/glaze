@@ -181,7 +181,7 @@ final class RoutesCommand extends BaseCommand
 
         usort($allPages, static fn(ContentPage $a, ContentPage $b): int => strcmp($a->urlPath, $b->urlPath));
 
-        $showLanguage = array_filter($allPages, static fn(ContentPage $p): bool => $p->language !== '') !== [];
+        $showLanguage = $config->i18n->isEnabled();
         $rows = $this->buildTableRows($allPages, $config, $showLanguage);
 
         if ($rows === []) {
@@ -338,8 +338,8 @@ final class RoutesCommand extends BaseCommand
                 continue;
             }
 
-            $abs = rtrim(str_replace('\\', '/', $config->projectRoot), '/') . '/'
-                . ltrim(str_replace('\\', '/', $langConfig->contentDir), '/') . '/';
+            $abs = rtrim(str_replace('\\', '/', Path::resolve($config->projectRoot, $langConfig->contentDir)), '/')
+                . '/';
 
             if (!in_array($abs, $paths, true)) {
                 $paths[] = $abs;

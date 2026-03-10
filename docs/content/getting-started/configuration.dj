@@ -150,6 +150,7 @@ paths:
   static: static
   public: public
   extensions: extensions
+  translations: i18n
 ```
 
 - `content` -- content source directory (used for page discovery)
@@ -157,6 +158,7 @@ paths:
 - `static` -- static asset source directory copied during builds
 - `public` -- build output directory
 - `extensions` -- project extension auto-discovery directory
+- `translations` -- directory containing NEON translation files (i18n)
 
 Values can be relative to the project root or absolute paths:
 
@@ -471,7 +473,6 @@ Enable multilingual support. Only activates when `defaultLanguage` is set.
 ```neon
 i18n:
   defaultLanguage: en
-  translationsDir: i18n
   languages:
     en:
       label: English
@@ -490,11 +491,6 @@ i18n:
 
 Required to activate i18n. The primary language code. Pages for this language are
 typically served at the site root (empty `urlPrefix`).
-
-### `i18n.translationsDir`
-
-Directory containing NEON string translation files, relative to project root.
-Defaults to `i18n`. One file per language: `i18n/en.neon`, `i18n/nl.neon`, etc.
 
 ### `i18n.languages`
 

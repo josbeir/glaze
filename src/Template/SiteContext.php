@@ -472,13 +472,16 @@ final class SiteContext
      *
      * @param string $key Dotted translation key.
      * @param array<string, string|int|float> $params Substitution parameters.
+     * @param string $fallback Explicit fallback string returned when the key is not found in any language file.
+     *   When omitted, the key itself is returned as the fallback.
      */
-    public function t(string $key, array $params = []): string
+    public function t(string $key, array $params = [], string $fallback = ''): string
     {
         return $this->translationLoader()->translate(
             $this->currentPage->language,
             $key,
             $params,
+            $fallback,
         );
     }
 

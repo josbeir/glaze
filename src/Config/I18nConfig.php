@@ -18,7 +18,6 @@ use Glaze\Utility\Normalization;
  * ```neon
  * i18n:
  *   defaultLanguage: en
- *   translationsDir: i18n
  *   languages:
  *     en:
  *       label: English
@@ -40,12 +39,10 @@ final class I18nConfig
      *
      * @param string|null $defaultLanguage Primary language code. When null, i18n is disabled.
      * @param array<string, \Glaze\Config\LanguageConfig> $languages Language definitions keyed by language code.
-     * @param string $translationsDir Directory (relative to project root) containing NEON translation files.
      */
     public function __construct(
         public readonly ?string $defaultLanguage,
         public readonly array $languages,
-        public readonly string $translationsDir = 'i18n',
     ) {
     }
 
@@ -67,8 +64,6 @@ final class I18nConfig
         if ($defaultLanguage === null) {
             return new self(null, []);
         }
-
-        $translationsDir = Normalization::optionalString($value['translationsDir'] ?? null) ?? 'i18n';
 
         $languages = [];
         $rawLanguages = $value['languages'] ?? null;
@@ -92,7 +87,7 @@ final class I18nConfig
             $languages[$defaultLanguage] = new LanguageConfig(code: $defaultLanguage);
         }
 
-        return new self($defaultLanguage, $languages, $translationsDir);
+        return new self($defaultLanguage, $languages);
     }
 
     /**

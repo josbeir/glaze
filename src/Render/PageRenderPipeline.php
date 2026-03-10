@@ -87,7 +87,7 @@ final class PageRenderPipeline
             siteConfig: $config->site,
             i18nConfig: $config->i18n,
             translationsPath: $config->i18n->isEnabled()
-                ? rtrim($config->projectRoot, '/') . '/' . ltrim($config->i18n->translationsDir, '/')
+                ? $config->translationsPath()
                 : '',
         );
 

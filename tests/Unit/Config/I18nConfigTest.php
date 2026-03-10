@@ -26,7 +26,6 @@ final class I18nConfigTest extends TestCase
         $this->assertFalse($config->isEnabled());
         $this->assertNull($config->defaultLanguage);
         $this->assertSame([], $config->languages);
-        $this->assertSame('i18n', $config->translationsDir);
     }
 
     /**
@@ -38,16 +37,6 @@ final class I18nConfigTest extends TestCase
 
         $this->assertTrue($config->isEnabled());
         $this->assertSame('en', $config->defaultLanguage);
-    }
-
-    /**
-     * Ensure translationsDir defaults to 'i18n'.
-     */
-    public function testTranslationsDirDefaultsToI18n(): void
-    {
-        $config = new I18nConfig('en', []);
-
-        $this->assertSame('i18n', $config->translationsDir);
     }
 
     // -------------------------------------------------------------------------
@@ -113,7 +102,6 @@ final class I18nConfigTest extends TestCase
     {
         $config = I18nConfig::fromProjectConfig([
             'defaultLanguage' => 'en',
-            'translationsDir' => 'locales',
             'languages' => [
                 'en' => ['label' => 'English', 'urlPrefix' => ''],
                 'nl' => ['label' => 'Nederlands', 'urlPrefix' => 'nl', 'contentDir' => 'content/nl'],
@@ -122,7 +110,6 @@ final class I18nConfigTest extends TestCase
 
         $this->assertTrue($config->isEnabled());
         $this->assertSame('en', $config->defaultLanguage);
-        $this->assertSame('locales', $config->translationsDir);
         $this->assertArrayHasKey('en', $config->languages);
         $this->assertArrayHasKey('nl', $config->languages);
         $this->assertSame('English', $config->languages['en']->label);
@@ -158,16 +145,6 @@ final class I18nConfigTest extends TestCase
         $this->assertCount(1, $config->languages);
         $this->assertArrayHasKey('en', $config->languages);
         $this->assertArrayNotHasKey('', $config->languages);
-    }
-
-    /**
-     * Ensure fromProjectConfig() falls back to default translationsDir when none given.
-     */
-    public function testFromProjectConfigUsesDefaultTranslationsDir(): void
-    {
-        $config = I18nConfig::fromProjectConfig(['defaultLanguage' => 'en']);
-
-        $this->assertSame('i18n', $config->translationsDir);
     }
 
     // -------------------------------------------------------------------------

@@ -32,6 +32,7 @@ final class BuildConfig
      * @param string $cacheDir Relative cache directory.
      * @param string $pageTemplate Sugar template used for full-page rendering.
      * @param string $extensionsDir Relative directory scanned for auto-discoverable extension classes.
+     * @param string $translationsDir Relative or absolute directory containing NEON translation files.
      * @param array<string, array<string, mixed>> $enabledExtensions Explicitly enabled extension definitions keyed by extension identifier.
      * @param array<string, array<string, string>> $imagePresets Configured Glide image presets.
      * @param array<string, string> $imageOptions Configured Glide server options.
@@ -52,6 +53,7 @@ final class BuildConfig
         public readonly string $cacheDir = 'tmp/cache',
         public readonly string $pageTemplate = 'page',
         public readonly string $extensionsDir = 'extensions',
+        public readonly string $translationsDir = 'i18n',
         public readonly array $enabledExtensions = [],
         public readonly array $imagePresets = [],
         public readonly array $imageOptions = [],
@@ -141,6 +143,7 @@ final class BuildConfig
             outputDir: $pathConfig['public'],
             pageTemplate: self::extractPageTemplate($config),
             extensionsDir: $pathConfig['extensions'],
+            translationsDir: $pathConfig['translations'],
             enabledExtensions: self::extractEnabledExtensions($config),
             imagePresets: self::extractImagePresets($config),
             imageOptions: self::extractImageOptions($config),
@@ -179,6 +182,14 @@ final class BuildConfig
     }
 
     /**
+     * Get absolute translations directory.
+     */
+    public function translationsPath(): string
+    {
+        return Path::resolve($this->projectRoot, $this->translationsDir);
+    }
+
+    /**
      * Get absolute output directory.
      */
     public function outputPath(): string
@@ -210,7 +221,7 @@ final class BuildConfig
      * Extract configurable project paths from the `paths` block.
      *
      * @param array<string, mixed> $config Raw project configuration.
-     * @return array{content: string, template: string, static: string, public: string, extensions: string}
+     * @return array{content: string, template: string, static: string, public: string, extensions: string, translations: string}
      */
     private static function extractPathConfig(array $config): array
     {
@@ -223,6 +234,7 @@ final class BuildConfig
             'static' => self::extractConfiguredPath($paths, 'static', 'static'),
             'public' => self::extractConfiguredPath($paths, 'public', 'public'),
             'extensions' => self::extractConfiguredPath($paths, 'extensions', 'extensions'),
+            'translations' => self::extractConfiguredPath($paths, 'translations', 'i18n'),
         ];
     }
 

@@ -52,7 +52,6 @@ final class TranslationLoaderTest extends TestCase
     public function testTranslateSubstitutesPlaceholders(): void
     {
         $dir = $this->createTempDirectory();
-        file_put_contents($dir . '/nl.neon', '"posted_on: \\"Geplaatst op {date}\\"\\n"');
         file_put_contents($dir . '/nl.neon', "posted_on: \"Geplaatst op {date}\"\n");
 
         $loader = new TranslationLoader($dir, 'en');
