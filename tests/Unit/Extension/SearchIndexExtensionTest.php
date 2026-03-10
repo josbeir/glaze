@@ -463,6 +463,81 @@ final class SearchIndexExtensionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // i18n: language field
+    // -------------------------------------------------------------------------
+
+    /**
+     * collect() includes the page language in the main document when set.
+     */
+    public function testCollectIncludesLanguageFieldInMainDocument(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $ext->collect($this->makePageRenderedEvent('/nl/about', '<p>Over ons</p>', $config, language: 'nl'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $this->assertSame('nl', $documents[0]['language']);
+    }
+
+    /**
+     * collect() stores an empty string for language when the page is not localised.
+     */
+    public function testCollectStoresEmptyLanguageForNonI18nPages(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $ext->collect($this->makePageRenderedEvent('/about', '<p>About us</p>', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $this->assertArrayHasKey('language', $documents[0]);
+        $this->assertSame('', $documents[0]['language']);
+    }
+
+    /**
+     * collect() includes the page language in heading documents derived from TOC.
+     */
+    public function testCollectIncludesLanguageFieldInHeadingDocuments(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $toc = [
+            new TocEntry(level: 2, id: 'intro', text: 'Intro'),
+        ];
+        $ext->collect($this->makePageRenderedEvent('/nl/guide', '<p>Content</p>', $config, toc: $toc, language: 'nl'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        foreach ($documents as $doc) {
+            $this->assertArrayHasKey('language', $doc);
+            $this->assertSame('nl', $doc['language']);
+        }
+    }
+
+    /**
+     * collect() propagates the language field when multiple locales are collected.
+     */
+    public function testCollectSeparatesLanguageFieldsForMultipleLocales(): void
+    {
+        $ext = new SearchIndexExtension();
+        [$projectRoot, $config] = $this->makeConfig();
+
+        $ext->collect($this->makePageRenderedEvent('/about', '<p>About</p>', $config, language: 'en'));
+        $ext->collect($this->makePageRenderedEvent('/nl/about', '<p>Over ons</p>', $config, language: 'nl'));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $documents = $this->readDocuments($projectRoot);
+        $byUrl = array_column($documents, null, 'url');
+
+        $this->assertSame('en', $byUrl['/about']['language']);
+        $this->assertSame('nl', $byUrl['/nl/about']['language']);
+    }
+
+    // -------------------------------------------------------------------------
     // TOC heading documents
     // -------------------------------------------------------------------------
 
@@ -573,6 +648,7 @@ final class SearchIndexExtensionTest extends TestCase
      * @param string $title Page title.
      * @param array<string, mixed> $meta Frontmatter meta values.
      * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries.
+     * @param string $language Language code for i18n pages.
      */
     private function makePageRenderedEvent(
         string $urlPath,
@@ -581,6 +657,7 @@ final class SearchIndexExtensionTest extends TestCase
         string $title = 'Test Page',
         array $meta = [],
         array $toc = [],
+        string $language = '',
     ): PageRenderedEvent {
         $page = new ContentPage(
             sourcePath: '',
@@ -593,6 +670,7 @@ final class SearchIndexExtensionTest extends TestCase
             draft: false,
             meta: $meta,
             toc: $toc,
+            language: $language,
         );
 
         return new PageRenderedEvent($page, $html, $config);

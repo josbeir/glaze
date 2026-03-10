@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Glaze\Template;
 
+use Glaze\Config\I18nConfig;
 use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Support\ResourcePathRewriter;
+use Glaze\Support\TranslationLoader;
 use Glaze\Template\Collection\ContentAssetCollection;
 use Glaze\Template\Collection\PageCollection;
 use Glaze\Template\Extension\ExtensionRegistry;
@@ -16,6 +18,11 @@ use Glaze\Template\Extension\ExtensionRegistry;
 final class SiteContext
 {
     /**
+     * Memoized TranslationLoader instance.
+     */
+    protected ?TranslationLoader $translationLoader = null;
+
+    /**
      * Constructor.
      *
      * @param \Glaze\Template\SiteIndex $siteIndex Site-wide page index.
@@ -24,6 +31,8 @@ final class SiteContext
      * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
      * @param \Glaze\Config\SiteConfig $siteConfig Site configuration used for URL helpers.
      * @param \Glaze\Support\ResourcePathRewriter $pathRewriter Path rewriter used by URL helpers.
+     * @param \Glaze\Config\I18nConfig $i18nConfig I18n configuration for language helpers and string translation.
+     * @param string $translationsPath Absolute path to the i18n translations directory.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
@@ -32,6 +41,8 @@ final class SiteContext
         protected ?ContentAssetResolver $assetResolver = null,
         protected SiteConfig $siteConfig = new SiteConfig(),
         protected ResourcePathRewriter $pathRewriter = new ResourcePathRewriter(),
+        protected I18nConfig $i18nConfig = new I18nConfig(null, []),
+        protected string $translationsPath = '',
     ) {
     }
 
@@ -383,6 +394,116 @@ final class SiteContext
     }
 
     /**
+     * Return the language code of the current page.
+     *
+     * Returns an empty string when i18n is disabled (single-language site).
+     */
+    public function language(): string
+    {
+        return $this->currentPage->language;
+    }
+
+    /**
+     * Return all configured languages, keyed by language code.
+     *
+     * Returns an empty array when i18n is disabled.
+     *
+     * @return array<string, \Glaze\Config\LanguageConfig>
+     */
+    public function languages(): array
+    {
+        return $this->i18nConfig->languages;
+    }
+
+    /**
+     * Return all translations of the current page, keyed by language code.
+     *
+     * Returns an empty array when i18n is disabled or no translations exist.
+     *
+     * @return array<string, \Glaze\Content\ContentPage>
+     */
+    public function translations(): array
+    {
+        return $this->siteIndex->translations($this->currentPage);
+    }
+
+    /**
+     * Return the translation of the current page for a specific language code.
+     *
+     * Returns null when no translation exists for the given language.
+     *
+     * @param string $language Language code.
+     */
+    public function translation(string $language): ?ContentPage
+    {
+        return $this->siteIndex->translation($this->currentPage, $language);
+    }
+
+    /**
+     * Return pages from the site index filtered to the current page's language.
+     *
+     * Equivalent to `regularPages()` on single-language sites, or to
+     * `forLanguage($this->language())` when i18n is enabled.
+     */
+    public function localizedPages(): PageCollection
+    {
+        $language = $this->currentPage->language;
+        if ($language === '') {
+            return $this->siteIndex->regularPages();
+        }
+
+        return $this->siteIndex->forLanguage($language);
+    }
+
+    /**
+     * Translate a string key for the current page's language.
+     *
+     * Uses the configured i18n translations directory. Supports `{key}` placeholder
+     * substitution via `$params`. Falls back to the default language when a key is
+     * not found in the current language, and ultimately returns `$key` when no
+     * translation exists anywhere.
+     *
+     * Example:
+     * ```php
+     * $this->t('read_more')                              // "Lees meer"
+     * $this->t('posted_on', ['date' => '2024-01'])       // "Geplaatst op 2024-01"
+     * $this->t('nav.home')                               // "Start"
+     * ```
+     *
+     * @param string $key Dotted translation key.
+     * @param array<string, string|int|float> $params Substitution parameters.
+     * @param string $fallback Explicit fallback string returned when the key is not found in any language file.
+     *   When omitted, the key itself is returned as the fallback.
+     */
+    public function t(string $key, array $params = [], string $fallback = ''): string
+    {
+        return $this->translationLoader()->translate(
+            $this->currentPage->language,
+            $key,
+            $params,
+            $fallback,
+        );
+    }
+
+    /**
+     * Return the URL for a specific language version of the current page.
+     *
+     * Returns null when no translation exists for the requested language or when
+     * i18n is disabled. The returned URL has the site basePath applied.
+     *
+     * @param string $language Language code.
+     */
+    public function languageUrl(string $language): ?string
+    {
+        $translated = $this->siteIndex->translation($this->currentPage, $language);
+        if (!$translated instanceof ContentPage) {
+            return null;
+        }
+
+        return $this->url($translated->urlPath);
+    }
+
+    /**
      * Normalize URL path for equality checks.
      *
      * @param string $urlPath URL path.
@@ -397,5 +518,22 @@ final class SiteContext
         $normalized = '/' . trim($trimmed, '/');
 
         return $normalized === '/index' ? '/' : $normalized;
+    }
+
+    /**
+     * Return the memoized TranslationLoader, lazily constructed from the translations path.
+     */
+    protected function translationLoader(): TranslationLoader
+    {
+        if ($this->translationLoader instanceof TranslationLoader) {
+            return $this->translationLoader;
+        }
+
+        $this->translationLoader = new TranslationLoader(
+            $this->translationsPath,
+            $this->i18nConfig->defaultLanguage ?? '',
+        );
+
+        return $this->translationLoader;
     }
 }

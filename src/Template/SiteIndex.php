@@ -40,6 +40,17 @@ final class SiteIndex
     protected array $taxonomyCache = [];
 
     /**
+     * Memoized translation index keyed by `translationKey`, then by language code.
+     *
+     * Built lazily on first call to `translationIndex()` and reused for every
+     * subsequent `translations()` / `translation()` lookup. This collapses the
+     * formerly O(n) scan per call down to a single O(n) build pass.
+     *
+     * @var array<string, array<string, \Glaze\Content\ContentPage>>|null
+     */
+    protected ?array $translationIndex = null;
+
+    /**
      * Constructor.
      *
      * @param array<\Glaze\Content\ContentPage> $pages All discoverable pages.
@@ -503,5 +514,79 @@ final class SiteIndex
         } catch (Throwable) {
             return 0;
         }
+    }
+
+    /**
+     * Return a collection of pages filtered to a specific language.
+     *
+     * When i18n is disabled all pages have an empty language string, so this
+     * method returns an empty collection for any non-empty language code in
+     * that case — use `regularPages()` for single-language sites.
+     *
+     * @param string $language Language code to filter by.
+     */
+    public function forLanguage(string $language): PageCollection
+    {
+        $pages = array_values(array_filter(
+            $this->regularPages()->all(),
+            static fn(ContentPage $page): bool => $page->language === $language,
+        ));
+
+        return new PageCollection($pages);
+    }
+
+    /**
+     * Build and memoize the translation index on first access.
+     *
+     * The index maps each unique `translationKey` to a `language => ContentPage`
+     * map. Pages without a `translationKey` or without a `language` are skipped.
+     * Subsequent calls return the cached index without rescanning `$this->pages`.
+     *
+     * @return array<string, array<string, \Glaze\Content\ContentPage>>
+     */
+    protected function translationIndex(): array
+    {
+        if ($this->translationIndex !== null) {
+            return $this->translationIndex;
+        }
+
+        $this->translationIndex = [];
+        foreach ($this->pages as $page) {
+            if ($page->translationKey !== '' && $page->language !== '') {
+                $this->translationIndex[$page->translationKey][$page->language] = $page;
+            }
+        }
+
+        return $this->translationIndex;
+    }
+
+    /**
+     * Return all translations of a page, keyed by language code.
+     *
+     * Pages are considered translations of each other when they share the same
+     * `translationKey`. The current page is included in the result. Returns an
+     * empty array when the page has no `translationKey` set.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page to find translations for.
+     * @return array<string, \Glaze\Content\ContentPage> Language code => ContentPage map.
+     */
+    public function translations(ContentPage $page): array
+    {
+        if ($page->translationKey === '') {
+            return [];
+        }
+
+        return $this->translationIndex()[$page->translationKey] ?? [];
+    }
+
+    /**
+     * Return the translation of a page in the requested language, or null when not found.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page.
+     * @param string $language Language code to find.
+     */
+    public function translation(ContentPage $page, string $language): ?ContentPage
+    {
+        return $this->translations($page)[$language] ?? null;
     }
 }

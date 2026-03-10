@@ -41,6 +41,7 @@ final class NewCommandTest extends TestCase
         $this->assertArrayHasKey('type', $parser->options());
         $this->assertArrayHasKey('draft', $parser->options());
         $this->assertArrayHasKey('index', $parser->options());
+        $this->assertArrayHasKey('lang', $parser->options());
     }
 
     /**
@@ -478,6 +479,175 @@ final class NewCommandTest extends TestCase
 
         $this->assertSame(NewCommand::CODE_ERROR, $command->execute($withoutForce, $this->createConsoleIo()));
         $this->assertSame(NewCommand::CODE_SUCCESS, $command->execute($withForce, $this->createConsoleIo()));
+    }
+
+    /**
+     * Ensure --lang routes page creation into the configured language contentDir.
+     */
+    public function testExecuteCreatesPageInLanguageContentDir(): void
+    {
+        $projectRoot = $this->createTempProjectRoot();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            <<<'NEON'
+            i18n:
+                defaultLanguage: en
+                languages:
+                    en:
+                        label: English
+                        urlPrefix: ""
+                    nl:
+                        label: Nederlands
+                        urlPrefix: /nl
+                        contentDir: content/nl
+            NEON,
+        );
+
+        $command = $this->createCommand();
+        $args = new Arguments(
+            ['My Post'],
+            [
+                'root' => $projectRoot,
+                'yes' => true,
+                'date' => '2026-02-24T10:00:00+00:00',
+                'type' => null,
+                'draft' => false,
+                'slug' => null,
+                'title' => null,
+                'force' => false,
+                'lang' => 'nl',
+            ],
+            ['title'],
+        );
+
+        $code = $command->execute($args, $this->createConsoleIo());
+        $targetPath = $projectRoot . '/content/nl/my-post.dj';
+
+        $this->assertSame(NewCommand::CODE_SUCCESS, $code);
+        $this->assertFileExists($targetPath);
+    }
+
+    /**
+     * Ensure --lang with the default language (no contentDir) falls back to the project contentDir.
+     */
+    public function testExecuteLangDefaultLanguageFallsBackToProjectContentDir(): void
+    {
+        $projectRoot = $this->createTempProjectRoot();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            <<<'NEON'
+            i18n:
+                defaultLanguage: en
+                languages:
+                    en:
+                        label: English
+                        urlPrefix: ""
+                    nl:
+                        label: Nederlands
+                        urlPrefix: /nl
+                        contentDir: content/nl
+            NEON,
+        );
+
+        $command = $this->createCommand();
+        $args = new Arguments(
+            ['My Post'],
+            [
+                'root' => $projectRoot,
+                'yes' => true,
+                'date' => '2026-02-24T10:00:00+00:00',
+                'type' => null,
+                'draft' => false,
+                'slug' => null,
+                'title' => null,
+                'force' => false,
+                'lang' => 'en',
+            ],
+            ['title'],
+        );
+
+        $code = $command->execute($args, $this->createConsoleIo());
+        $targetPath = $projectRoot . '/content/my-post.dj';
+
+        $this->assertSame(NewCommand::CODE_SUCCESS, $code);
+        $this->assertFileExists($targetPath);
+    }
+
+    /**
+     * Ensure --lang with an unknown language code returns an error.
+     */
+    public function testExecuteRejectsUnknownLanguageCode(): void
+    {
+        $projectRoot = $this->createTempProjectRoot();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            <<<'NEON'
+            i18n:
+                defaultLanguage: en
+                languages:
+                    en:
+                        label: English
+                        urlPrefix: ""
+                    nl:
+                        label: Nederlands
+                        urlPrefix: /nl
+                        contentDir: content/nl
+            NEON,
+        );
+
+        $command = $this->createCommand();
+        $args = new Arguments(
+            ['My Post'],
+            [
+                'root' => $projectRoot,
+                'yes' => true,
+                'date' => '2026-02-24T10:00:00+00:00',
+                'type' => null,
+                'draft' => false,
+                'slug' => null,
+                'title' => null,
+                'force' => false,
+                'lang' => 'fr',
+            ],
+            ['title'],
+        );
+
+        $code = $command->execute($args, $this->createConsoleIo());
+
+        $this->assertSame(NewCommand::CODE_ERROR, $code);
+    }
+
+    /**
+     * Ensure --lang returns an error when i18n is not enabled.
+     */
+    public function testExecuteRejectsLangOptionWhenI18nNotEnabled(): void
+    {
+        $projectRoot = $this->createTempProjectRoot();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            '',
+        );
+
+        $command = $this->createCommand();
+        $args = new Arguments(
+            ['My Post'],
+            [
+                'root' => $projectRoot,
+                'yes' => true,
+                'date' => '2026-02-24T10:00:00+00:00',
+                'type' => null,
+                'draft' => false,
+                'slug' => null,
+                'title' => null,
+                'force' => false,
+                'lang' => 'nl',
+            ],
+            ['title'],
+        );
+
+        $code = $command->execute($args, $this->createConsoleIo());
+
+        $this->assertSame(NewCommand::CODE_ERROR, $code);
     }
 
     /**

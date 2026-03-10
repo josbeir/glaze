@@ -12,6 +12,7 @@ use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Extension\SitemapExtension;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Tests\Helper\I18nTestTrait;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 final class SitemapExtensionTest extends TestCase
 {
     use FilesystemTestTrait;
+    use I18nTestTrait;
 
     // -------------------------------------------------------------------------
     // Construction and fromConfig
@@ -417,6 +419,129 @@ final class SitemapExtensionTest extends TestCase
         $dom = new DOMDocument();
         $this->assertTrue($dom->loadXML($xml));
         $this->assertStringNotContainsString('<url>', $xml);
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: hreflang alternate links
+    // -------------------------------------------------------------------------
+
+    /**
+     * write() emits xhtml:link alternate elements for pages with a translationKey and language.
+     */
+    public function testWriteEmitsHreflangAlternateLinksForLocalizedPages(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+
+        $ext->collect(new PageWrittenEvent($enPage, '', $config));
+        $ext->collect(new PageWrittenEvent($nlPage, '', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+
+        $this->assertStringContainsString('hreflang', $xml);
+        $this->assertStringContainsString('rel="alternate"', $xml);
+        $this->assertStringContainsString('hreflang="en"', $xml);
+        $this->assertStringContainsString('hreflang="nl"', $xml);
+        $this->assertStringContainsString('https://example.com/about/', $xml);
+        $this->assertStringContainsString('https://example.com/nl/about/', $xml);
+    }
+
+    /**
+     * write() includes xhtml namespace declaration when hreflang links are emitted.
+     */
+    public function testWriteAddsXhtmlNamespaceWhenAlternatesPresent(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+
+        $ext->collect(new PageWrittenEvent($enPage, '', $config));
+        $ext->collect(new PageWrittenEvent($nlPage, '', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+
+        $dom = new DOMDocument();
+        $this->assertTrue($dom->loadXML($xml), 'XML with hreflang is not well-formed');
+        $this->assertStringContainsString('xmlns:xhtml="http://www.w3.org/1999/xhtml"', $xml);
+    }
+
+    /**
+     * write() does not emit alternate links when pages have no language tag.
+     */
+    public function testWriteDoesNotEmitAlternatesForNonI18nPages(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        // Regular page without language tag
+        $ext->collect($this->makePageWrittenEvent('/about/', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+
+        $this->assertStringNotContainsString('hreflang', $xml);
+        $this->assertStringNotContainsString('xhtml', $xml);
+    }
+
+    /**
+     * write() does not emit alternate links when pages have a language tag but no translationKey.
+     */
+    public function testWriteDoesNotEmitAlternatesWhenTranslationKeyMissing(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $page = new ContentPage(
+            sourcePath: '',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '',
+            draft: false,
+            meta: [],
+            language: 'en',
+            translationKey: '',
+        );
+
+        $ext->collect(new PageWrittenEvent($page, '', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+
+        $this->assertStringNotContainsString('hreflang', $xml);
+    }
+
+    /**
+     * write() emits alternate links for all translations that share the same translationKey.
+     */
+    public function testWriteEmitsAlternatesForThreeLanguages(): void
+    {
+        $ext = new SitemapExtension();
+        [$projectRoot, $config] = $this->makeConfig(baseUrl: 'https://example.com');
+
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $frPage = $this->makeLocalizedPage('fr/about', '/fr/about/', 'about.dj', 'fr', 'about.dj');
+
+        $ext->collect(new PageWrittenEvent($enPage, '', $config));
+        $ext->collect(new PageWrittenEvent($nlPage, '', $config));
+        $ext->collect(new PageWrittenEvent($frPage, '', $config));
+        $ext->write(new BuildCompletedEvent([], $config, 0.0));
+
+        $xml = (string)file_get_contents($projectRoot . '/public/sitemap.xml');
+
+        $this->assertStringContainsString('hreflang="en"', $xml);
+        $this->assertStringContainsString('hreflang="nl"', $xml);
+        $this->assertStringContainsString('hreflang="fr"', $xml);
     }
 
     // -------------------------------------------------------------------------

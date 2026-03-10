@@ -85,6 +85,10 @@ final class PageRenderPipeline
             extensions: $extensionRegistry ?? new ExtensionRegistry(),
             assetResolver: $assetResolver,
             siteConfig: $config->site,
+            i18nConfig: $config->i18n,
+            translationsPath: $config->i18n->isEnabled()
+                ? $config->translationsPath()
+                : '',
         );
 
         $htmlContent = $renderResult->html;

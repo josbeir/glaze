@@ -32,6 +32,7 @@ final class BuildConfigTest extends TestCase
         $this->assertSame('/tmp/glaze-project/templates', $config->templatePath());
         $this->assertSame('/tmp/glaze-project/public', $config->outputPath());
         $this->assertSame('/tmp/glaze-project/tmp/cache', $config->cachePath());
+        $this->assertSame('/tmp/glaze-project/i18n', $config->translationsPath());
         $this->assertSame('/tmp/glaze-project/tmp/cache/sugar', $config->cachePath(CachePath::Sugar));
         $this->assertSame('/tmp/glaze-project/tmp/cache/glide', $config->cachePath(CachePath::Glide));
         $this->assertSame('/tmp/glaze-project/tmp/cache/phiki-html', $config->cachePath(CachePath::PhikiHtml));

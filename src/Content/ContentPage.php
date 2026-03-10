@@ -46,6 +46,8 @@ final class ContentPage
      * @param list<\Glaze\Render\Djot\TocEntry> $toc Table-of-contents entries collected during the render pass.
      * @param bool $virtual Whether this is a virtual page injected by an extension.
      * @param bool $unlisted Whether this page is excluded from collections by default.
+     * @param string $language Language code for this page (empty string when i18n is disabled).
+     * @param string $translationKey Key used to link translated pages across language trees.
      */
     public function __construct(
         public readonly string $sourcePath,
@@ -62,6 +64,8 @@ final class ContentPage
         public readonly array $toc = [],
         public readonly bool $virtual = false,
         public readonly bool $unlisted = false,
+        public readonly string $language = '',
+        public readonly string $translationKey = '',
     ) {
     }
 
@@ -125,6 +129,55 @@ final class ContentPage
             toc: $toc,
             virtual: $this->virtual,
             unlisted: $this->unlisted,
+            language: $this->language,
+            translationKey: $this->translationKey,
+        );
+    }
+
+    /**
+     * Return a copy of this page with i18n language metadata applied.
+     *
+     * Prefixes `urlPath`, `outputRelativePath`, and `slug` with the language's
+     * URL prefix when one is configured. The `language` and `translationKey`
+     * properties are set from the supplied arguments. Called by
+     * `LocalizedContentDiscovery` after discovering pages from a language-specific
+     * content directory.
+     *
+     * @param string $language Language code to associate with this page.
+     * @param string $urlPrefix URL prefix for this language (empty string for the default language).
+     * @param string $translationKey Key linking this page to its translated counterparts.
+     */
+    public function withLanguage(string $language, string $urlPrefix, string $translationKey): self
+    {
+        $prefix = trim($urlPrefix, '/');
+
+        if ($prefix !== '') {
+            $urlPath = '/' . $prefix . $this->urlPath;
+            $outputRelativePath = $prefix . '/' . $this->outputRelativePath;
+            $slug = $prefix . '/' . $this->slug;
+        } else {
+            $urlPath = $this->urlPath;
+            $outputRelativePath = $this->outputRelativePath;
+            $slug = $this->slug;
+        }
+
+        return new self(
+            sourcePath: $this->sourcePath,
+            relativePath: $this->relativePath,
+            slug: $slug,
+            urlPath: $urlPath,
+            outputRelativePath: $outputRelativePath,
+            title: $this->title,
+            source: $this->source,
+            draft: $this->draft,
+            meta: $this->meta,
+            taxonomies: $this->taxonomies,
+            type: $this->type,
+            toc: $this->toc,
+            virtual: $this->virtual,
+            unlisted: $this->unlisted,
+            language: $language,
+            translationKey: $translationKey,
         );
     }
 

@@ -209,6 +209,155 @@ final class ContentPageTest extends TestCase
         $this->assertTrue($enriched->unlisted);
     }
 
+    // -------------------------------------------------------------------------
+    // i18n: language and translationKey defaults
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure language and translationKey default to empty strings.
+     */
+    public function testLanguageAndTranslationKeyDefaultToEmptyStrings(): void
+    {
+        $page = $this->createPage([]);
+
+        $this->assertSame('', $page->language);
+        $this->assertSame('', $page->translationKey);
+    }
+
+    /**
+     * Ensure withToc() preserves language and translationKey.
+     */
+    public function testWithTocPreservesLanguageAndTranslationKey(): void
+    {
+        $page = new ContentPage(
+            sourcePath: '/tmp/content/about.dj',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '# About',
+            draft: false,
+            meta: [],
+            language: 'nl',
+            translationKey: 'about.dj',
+        );
+
+        $enriched = $page->withToc([]);
+
+        $this->assertSame('nl', $enriched->language);
+        $this->assertSame('about.dj', $enriched->translationKey);
+    }
+
+    // -------------------------------------------------------------------------
+    // withLanguage()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure withLanguage() sets language and translationKey on the returned copy.
+     */
+    public function testWithLanguageSetsLanguageAndTranslationKey(): void
+    {
+        $page = $this->createPage([]);
+        $result = $page->withLanguage('nl', 'nl', 'index.dj');
+
+        $this->assertSame('nl', $result->language);
+        $this->assertSame('index.dj', $result->translationKey);
+    }
+
+    /**
+     * Ensure withLanguage() prefixes urlPath, outputRelativePath, and slug when urlPrefix is set.
+     */
+    public function testWithLanguagePrefixesPathsWhenPrefixIsSet(): void
+    {
+        $page = new ContentPage(
+            sourcePath: '/tmp/content/about.dj',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '# About',
+            draft: false,
+            meta: [],
+        );
+
+        $result = $page->withLanguage('nl', 'nl', 'about.dj');
+
+        $this->assertSame('/nl/about/', $result->urlPath);
+        $this->assertSame('nl/about/index.html', $result->outputRelativePath);
+        $this->assertSame('nl/about', $result->slug);
+    }
+
+    /**
+     * Ensure withLanguage() does not alter paths when urlPrefix is empty.
+     */
+    public function testWithLanguageDoesNotAlterPathsWhenPrefixIsEmpty(): void
+    {
+        $page = new ContentPage(
+            sourcePath: '/tmp/content/about.dj',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '# About',
+            draft: false,
+            meta: [],
+        );
+
+        $result = $page->withLanguage('en', '', 'about.dj');
+
+        $this->assertSame('/about/', $result->urlPath);
+        $this->assertSame('about/index.html', $result->outputRelativePath);
+        $this->assertSame('about', $result->slug);
+        $this->assertSame('en', $result->language);
+    }
+
+    /**
+     * Ensure withLanguage() strips leading/trailing slashes from the urlPrefix.
+     */
+    public function testWithLanguageStripsSlashesFromPrefix(): void
+    {
+        $page = $this->createPage([]);
+        $result = $page->withLanguage('fr', '/fr/', 'index.dj');
+
+        $this->assertSame('/fr/', $result->urlPath);
+        $this->assertSame('fr/index.html', $result->outputRelativePath);
+        $this->assertSame('fr/index', $result->slug);
+    }
+
+    /**
+     * Ensure withLanguage() returns a new instance and leaves the original unchanged.
+     */
+    public function testWithLanguageReturnsNewInstance(): void
+    {
+        $page = $this->createPage([]);
+        $result = $page->withLanguage('nl', 'nl', 'index.dj');
+
+        $this->assertNotSame($page, $result);
+        $this->assertSame('', $page->language);
+        $this->assertSame('nl', $result->language);
+    }
+
+    /**
+     * Ensure withLanguage() preserves all other page properties unchanged.
+     */
+    public function testWithLanguagePreservesOtherProperties(): void
+    {
+        $page = $this->createPage(['weight' => 5]);
+        $result = $page->withLanguage('nl', 'nl', 'index.dj');
+
+        $this->assertSame($page->sourcePath, $result->sourcePath);
+        $this->assertSame($page->relativePath, $result->relativePath);
+        $this->assertSame($page->title, $result->title);
+        $this->assertSame($page->source, $result->source);
+        $this->assertSame($page->draft, $result->draft);
+        $this->assertSame($page->meta, $result->meta);
+        $this->assertSame($page->virtual, $result->virtual);
+        $this->assertSame($page->unlisted, $result->unlisted);
+    }
+
     /**
      * Create a page fixture for metadata helper tests.
      *

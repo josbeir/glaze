@@ -301,6 +301,216 @@ NEON;
     }
 
     // -------------------------------------------------------------------------
+    // i18n tests
+    // -------------------------------------------------------------------------
+
+    /**
+     * execute() adds a Language column when the site has i18n enabled.
+     */
+    public function testExecuteShowsLanguageColumnForI18nSites(): void
+    {
+        $root = $this->createI18nProject([
+            'index.dj' => "# Home EN\n",
+        ], [
+            'nl/index.dj' => "# Home NL\n",
+        ]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root]),
+            $io,
+        );
+
+        $output = $read();
+        $this->assertStringContainsString('Language', $output);
+    }
+
+    /**
+     * execute() does not add a Language column for non-i18n sites.
+     */
+    public function testExecuteDoesNotShowLanguageColumnForSingleLanguageSites(): void
+    {
+        $root = $this->createMinimalProject(['index.dj' => "# Home\n"]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root]),
+            $io,
+        );
+
+        $output = $read();
+        $this->assertStringNotContainsString('Language', $output);
+    }
+
+    /**
+     * execute() filters to a single language when --lang is given.
+     */
+    public function testExecuteFiltersRoutesByLanguage(): void
+    {
+        $root = $this->createI18nProject([
+            'index.dj' => "# Home EN\n",
+        ], [
+            'nl/index.dj' => "# Home NL\n",
+        ]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root, 'lang' => 'nl']),
+            $io,
+        );
+
+        $output = $read();
+        $this->assertStringContainsString('nl', $output);
+        $this->assertStringContainsString('lang: nl', $output);
+        // Should only contain 1 route (nl)
+        $this->assertMatchesRegularExpression('/1 route/', $output);
+    }
+
+    /**
+     * execute() filters to multiple languages when --lang contains comma-separated codes.
+     */
+    public function testExecuteFiltersRoutesByMultipleLanguages(): void
+    {
+        $root = $this->createI18nProject([
+            'index.dj' => "# Home EN\n",
+            'about.dj' => "# About\n",
+        ], [
+            'nl/index.dj' => "# Home NL\n",
+        ]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root, 'lang' => 'en,nl']),
+            $io,
+        );
+
+        $output = $read();
+        $this->assertStringContainsString('lang: en, nl', $output);
+        // 2 EN + 1 NL = 3 routes
+        $this->assertMatchesRegularExpression('/3 route/', $output);
+    }
+
+    /**
+     * execute() includes a per-language route count breakdown in the summary when i18n is active.
+     */
+    public function testExecuteSummaryIncludesLanguageBreakdown(): void
+    {
+        $root = $this->createI18nProject([
+            'index.dj' => "# Home EN\n",
+        ], [
+            'nl/index.dj' => "# Home NL\n",
+        ]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root]),
+            $io,
+        );
+
+        $output = $read();
+        $this->assertStringContainsString('en: 1', $output);
+        $this->assertStringContainsString('nl: 1', $output);
+    }
+
+    /**
+     * execute() shows the source path relative to a language-specific contentDir.
+     */
+    public function testExecuteResolvesSourceRelativeToLanguageContentDir(): void
+    {
+        $root = $this->createI18nProject([], [
+            'nl/article.dj' => "# NL Article\n",
+        ]);
+        [$io, $read] = $this->captureConsoleIo();
+
+        $this->createCommand()->execute(
+            $this->makeArgs(['root' => $root, 'lang' => 'nl']),
+            $io,
+        );
+
+        $output = $read();
+        // Source should be relative to content/nl/, not the full absolute path
+        $this->assertStringContainsString('article.dj', $output);
+        // Must not contain the absolute project temp root in the source column
+        $this->assertStringNotContainsString($root, $output);
+    }
+
+    /**
+     * Create a temporary project with two-language i18n configuration.
+     *
+     * English content files are written to `content/en/`, Dutch content to
+     * `content/nl/`. A `glaze.neon` is created with the i18n block pre-filled.
+     * An optional extra NEON string may be appended for additional config.
+     *
+     * @param array<string, string> $enFiles Map of EN content path → content (relative to `content/en/`).
+     * @param array<string, string> $nlFiles Map of NL content path → content (relative to `content/nl/`).
+     * @param string|null $extraNeon Additional NEON configuration to append.
+     * @throws \RuntimeException When a directory cannot be created.
+     */
+    protected function createI18nProject(
+        array $enFiles,
+        array $nlFiles,
+        ?string $extraNeon = null,
+    ): string {
+        $neon = <<<'NEON'
+i18n:
+    defaultLanguage: en
+    languages:
+        en:
+            label: English
+            urlPrefix: ""
+            contentDir: content/en
+        nl:
+            label: Nederlands
+            urlPrefix: /nl
+            contentDir: content/nl
+NEON;
+
+        if ($extraNeon !== null) {
+            $neon .= "\n" . $extraNeon;
+        }
+
+        $root = $this->createTempDirectory();
+
+        foreach (['en', 'nl'] as $lang) {
+            $dir = $root . '/content/' . $lang;
+            if (!mkdir($dir, 0755, true) && !is_dir($dir)) {
+                throw new RuntimeException(sprintf('Unable to create directory "%s".', $dir));
+            }
+        }
+
+        $templatesDir = $root . '/templates';
+        if (!mkdir($templatesDir, 0755, true) && !is_dir($templatesDir)) {
+            throw new RuntimeException(sprintf('Unable to create directory "%s".', $templatesDir));
+        }
+
+        foreach ($enFiles as $relativePath => $fileContent) {
+            $fullPath = $root . '/content/en/' . $relativePath;
+            $fileDir = dirname($fullPath);
+            if (!is_dir($fileDir) && !mkdir($fileDir, 0755, true) && !is_dir($fileDir)) {
+                throw new RuntimeException(sprintf('Unable to create directory "%s".', $fileDir));
+            }
+
+            file_put_contents($fullPath, $fileContent);
+        }
+
+        foreach ($nlFiles as $relativePath => $fileContent) {
+            // Accept either bare filenames or "nl/filename" — strip the leading "nl/" if present
+            $strippedPath = preg_replace('#^nl/#', '', $relativePath) ?? $relativePath;
+            $fullPath = $root . '/content/nl/' . $strippedPath;
+            $fileDir = dirname($fullPath);
+            if (!is_dir($fileDir) && !mkdir($fileDir, 0755, true) && !is_dir($fileDir)) {
+                throw new RuntimeException(sprintf('Unable to create directory "%s".', $fileDir));
+            }
+
+            file_put_contents($fullPath, $fileContent);
+        }
+
+        file_put_contents($root . '/glaze.neon', $neon);
+
+        return $root;
+    }
+
+    // -------------------------------------------------------------------------
     // Helper methods
     // -------------------------------------------------------------------------
 
@@ -349,6 +559,7 @@ NEON;
             'root' => null,
             'type' => null,
             'taxonomy' => null,
+            'lang' => null,
             'truncate' => '60',
             'drafts' => false,
         ];

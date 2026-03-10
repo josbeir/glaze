@@ -1,6 +1,25 @@
 # Default Sugar template used for full-page rendering.
 pageTemplate: page
 
+# Internationalization (i18n) configuration.
+# Set defaultLanguage to enable multi-language support. Omitting this block or
+# leaving defaultLanguage null disables the feature entirely with zero overhead.
+#
+# Example:
+#   i18n:
+#     defaultLanguage: en
+#     languages:
+#       en:
+#         label: English
+#         urlPrefix: ""
+#       nl:
+#         label: Nederlands
+#         urlPrefix: nl
+#         contentDir: content/nl
+i18n:
+  defaultLanguage: null
+  languages: {}
+
 # Directory paths relative to the project root.
 paths:
   content: content
@@ -9,6 +28,8 @@ paths:
   public: public
   # Directory scanned for auto-discoverable extension classes.
   extensions: extensions
+  # Directory containing NEON translation files.
+  translations: i18n
 
 # Explicitly enabled extensions, supports list and map notation.
 # examples:

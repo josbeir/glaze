@@ -130,6 +130,7 @@ Options:
 - `--draft` mark page as draft
 - `--index` create page as `folder/index.dj` instead of `file.dj`
 - `--force` overwrite existing target file
+- `--lang <code>` target the content directory configured for this language code (requires i18n to be enabled)
 - `--yes` non-interactive mode
 
 Examples:
@@ -152,6 +153,9 @@ glaze new "Post title" --type blog --path posts --yes
 
 # create a bundle-style page with index.dj
 glaze new "Post title" --path "blog" --index --yes
+
+# create a page in the nl language content directory (requires i18n)
+glaze new "Mijn bericht" --lang nl --yes
 ```
 
 ## `serve`
@@ -257,6 +261,7 @@ Options:
 - `--root <path>` project root
 - `--type <types>` filter by content type; accepts comma-separated values (for example `post,note`)
 - `--taxonomy <filters>` filter by taxonomy; accepts `key` (any value) or `key=value`; comma-separated for multiple (for example `tag=php,category=tutorial`)
+- `--lang <codes>` filter by language code; accepts comma-separated values (for example `nl,fr`); only applies to i18n-enabled sites
 - `--truncate <n>` truncate cell values to `n` visible characters (default `60`; `0` disables)
 - `--drafts` include draft pages
 
@@ -283,14 +288,21 @@ glaze routes --type post --taxonomy tag=php --truncate 0
 
 # include draft pages
 glaze routes --drafts
+
+# show only Dutch routes (i18n sites)
+glaze routes --lang nl
+
+# show English and French routes
+glaze routes --lang en,fr
 ```
 
 Column reference:
 
 - **URL Path** — public URL of the page
+- **Language** — language code of the page; only shown for i18n-enabled sites
 - **Type** — content type name, or `-` when untyped
 - **Template** — effective Sugar template name resolved from frontmatter or `build.pageTemplate`
-- **Source** — source file path relative to `content/`, or `-` for taxonomy-generated pages
+- **Source** — source file path relative to the language content directory, or `-` for taxonomy-generated pages
 - **Flags** — `draft` and/or `unlisted` when applicable
 
 ## `cc`

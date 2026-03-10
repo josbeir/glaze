@@ -11,6 +11,7 @@ use Cake\Console\ConsoleOptionParser;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\LanguageConfig;
 use Glaze\Scaffold\PageScaffoldOptions;
 use Glaze\Scaffold\PageScaffoldService;
 use Glaze\Utility\Normalization;
@@ -98,6 +99,11 @@ final class NewCommand extends BaseCommand
                 'boolean' => true,
                 'default' => false,
             ])
+            ->addOption('lang', [
+                'help' => 'Language code to target the configured contentDir for that language (e.g. nl).'
+                    . ' Requires i18n to be enabled.',
+                'default' => null,
+            ])
             ->addOption('yes', [
                 'help' => 'Skip interactive prompts and use provided/default values.',
                 'boolean' => true,
@@ -119,8 +125,9 @@ final class NewCommand extends BaseCommand
             $projectRoot = ProjectRootResolver::resolve(Path::optional($args->getOption('root')));
             $config = BuildConfig::fromProjectRoot($projectRoot, true);
             $input = $this->resolvePageInput($args, $io, $config);
+            $lang = Normalization::optionalString($args->getOption('lang'));
             $targetPath = $this->pageScaffoldService->scaffold(
-                $config->contentPath(),
+                $this->resolveContentPath($config, $lang),
                 new PageScaffoldOptions(
                     title: $input['title'],
                     date: $input['date'],
@@ -467,6 +474,46 @@ final class NewCommand extends BaseCommand
         }
 
         return implode('/', $slugSegments);
+    }
+
+    /**
+     * Resolve the absolute content base path to scaffold into.
+     *
+     * When no language code is given the project's default content path is returned.
+     * When a language code is supplied, the matching language's `contentDir` is resolved
+     * relative to the project root. Falls back to the default content path when the
+     * language does not have a dedicated `contentDir` (e.g. the default language).
+     *
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     * @param string|null $lang Language code from the `--lang` option, or null.
+     * @throws \RuntimeException When i18n is not enabled or the language code is unknown.
+     */
+    protected function resolveContentPath(BuildConfig $config, ?string $lang): string
+    {
+        if ($lang === null) {
+            return $config->contentPath();
+        }
+
+        if (!$config->i18n->isEnabled()) {
+            throw new RuntimeException(
+                'Cannot use --lang: i18n is not enabled in this project.',
+            );
+        }
+
+        $langConfig = $config->i18n->language($lang);
+        if (!$langConfig instanceof LanguageConfig) {
+            throw new RuntimeException(sprintf(
+                'Unknown language "%s". Configured languages: %s.',
+                $lang,
+                implode(', ', array_keys($config->i18n->languages)),
+            ));
+        }
+
+        if ($langConfig->contentDir === null) {
+            return $config->contentPath();
+        }
+
+        return Path::resolve($config->projectRoot, $langConfig->contentDir);
     }
 
     /**

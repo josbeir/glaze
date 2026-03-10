@@ -56,7 +56,7 @@ final class SearchIndexExtension implements ConfigurableExtension
     /**
      * Collected search index documents keyed by URL path for deduplication.
      *
-     * @var array<string, array{id: int, title: string, description: string, url: string, content: string}>
+     * @var array<string, array{id: int, title: string, description: string, url: string, content: string, language: string}>
      */
     protected array $documents = [];
 
@@ -152,6 +152,7 @@ final class SearchIndexExtension implements ConfigurableExtension
             'description' => $this->resolveDescription($event),
             'url' => $this->resolveDocumentUrl($event),
             'content' => $this->extractContent($event->html),
+            'language' => $event->page->language,
         ];
 
         if ($this->toc) {
@@ -169,7 +170,7 @@ final class SearchIndexExtension implements ConfigurableExtension
      * directly to the heading anchor. Documents are keyed by their anchor id.
      *
      * @param \Glaze\Build\Event\PageRenderedEvent $event Event payload.
-     * @return array<string, array{id: int, title: string, description: string, url: string, content: string}>
+     * @return array<string, array{id: int, title: string, description: string, url: string, content: string, language: string}>
      */
     protected function extractHeadingDocuments(PageRenderedEvent $event): array
     {
@@ -183,6 +184,7 @@ final class SearchIndexExtension implements ConfigurableExtension
                 'description' => $event->page->title,
                 'url' => $pageUrl . '#' . $entry->id,
                 'content' => $entry->text,
+                'language' => $event->page->language,
             ];
         }
 

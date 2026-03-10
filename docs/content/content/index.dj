@@ -203,3 +203,11 @@ Once Glaze renders a page, these variables are available in every Sugar template
 | `$this` | `SiteContext` 🔷 | Collections, pagination, taxonomy helpers |
 
 See [Templating](../templating/overview.dj) for the full variable and directive reference.
+
+## Multilingual sites
+
+Glaze has built-in support for multilingual sites. Each language gets its own
+content directory and URL prefix. String translations, language switching helpers,
+and automatic sitemap `hreflang` entries are all included.
+
+See [Internationalization](i18n.dj) for the full setup guide.
