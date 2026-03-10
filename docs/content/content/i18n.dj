@@ -209,18 +209,18 @@ items:
 The following methods are available on `$this` (the `SiteContext` object) in every
 Sugar template when i18n is enabled:
 
-### `$this->language()`
+### Current language
 
-Returns the language code of the current page (e.g. `"nl"`). Returns an empty
+`$this->language()` returns the language code of the current page (e.g. `"nl"`). Returns an empty
 string on single-language sites.
 
 ```sugar
 <html lang="<?= $this->language() ?>">
 ```
 
-### `$this->languages()`
+### All languages
 
-Returns the full map of configured languages, keyed by language code. Each value
+`$this->languages()` returns the full map of configured languages, keyed by language code. Each value
 is a `LanguageConfig` object with `code`, `label`, and `urlPrefix` properties.
 
 ```sugar
@@ -230,9 +230,9 @@ is a `LanguageConfig` object with `code`, `label`, and `urlPrefix` properties.
 </a>
 ```
 
-### `$this->languageUrl($code)`
+### Language URL
 
-Returns the URL of the current page translated to the given language code, or
+`$this->languageUrl($code)` returns the URL of the current page translated to the given language code, or
 `null` when no translation exists.
 
 ```sugar
@@ -240,9 +240,9 @@ Returns the URL of the current page translated to the given language code, or
    href="<?= $this->languageUrl('nl') ?>">Nederlands</a>
 ```
 
-### `$this->translations()`
+### All translations
 
-Returns all translated versions of the current page as an array keyed by language
+`$this->translations()` returns all translated versions of the current page as an array keyed by language
 code. Useful for generating `<link rel="alternate" hreflang="...">` tags.
 
 ```sugar
@@ -252,18 +252,18 @@ code. Useful for generating `<link rel="alternate" hreflang="...">` tags.
       href="<?= $this->url($translated->urlPath) ?>">
 ```
 
-### `$this->translation($code)`
+### Single translation
 
-Returns the translated `ContentPage` for a specific language code, or `null` when
+`$this->translation($code)` returns the translated `ContentPage` for a specific language code, or `null` when
 not found.
 
 ```sugar
 <?php $nlPage = $this->translation('nl') ?>
 ```
 
-### `$this->localizedPages()`
+### Localized pages
 
-Returns a `PageCollection` of regular pages in the current page's language.
+`$this->localizedPages()` returns a `PageCollection` of regular pages in the current page's language.
 On single-language sites this is equivalent to `$this->regularPages()`.
 
 ```sugar
@@ -271,9 +271,9 @@ On single-language sites this is equivalent to `$this->regularPages()`.
    href="<?= $this->url($p->urlPath) ?>"><?= $p->title ?></a>
 ```
 
-### `$this->t($key, $params = [], $fallback = '')`
+### Translate a string
 
-Translates a string key for the current page's language. Supports `{placeholder}`
+`$this->t($key, $params = [], $fallback = '')` translates a string key for the current page's language. Supports `{placeholder}`
 substitution via `$params`. Falls back to the default language, then returns `$fallback`
 (or `$key` when `$fallback` is omitted) when no translation is found.
 
