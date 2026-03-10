@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Template;
 
+use Glaze\Config\I18nConfig;
+use Glaze\Config\LanguageConfig;
 use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentAsset;
 use Glaze\Content\ContentPage;
@@ -11,6 +13,7 @@ use Glaze\Template\Extension\ExtensionRegistry;
 use Glaze\Template\SiteContext;
 use Glaze\Template\SiteIndex;
 use Glaze\Tests\Helper\FilesystemTestTrait;
+use Glaze\Tests\Helper\I18nTestTrait;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -20,6 +23,7 @@ use RuntimeException;
 final class SiteContextTest extends TestCase
 {
     use FilesystemTestTrait;
+    use I18nTestTrait;
 
     /**
      * Validate context query and pagination helpers.
@@ -360,5 +364,254 @@ final class SiteContextTest extends TestCase
             meta: $meta,
             taxonomies: $taxonomies,
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: language() and languages()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate language() returns the current page language code.
+     */
+    public function testLanguageReturnsCurrentPageLanguage(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'About');
+        $index = new SiteIndex([$nlPage]);
+
+        $context = new SiteContext($index, $nlPage, i18nConfig: $i18n);
+
+        $this->assertSame('nl', $context->language());
+    }
+
+    /**
+     * Validate language() returns an empty string when i18n is disabled.
+     */
+    public function testLanguageReturnsEmptyStringWhenI18nDisabled(): void
+    {
+        $index = new SiteIndex([$this->makePage('index', '/', 'index.dj', [])]);
+        $page = $index->findBySlug('index') ?? $this->fail('missing');
+        $context = new SiteContext($index, $page);
+
+        $this->assertSame('', $context->language());
+    }
+
+    /**
+     * Validate languages() returns the configured language map.
+     */
+    public function testLanguagesReturnsAllConfiguredLanguages(): void
+    {
+        $enLang = new LanguageConfig('en', 'English');
+        $nlLang = new LanguageConfig('nl', 'Nederlands', 'nl');
+        $i18n = new I18nConfig('en', ['en' => $enLang, 'nl' => $nlLang]);
+
+        $page = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj');
+        $index = new SiteIndex([$page]);
+        $context = new SiteContext($index, $page, i18nConfig: $i18n);
+
+        $languages = $context->languages();
+        $this->assertArrayHasKey('en', $languages);
+        $this->assertArrayHasKey('nl', $languages);
+        $this->assertSame($enLang, $languages['en']);
+    }
+
+    /**
+     * Validate languages() returns an empty array when i18n is disabled.
+     */
+    public function testLanguagesReturnsEmptyArrayWhenI18nDisabled(): void
+    {
+        $index = new SiteIndex([$this->makePage('index', '/', 'index.dj', [])]);
+        $page = $index->findBySlug('index') ?? $this->fail('missing');
+        $context = new SiteContext($index, $page);
+
+        $this->assertSame([], $context->languages());
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: translations() and translation()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate translations() returns all translations of the current page.
+     */
+    public function testTranslationsReturnsAllPageTranslations(): void
+    {
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en'),
+            'nl' => new LanguageConfig('nl', '', 'nl'),
+        ]);
+
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $index = new SiteIndex([$enAbout, $nlAbout]);
+
+        $context = new SiteContext($index, $enAbout, i18nConfig: $i18n);
+
+        $translations = $context->translations();
+        $this->assertArrayHasKey('en', $translations);
+        $this->assertArrayHasKey('nl', $translations);
+    }
+
+    /**
+     * Validate translation() returns the page for the requested language.
+     */
+    public function testTranslationReturnsPageForRequestedLanguage(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $index = new SiteIndex([$enAbout, $nlAbout]);
+
+        $context = new SiteContext($index, $enAbout);
+
+        $this->assertSame($nlAbout, $context->translation('nl'));
+        $this->assertNotInstanceOf(ContentPage::class, $context->translation('fr'));
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: localizedPages()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate localizedPages() returns all pages when i18n is disabled (no language tag).
+     */
+    public function testLocalizedPagesReturnsAllPagesWhenI18nDisabled(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', []),
+            $this->makePage('about', '/about/', 'about.dj', []),
+        ]);
+        $page = $index->findBySlug('index') ?? $this->fail('missing');
+        $context = new SiteContext($index, $page);
+
+        $this->assertCount(2, $context->localizedPages());
+    }
+
+    /**
+     * Validate localizedPages() returns only pages for the current page's language.
+     */
+    public function testLocalizedPagesFiltersToCurrentLanguage(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $index = new SiteIndex([$enAbout, $enHome, $nlAbout]);
+
+        $context = new SiteContext($index, $enAbout);
+
+        $pages = $context->localizedPages();
+        $this->assertCount(2, $pages);
+        foreach ($pages->all() as $page) {
+            $this->assertSame('en', $page->language);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: t()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate t() translates a string for the current page language.
+     */
+    public function testTTranslatesStringForCurrentLanguage(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/nl.neon', "read_more: Lees meer\n");
+
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en'),
+            'nl' => new LanguageConfig('nl', '', 'nl'),
+        ]);
+
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $index = new SiteIndex([$nlPage]);
+
+        $context = new SiteContext($index, $nlPage, i18nConfig: $i18n, translationsPath: $dir);
+
+        $this->assertSame('Lees meer', $context->t('read_more'));
+    }
+
+    /**
+     * Validate t() substitutes parameters in the translated string.
+     */
+    public function testTSubstitutesParameters(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "greeting: \"Hello {name}!\"\n");
+
+        $i18n = new I18nConfig('en', ['en' => new LanguageConfig('en')]);
+        $enPage = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj');
+        $index = new SiteIndex([$enPage]);
+
+        $context = new SiteContext($index, $enPage, i18nConfig: $i18n, translationsPath: $dir);
+
+        $this->assertSame('Hello World!', $context->t('greeting', ['name' => 'World']));
+    }
+
+    /**
+     * Validate t() returns the key when no translation is found.
+     */
+    public function testTReturnsKeyWhenNoTranslationFound(): void
+    {
+        $dir = $this->createTempDirectory();
+        $i18n = new I18nConfig('en', ['en' => new LanguageConfig('en')]);
+        $enPage = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj');
+        $index = new SiteIndex([$enPage]);
+
+        $context = new SiteContext($index, $enPage, i18nConfig: $i18n, translationsPath: $dir);
+
+        $this->assertSame('missing.key', $context->t('missing.key'));
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: languageUrl()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate languageUrl() returns the URL of the translated page for a given language.
+     */
+    public function testLanguageUrlReturnsTranslatedPageUrl(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $index = new SiteIndex([$enAbout, $nlAbout]);
+
+        $context = new SiteContext($index, $enAbout);
+
+        $this->assertSame('/nl/about/', $context->languageUrl('nl'));
+    }
+
+    /**
+     * Validate languageUrl() returns null when no translation exists for the requested language.
+     */
+    public function testLanguageUrlReturnsNullWhenNoTranslation(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $index = new SiteIndex([$enAbout]);
+
+        $context = new SiteContext($index, $enAbout);
+
+        $this->assertNull($context->languageUrl('fr'));
+    }
+
+    /**
+     * Validate t() uses a memoized TranslationLoader instance on repeated calls.
+     */
+    public function testTranslationLoaderIsMemoized(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "key: Value\n");
+
+        $i18n = new I18nConfig('en', ['en' => new LanguageConfig('en')]);
+        $enPage = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj');
+        $index = new SiteIndex([$enPage]);
+
+        $context = new SiteContext($index, $enPage, i18nConfig: $i18n, translationsPath: $dir);
+
+        // Both calls must return the same value (memoized loader)
+        $this->assertSame('Value', $context->t('key'));
+        $this->assertSame('Value', $context->t('key'));
     }
 }

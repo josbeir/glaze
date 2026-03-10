@@ -14,7 +14,8 @@ use RuntimeException;
  * Instantiated via {@see self::fromProjectRoot()} (CLI commands) or
  * {@see self::fromConfigure()} (DI container) which construct fully typed
  * sub-objects ({@see DjotOptions}, {@see TemplateViteOptions},
- * {@see SiteConfig}) directly — no intermediate array representations are stored.
+ * {@see SiteConfig}, {@see I18nConfig}) directly — no intermediate array
+ * representations are stored.
  */
 final class BuildConfig
 {
@@ -39,6 +40,7 @@ final class BuildConfig
      * @param \Glaze\Config\DjotOptions $djotOptions Typed Djot renderer options.
      * @param \Glaze\Config\TemplateViteOptions $templateViteOptions Typed Sugar Vite extension options.
      * @param \Glaze\Config\SiteConfig|null $site Site-wide project configuration.
+     * @param \Glaze\Config\I18nConfig $i18n Internationalization configuration.
      * @param bool $includeDrafts Whether draft pages should be included.
      */
     public function __construct(
@@ -58,6 +60,7 @@ final class BuildConfig
         public readonly DjotOptions $djotOptions = new DjotOptions(),
         public readonly TemplateViteOptions $templateViteOptions = new TemplateViteOptions(),
         ?SiteConfig $site = null,
+        public readonly I18nConfig $i18n = new I18nConfig(null, []),
         public readonly bool $includeDrafts = false,
     ) {
         $this->site = $site ?? new SiteConfig();
@@ -146,6 +149,7 @@ final class BuildConfig
             djotOptions: DjotOptions::fromProjectConfig($djotConfig),
             templateViteOptions: TemplateViteOptions::fromProjectConfig($buildVite, $devVite, $root),
             site: SiteConfig::fromProjectConfig($config['site'] ?? null),
+            i18n: I18nConfig::fromProjectConfig($config['i18n'] ?? null),
             includeDrafts: ($buildConfig['drafts'] ?? false) === true,
         );
     }

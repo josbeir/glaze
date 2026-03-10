@@ -504,4 +504,61 @@ final class SiteIndex
             return 0;
         }
     }
+
+    /**
+     * Return a collection of pages filtered to a specific language.
+     *
+     * When i18n is disabled all pages have an empty language string, so this
+     * method returns an empty collection for any non-empty language code in
+     * that case — use `regularPages()` for single-language sites.
+     *
+     * @param string $language Language code to filter by.
+     */
+    public function forLanguage(string $language): PageCollection
+    {
+        $pages = array_values(array_filter(
+            $this->regularPages()->all(),
+            static fn(ContentPage $page): bool => $page->language === $language,
+        ));
+
+        return new PageCollection($pages);
+    }
+
+    /**
+     * Return all translations of a page, keyed by language code.
+     *
+     * Pages are considered translations of each other when they share the same
+     * `translationKey`. The current page is included in the result. Returns an
+     * empty array when the page has no `translationKey` set.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page to find translations for.
+     * @return array<string, \Glaze\Content\ContentPage> Language code => ContentPage map.
+     */
+    public function translations(ContentPage $page): array
+    {
+        if ($page->translationKey === '') {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($this->pages as $candidate) {
+            if ($candidate->translationKey === $page->translationKey && $candidate->language !== '') {
+                $result[$candidate->language] = $candidate;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Return the translation of a page in the requested language, or null when not found.
+     *
+     * @param \Glaze\Content\ContentPage $page Source page.
+     * @param string $language Language code to find.
+     */
+    public function translation(ContentPage $page, string $language): ?ContentPage
+    {
+        return $this->translations($page)[$language] ?? null;
+    }
 }

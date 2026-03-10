@@ -44,7 +44,7 @@ final class SitemapExtension implements ConfigurableExtension
     /**
      * Collected sitemap entries keyed by URL path.
      *
-     * @var array<string, array{path: string, lastmod: string|null}>
+     * @var array<string, array{path: string, lastmod: string|null, language: string, translationKey: string}>
      */
     protected array $entries = [];
 
@@ -138,6 +138,8 @@ final class SitemapExtension implements ConfigurableExtension
         $this->entries[$event->page->urlPath] = [
             'path' => $event->page->urlPath,
             'lastmod' => $this->resolveLastModified($event),
+            'language' => $event->page->language,
+            'translationKey' => $event->page->translationKey,
         ];
     }
 
@@ -153,11 +155,32 @@ final class SitemapExtension implements ConfigurableExtension
         usort($entries, static fn(array $left, array $right): int => strcmp($left['path'], $right['path']));
 
         $fallbackLastModified = gmdate(DATE_ATOM);
+
+        // Build a map of translationKey => list of {language, loc} for hreflang.
+        // Only populated when i18n is enabled (entries carry a non-empty language).
+        /** @var array<string, list<array{language: string, loc: string}>> $hreflangMap */
+        $hreflangMap = [];
+        foreach ($entries as $entry) {
+            if ($entry['language'] !== '' && $entry['translationKey'] !== '') {
+                $hreflangMap[$entry['translationKey']][] = [
+                    'language' => $entry['language'],
+                    'loc' => $this->absoluteUrl($entry['path'], $event),
+                ];
+            }
+        }
+
         $urls = [];
         foreach ($entries as $entry) {
+            $loc = $this->absoluteUrl($entry['path'], $event);
+            $alternates = [];
+            if ($entry['translationKey'] !== '' && isset($hreflangMap[$entry['translationKey']])) {
+                $alternates = $hreflangMap[$entry['translationKey']];
+            }
+
             $urls[] = [
-                'loc' => $this->absoluteUrl($entry['path'], $event),
+                'loc' => $loc,
                 'lastmod' => $entry['lastmod'] ?? $fallbackLastModified,
+                'alternates' => $alternates,
             ];
         }
 
@@ -232,11 +255,20 @@ final class SitemapExtension implements ConfigurableExtension
     /**
      * Create a minimal XML sitemap payload.
      *
-     * @param array<int, array{loc: string, lastmod: string}> $urls URL and lastmod records.
+     * When `alternates` are supplied for a URL entry, `<xhtml:link rel="alternate">` elements
+     * are emitted for each translation — enabling search engines to discover language variants.
+     *
+     * @param array<int, array{loc: string, lastmod: string, alternates: list<array{language: string, loc: string}>}> $urls URL records.
      */
     protected function buildSitemapXml(array $urls): string
     {
-        $root = new SimpleXMLElement('<urlset/>');
+        $hasAlternates = array_any($urls, static fn(array $url): bool => $url['alternates'] !== []);
+
+        $rootXml = $hasAlternates
+            ? '<urlset xmlns:xhtml="http://www.w3.org/1999/xhtml"/>'
+            : '<urlset/>';
+
+        $root = new SimpleXMLElement($rootXml);
         $root->addAttribute('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
 
         foreach ($urls as $url) {
@@ -250,6 +282,13 @@ final class SitemapExtension implements ConfigurableExtension
 
             if ($this->priority !== null) {
                 $urlElement->addChild('priority', number_format($this->priority, 1));
+            }
+
+            foreach ($url['alternates'] as $alternate) {
+                $link = $urlElement->addChild('xhtml:link', namespace: 'http://www.w3.org/1999/xhtml');
+                $link->addAttribute('rel', 'alternate');
+                $link->addAttribute('hreflang', $alternate['language']);
+                $link->addAttribute('href', $alternate['loc']);
             }
         }
 

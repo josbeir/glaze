@@ -14,6 +14,7 @@ use Glaze\Config\BuildConfig;
 use Glaze\Config\CachePath;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;
+use Glaze\Content\LocalizedContentDiscovery;
 use Glaze\Render\PageRenderPipeline;
 use Glaze\Template\ContentAssetResolver;
 use Glaze\Template\Extension\ExtensionLoader;
@@ -32,12 +33,14 @@ final class SiteBuilder
      * @param \Glaze\Render\PageRenderPipeline $pageRenderPipeline Shared page render pipeline.
      * @param \Glaze\Build\ContentAssetPublisher $assetPublisher Asset publishing service.
      * @param \Glaze\Build\TaxonomyPageFactory $taxonomyPageFactory Factory for auto-generated taxonomy pages.
+     * @param \Glaze\Content\LocalizedContentDiscovery $localizedDiscovery Localization-aware discovery coordinator.
      */
     public function __construct(
         protected ContentDiscoveryService $discoveryService,
         protected PageRenderPipeline $pageRenderPipeline,
         protected ContentAssetPublisher $assetPublisher,
         protected TaxonomyPageFactory $taxonomyPageFactory = new TaxonomyPageFactory(),
+        protected ?LocalizedContentDiscovery $localizedDiscovery = null,
     ) {
     }
 
@@ -51,7 +54,7 @@ final class SiteBuilder
     public function renderRequest(BuildConfig $config, string $requestPath): ?string
     {
         $pages = $this->filterPages(
-            $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
+            $this->localizedDiscovery($config)->discover($config),
             $config,
         );
         $realPages = array_values(array_filter($pages, static fn(ContentPage $p): bool => !$p->virtual));
@@ -105,7 +108,7 @@ final class SiteBuilder
 
         $discoveredEvent = new ContentDiscoveredEvent(
             $this->filterPages(
-                $this->discoveryService->discover($config->contentPath(), $config->taxonomies, $config->contentTypes),
+                $this->localizedDiscovery($config)->discover($config),
                 $config,
             ),
             $config,
@@ -406,5 +409,23 @@ final class SiteBuilder
         }
 
         return array_values(array_filter($pages, static fn(ContentPage $page): bool => !$page->draft));
+    }
+
+    /**
+     * Return the localized discovery coordinator for the given config.
+     *
+     * Lazily constructs a {@see LocalizedContentDiscovery} wrapping the
+     * injected discovery service when one was not provided explicitly via
+     * the constructor (e.g. in tests).
+     *
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     */
+    protected function localizedDiscovery(BuildConfig $config): LocalizedContentDiscovery
+    {
+        if ($this->localizedDiscovery instanceof LocalizedContentDiscovery) {
+            return $this->localizedDiscovery;
+        }
+
+        return new LocalizedContentDiscovery($this->discoveryService);
     }
 }

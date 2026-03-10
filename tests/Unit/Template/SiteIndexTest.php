@@ -7,6 +7,7 @@ use Closure;
 use Glaze\Content\ContentPage;
 use Glaze\Template\Section;
 use Glaze\Template\SiteIndex;
+use Glaze\Tests\Helper\I18nTestTrait;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -14,6 +15,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class SiteIndexTest extends TestCase
 {
+    use I18nTestTrait;
+
     /**
      * Validate section selection and page lookups.
      */
@@ -565,5 +568,142 @@ final class SiteIndexTest extends TestCase
             taxonomies: $taxonomies,
             unlisted: true,
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: forLanguage()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate forLanguage() returns pages for the specified language only.
+     */
+    public function testForLanguageFiltersPagesByLanguage(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+
+        $index = new SiteIndex([$enAbout, $enHome, $nlAbout]);
+
+        $enPages = $index->forLanguage('en');
+        $this->assertCount(2, $enPages);
+        foreach ($enPages->all() as $page) {
+            $this->assertSame('en', $page->language);
+        }
+
+        $nlPages = $index->forLanguage('nl');
+        $this->assertCount(1, $nlPages);
+        $this->assertSame('nl', $nlPages->first()?->language);
+    }
+
+    /**
+     * Validate forLanguage() returns an empty collection for an unknown language.
+     */
+    public function testForLanguageReturnsEmptyForUnknownLanguage(): void
+    {
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+        $index = new SiteIndex([$enHome]);
+
+        $frPages = $index->forLanguage('fr');
+        $this->assertCount(0, $frPages);
+    }
+
+    /**
+     * Validate forLanguage() returns an empty collection when i18n is disabled (no language tags).
+     */
+    public function testForLanguageReturnsEmptyWhenNoLanguageTags(): void
+    {
+        $page = $this->makePage('index', '/', 'index.dj', [], 'Home');
+        $index = new SiteIndex([$page]);
+
+        $this->assertCount(0, $index->forLanguage('en'));
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: translations()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate translations() returns all pages sharing the same translationKey.
+     */
+    public function testTranslationsReturnsAllMatchingTranslations(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $enHome = $this->makeLocalizedPage('index', '/', 'index.dj', 'en', 'index.dj', 'Home');
+
+        $index = new SiteIndex([$enAbout, $nlAbout, $enHome]);
+
+        $translations = $index->translations($enAbout);
+
+        $this->assertArrayHasKey('en', $translations);
+        $this->assertArrayHasKey('nl', $translations);
+        $this->assertSame('About', $translations['en']->title);
+        $this->assertSame('Over ons', $translations['nl']->title);
+    }
+
+    /**
+     * Validate translations() returns an empty array when the page has no translationKey.
+     */
+    public function testTranslationsReturnsEmptyForPageWithNoTranslationKey(): void
+    {
+        $page = $this->makePage('about', '/about/', 'about.dj', [], 'About');
+        $index = new SiteIndex([$page]);
+
+        $this->assertSame([], $index->translations($page));
+    }
+
+    /**
+     * Validate translations() excludes pages with an empty language field.
+     */
+    public function testTranslationsExcludesPagesWithEmptyLanguage(): void
+    {
+        // Page with translationKey but no language tag (non-i18n site)
+        $nonI18nPage = new ContentPage(
+            sourcePath: '/tmp/about.dj',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '# About',
+            draft: false,
+            meta: [],
+            language: '',
+            translationKey: 'about.dj',
+        );
+
+        $index = new SiteIndex([$nonI18nPage]);
+
+        $this->assertSame([], $index->translations($nonI18nPage));
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: translation()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate translation() returns the correct page for the requested language.
+     */
+    public function testTranslationReturnsCorrectPageForLanguage(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+
+        $index = new SiteIndex([$enAbout, $nlAbout]);
+
+        $this->assertSame($nlAbout, $index->translation($enAbout, 'nl'));
+        $this->assertSame($enAbout, $index->translation($nlAbout, 'en'));
+    }
+
+    /**
+     * Validate translation() returns null when no match exists for the requested language.
+     */
+    public function testTranslationReturnsNullWhenNoMatchForLanguage(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $index = new SiteIndex([$enAbout]);
+
+        $this->assertNotInstanceOf(ContentPage::class, $index->translation($enAbout, 'fr'));
     }
 }

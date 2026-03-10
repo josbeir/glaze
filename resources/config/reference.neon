@@ -1,6 +1,27 @@
 # Default Sugar template used for full-page rendering.
 pageTemplate: page
 
+# Internationalization (i18n) configuration.
+# Set defaultLanguage to enable multi-language support. Omitting this block or
+# leaving defaultLanguage null disables the feature entirely with zero overhead.
+#
+# Example:
+#   i18n:
+#     defaultLanguage: en
+#     translationsDir: i18n
+#     languages:
+#       en:
+#         label: English
+#         urlPrefix: ""
+#       nl:
+#         label: Nederlands
+#         urlPrefix: nl
+#         contentDir: content/nl
+i18n:
+  defaultLanguage: null
+  translationsDir: i18n
+  languages: {}
+
 # Directory paths relative to the project root.
 paths:
   content: content
