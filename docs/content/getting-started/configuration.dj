@@ -464,6 +464,54 @@ In templates, use Sugar's `s:vite` directive:
 
 Live mode (`glaze serve --vite`) renders dev server tags, while static build mode renders production tags from the configured manifest.
 
+## `i18n`
+
+Enable multilingual support. Only activates when `defaultLanguage` is set.
+
+```neon
+i18n:
+  defaultLanguage: en
+  translationsDir: i18n
+  languages:
+    en:
+      label: English
+      urlPrefix: ""
+    nl:
+      label: Nederlands
+      urlPrefix: /nl
+      contentDir: content/nl
+    fr:
+      label: Français
+      urlPrefix: /fr
+      contentDir: content/fr
+```
+
+### `i18n.defaultLanguage`
+
+Required to activate i18n. The primary language code. Pages for this language are
+typically served at the site root (empty `urlPrefix`).
+
+### `i18n.translationsDir`
+
+Directory containing NEON string translation files, relative to project root.
+Defaults to `i18n`. One file per language: `i18n/en.neon`, `i18n/nl.neon`, etc.
+
+### `i18n.languages`
+
+A map of language code → language options:
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `label` | `""` | Human-readable language name for switchers |
+| `urlPrefix` | `""` | URL path prefix (empty for root; `"/nl"` → `/nl/...`) |
+| `contentDir` | `null` | Content directory for this language; null uses project `content/` |
+
+The default language automatically uses the project-level content directory when
+`contentDir` is omitted. Non-default languages without a `contentDir` are skipped.
+
+See [Internationalization](../content/i18n.dj) for a full setup guide, directory
+structure examples, and the complete template helper reference.
+
 ## Notes
 
 - A missing `glaze.neon` is valid; Glaze uses sensible defaults.

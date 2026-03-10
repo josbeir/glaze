@@ -16,24 +16,34 @@ use Throwable;
  * `i18n/nl.neon`). Flat or nested NEON maps are both supported; dotted-path
  * keys are used for nested access.
  *
- * Example translation file (`i18n/nl.neon`):
+ * **Plural forms** are expressed as a NEON list under a key. Index 0 is used
+ * when the `count` param equals 1 (singular), index 1 for all other counts.
+ * Additional indices may be added for languages that require more plural forms
+ * (e.g. zero, few, many) — form selection is purely index-based.
+ *
+ * Example translation file (`i18n/en.neon`):
  *
  * ```neon
- * read_more: Lees meer
- * posted_on: "Geplaatst op {date}"
+ * read_more: Read more
+ * posted_on: "Posted on {date}"
+ * items:
+ *   - one item
+ *   - "{count} items"
  * nav:
- *   home: Start
- *   about: Over ons
+ *   home: Home
+ *   about: About
  * ```
  *
  * Usage:
  *
  * ```php
  * $loader = new TranslationLoader('/project/i18n');
- * echo $loader->translate('nl', 'read_more');               // "Lees meer"
- * echo $loader->translate('nl', 'posted_on', ['date' => '2024-01']); // "Geplaatst op 2024-01"
- * echo $loader->translate('nl', 'nav.home');                // "Start"
- * echo $loader->translate('nl', 'missing', [], 'Fallback'); // "Fallback"
+ * echo $loader->translate('en', 'read_more');               // "Read more"
+ * echo $loader->translate('en', 'items', ['count' => 1]);   // "one item"
+ * echo $loader->translate('en', 'items', ['count' => 5]);   // "5 items"
+ * echo $loader->translate('en', 'posted_on', ['date' => '2024-01']); // "Posted on 2024-01"
+ * echo $loader->translate('en', 'nav.home');                // "Home"
+ * echo $loader->translate('en', 'missing', [], 'Fallback'); // "Fallback"
  * ```
  */
 final class TranslationLoader
@@ -65,6 +75,11 @@ final class TranslationLoader
      * 2. The `$defaultLanguage` fallback file (when configured and different).
      * 3. The `$fallback` value passed by the caller.
      *
+     * When the resolved value is a NEON list (plural forms), the correct form is
+     * selected based on the `count` key in `$params`: index 0 for count=1
+     * (singular), index 1 for all other counts. When `count` is absent, index 0
+     * is used. See {@see selectPluralForm()} for details.
+     *
      * Parameters are substituted by replacing `{key}` placeholders in the
      * translated string with the corresponding value from `$params`.
      *
@@ -79,8 +94,11 @@ final class TranslationLoader
         array $params = [],
         string $fallback = '',
     ): string {
-        $value = $this->lookup($language, $key)
-            ?? ($language !== $this->defaultLanguage ? $this->lookup($this->defaultLanguage, $key) : null)
+        $count = isset($params['count']) ? (int)$params['count'] : 1;
+        $pluralIndex = $this->selectPluralForm($count);
+
+        $value = $this->lookup($language, $key, $pluralIndex)
+            ?? ($language !== $this->defaultLanguage ? $this->lookup($this->defaultLanguage, $key, $pluralIndex) : null)
             ?? ($fallback !== '' ? $fallback : $key);
 
         return $this->interpolate($value, $params);
@@ -89,23 +107,29 @@ final class TranslationLoader
     /**
      * Return whether a translation key exists for the given language.
      *
+     * Returns true for both scalar string keys and plural-form list keys.
+     *
      * @param string $language Language code.
      * @param string $key Dotted translation key.
      */
     public function has(string $language, string $key): bool
     {
-        return $this->lookup($language, $key) !== null;
+        return $this->lookup($language, $key, 0) !== null;
     }
 
     /**
      * Look up a translation key from the cached map, loading the file if needed.
      *
-     * Returns null when the key does not exist or the translation file is absent.
+     * When the raw value is a list (plural forms array), the form at `$pluralIndex`
+     * is returned, falling back to the last available form when the index is out
+     * of bounds. Returns null when the key does not exist, the translation file
+     * is absent, or the resolved form is not a string.
      *
      * @param string $language Language code.
      * @param string $key Dotted translation key.
+     * @param int $pluralIndex Zero-based plural form index to select from list values.
      */
-    protected function lookup(string $language, string $key): ?string
+    protected function lookup(string $language, string $key, int $pluralIndex = 0): ?string
     {
         if ($language === '') {
             return null;
@@ -114,7 +138,32 @@ final class TranslationLoader
         $translations = $this->load($language);
         $value = Hash::get($translations, $key);
 
-        return is_string($value) ? $value : null;
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_array($value) && $value !== []) {
+            $form = $value[$pluralIndex] ?? $value[array_key_last($value)];
+
+            return is_string($form) ? $form : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Select the zero-based plural form index for a given count.
+     *
+     * Uses simple two-form rules: index 0 for count=1 (singular), index 1 for
+     * all other values (plural). Languages requiring additional forms (zero, few,
+     * many) can supply extra list entries — the index maps directly to their
+     * position in the NEON list.
+     *
+     * @param int $count The count value driving plural selection.
+     */
+    protected function selectPluralForm(int $count): int
+    {
+        return $count === 1 ? 0 : 1;
     }
 
     /**

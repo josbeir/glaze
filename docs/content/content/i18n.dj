@@ -1,0 +1,312 @@
+---
+title: Internationalization (i18n)
+description: "Build multilingual Glaze sites with per-language content directories, URL prefixes, translation strings, and language switcher helpers."
+weight: 80
+---
+# Internationalization (i18n)
+
+Glaze supports building multilingual static sites out of the box. When i18n is
+enabled, each language gets its own content directory, its own URL prefix, and
+a set of template helpers for language switching and string translation.
+
+Single-language sites are unaffected — the i18n subsystem is completely inert
+until `i18n.defaultLanguage` is set in `glaze.neon`.
+
+## Configuration
+
+Enable i18n by adding an `i18n` block to `glaze.neon`:
+
+```neon
+i18n:
+  defaultLanguage: en
+  translationsDir: i18n
+  languages:
+    en:
+      label: English
+      urlPrefix: ""
+    nl:
+      label: Nederlands
+      urlPrefix: /nl
+      contentDir: content/nl
+    fr:
+      label: Français
+      urlPrefix: /fr
+      contentDir: content/fr
+```
+
+### `defaultLanguage`
+
+Required. The primary language code. Pages in this language live at the root of
+the site (no URL prefix by default). Setting this key activates the i18n subsystem.
+
+### `translationsDir`
+
+Directory containing NEON string translation files, relative to the project root.
+Defaults to `i18n`. One file per language code is expected (e.g. `i18n/en.neon`,
+`i18n/nl.neon`).
+
+### `languages`
+
+A map of language code → language options. Each entry accepts:
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `label` | string | Human-readable language name (used in language switchers) |
+| `urlPrefix` | string | URL path prefix for this language (`""` for root, `"/nl"` for `/nl/...`) |
+| `contentDir` | string | Content directory for this language (relative to project root). Omit to use the project-level `content/` directory |
+
+The default language does not need a `contentDir` — it automatically uses the
+project-level content directory. Non-default languages without a `contentDir` are
+skipped during discovery.
+
+## Directory structure
+
+A typical two-language setup with English as the root language and Dutch under `/nl/`:
+
+```
+content/          <- English content (default language, no prefix)
+  index.dj        -> /
+  about.dj        -> /about/
+  blog/
+    hello.dj      -> /blog/hello/
+
+content/nl/       <- Dutch content (urlPrefix: /nl)
+  index.dj        -> /nl/
+  about.dj        -> /nl/about/
+  blog/
+    hallo.dj      -> /nl/blog/hallo/
+
+i18n/
+  en.neon         <- English string translations
+  nl.neon         <- Dutch string translations
+```
+
+The `contentDir` for Dutch is `content/nl`, so Glaze discovers files there and
+automatically prefixes all NL routes with `/nl`.
+
+## URL routing
+
+Each language's pages are prefixed with its `urlPrefix`. An empty `urlPrefix`
+places the language at the site root (ideal for the default language):
+
+| Language | `urlPrefix` | File | Generated URL |
+| --- | --- | --- | --- |
+| English | `""` | `content/index.dj` | `/` |
+| English | `""` | `content/about.dj` | `/about/` |
+| Dutch | `/nl` | `content/nl/index.dj` | `/nl/` |
+| Dutch | `/nl` | `content/nl/about.dj` | `/nl/about/` |
+
+## Translation linking
+
+Glaze automatically links matching pages across language trees so templates can
+offer language switchers. Two pages are considered translations of each other when
+their **translation key** is the same.
+
+By default the translation key is the page's `relativePath` (the source file path
+relative to its content directory). Files with identical relative paths across
+language directories are automatically linked:
+
+```
+content/about.dj          key: about.dj
+content/nl/about.dj       key: about.dj  <- linked as translations
+```
+
+When the file paths differ between languages, or when you want to manually control
+linkage, set a `translationKey` in frontmatter:
+
+```djot
+---
+title: Our story
+translationKey: about
+---
+```
+
+```djot
+---
+title: Ons verhaal
+translationKey: about
+---
+```
+
+Any page sharing `translationKey: about` across any language is treated as a
+translation of that key.
+
+## String translations
+
+Place NEON files in the `translationsDir` directory (default: `i18n/`), one per
+language:
+
+```neon
+# i18n/nl.neon
+read_more: Lees meer
+posted_on: "Geplaatst op {date}"
+nav:
+  home: Start
+  about: Over ons
+```
+
+Keys may be flat or nested. Use dotted paths to address nested keys.
+
+Use `$this->t($key)` in templates to look up a translation for the current page's
+language. A `$fallback` value is returned when the key is not found in the current
+language, the default language, or anywhere else:
+
+```sugar
+<?= $this->t('read_more') ?>
+<?= $this->t('posted_on', ['date' => $page->date->format('Y-m-d')]) ?>
+<?= $this->t('nav.home') ?>
+```
+
+### Fallback resolution
+
+When a key is missing from the current language file, Glaze automatically falls
+back to the default language file before giving up.
+
+## Plural forms
+
+Keys whose translation requires two (or more) grammatical forms can be expressed
+as a NEON list. Index **0** is used when `count` equals `1` (singular); index
+**1** is used for all other counts (zero, two, five, etc.).
+
+```neon
+# i18n/en.neon
+items:
+  - one item
+  - "{count} items"
+```
+
+Pass a `count` key in the `$params` array to select the correct form:
+
+```sugar
+<?= $this->t('items', ['count' => $n]) ?>
+```
+
+Output examples:
+
+| `$n` | Result |
+|------|--------|
+| `1` | `one item` |
+| `0` | `0 items` |
+| `5` | `5 items` |
+
+### Languages with more than two forms
+
+Languages such as Polish or Russian need extra plural categories (zero, few,
+many). Add as many list entries as required — the form at the computed index
+is selected, falling back to the last entry when the index is out of range:
+
+```neon
+# i18n/pl.neon  (simplified; real Polish needs custom index logic)
+items:
+  - jeden element
+  - "{count} elementy"
+  - "{count} elementów"
+```
+
+> **Note:** Glaze uses simple two-form rules (index 0 for count=1, index 1 for
+> everything else). If your target language requires more than two forms, you
+> can add extra entries as future-use placeholders; the selection logic extends
+> naturally as custom `selectPluralForm()` overrides are introduced.
+
+## Template helpers
+
+The following methods are available on `$this` (the `SiteContext` object) in every
+Sugar template when i18n is enabled:
+
+### `$this->language()`
+
+Returns the language code of the current page (e.g. `"nl"`). Returns an empty
+string on single-language sites.
+
+```sugar
+<html lang="<?= $this->language() ?>">
+```
+
+### `$this->languages()`
+
+Returns the full map of configured languages, keyed by language code. Each value
+is a `LanguageConfig` object with `code`, `label`, and `urlPrefix` properties.
+
+```sugar
+<a s:foreach="$this->languages() as $code => $lang"
+   href="<?= $this->languageUrl($code) ?? '#' ?>">
+  <?= $lang->label ?>
+</a>
+```
+
+### `$this->languageUrl($code)`
+
+Returns the URL of the current page translated to the given language code, or
+`null` when no translation exists.
+
+```sugar
+<a s:notempty="$this->languageUrl('nl')"
+   href="<?= $this->languageUrl('nl') ?>">Nederlands</a>
+```
+
+### `$this->translations()`
+
+Returns all translated versions of the current page as an array keyed by language
+code. Useful for generating `<link rel="alternate" hreflang="...">` tags.
+
+```sugar
+<link s:foreach="$this->translations() as $lang => $translated"
+      rel="alternate"
+      hreflang="<?= $lang ?>"
+      href="<?= $this->url($translated->urlPath) ?>">
+```
+
+### `$this->translation($code)`
+
+Returns the translated `ContentPage` for a specific language code, or `null` when
+not found.
+
+```sugar
+<?php $nlPage = $this->translation('nl') ?>
+```
+
+### `$this->localizedPages()`
+
+Returns a `PageCollection` of regular pages in the current page's language.
+On single-language sites this is equivalent to `$this->regularPages()`.
+
+```sugar
+<a s:foreach="$this->localizedPages() as $p"
+   href="<?= $this->url($p->urlPath) ?>"><?= $p->title ?></a>
+```
+
+### `$this->t($key, $params = [])`
+
+Translates a string key for the current page's language. Supports `{placeholder}`
+substitution via `$params`. Falls back to the default language, then returns `$key`
+when no translation is found.
+
+```sugar
+<?= $this->t('read_more') ?>
+<?= $this->t('posted_on', ['date' => '2026-01']) ?>
+```
+
+## The `glaze routes` command
+
+The `routes` command shows all discovered routes. For i18n sites, a **Language**
+column is added automatically. Use `--lang` to filter by language code:
+
+```bash
+# show all routes (Language column appears automatically)
+glaze routes
+
+# show only Dutch routes
+glaze routes --lang nl
+
+# show English and Dutch routes
+glaze routes --lang en,nl
+```
+
+See [Commands → routes](../reference/commands.dj#routes) for the full option reference.
+
+## Sitemap hreflang
+
+The built-in `sitemap` extension automatically adds `<xhtml:link rel="alternate">`
+entries for pages that have translations. No extra configuration is needed.
+
+See [Core Extensions](../getting-started/core-extensions.dj) for more about the sitemap extension.

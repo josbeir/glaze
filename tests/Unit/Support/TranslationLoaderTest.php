@@ -248,4 +248,128 @@ final class TranslationLoaderTest extends TestCase
         $this->assertSame('Lees meer', $loader->translate('nl', 'read_more'));
         $this->assertSame('missing', $loader->translate('nl', 'missing'));
     }
+
+    // -------------------------------------------------------------------------
+    // Plural forms
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure translate() returns index 0 (singular) when count=1.
+     */
+    public function testTranslateSelectsSingularFormForCount1(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('one item', $loader->translate('en', 'items', ['count' => 1]));
+    }
+
+    /**
+     * Ensure translate() returns index 1 (plural) when count > 1.
+     */
+    public function testTranslateSelectsPluralFormForCountGreaterThanOne(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('5 items', $loader->translate('en', 'items', ['count' => 5]));
+    }
+
+    /**
+     * Ensure translate() returns the plural form (index 1) when count=0.
+     */
+    public function testTranslateSelectsPluralFormForCountZero(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('0 items', $loader->translate('en', 'items', ['count' => 0]));
+    }
+
+    /**
+     * Ensure translate() returns the plural form (index 1) when count is negative.
+     */
+    public function testTranslateSelectsPluralFormForNegativeCount(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('-1 items', $loader->translate('en', 'items', ['count' => -1]));
+    }
+
+    /**
+     * Ensure translate() uses index 0 (singular) when the count param is absent.
+     */
+    public function testTranslateUsesSingularFormWhenCountParamAbsent(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('one item', $loader->translate('en', 'items'));
+    }
+
+    /**
+     * Ensure translate() falls back to the last available form when the plural index is out of bounds.
+     */
+    public function testTranslateFallsBackToLastFormForOutOfBoundsIndex(): void
+    {
+        $dir = $this->createTempDirectory();
+        // Only one form defined; any index should return it
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('one item', $loader->translate('en', 'items', ['count' => 5]));
+    }
+
+    /**
+     * Ensure has() returns true for a key whose value is a plural-form list.
+     */
+    public function testHasReturnsTrueForPluralKey(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertTrue($loader->has('en', 'items'));
+    }
+
+    /**
+     * Ensure translate() falls back to the default language for a plural key missing in the requested language.
+     */
+    public function testTranslateFallsBackToDefaultLanguageForPluralKey(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "items:\n  - one item\n  - \"{count} items\"\n");
+        file_put_contents($dir . '/nl.neon', "other: Ander\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('3 items', $loader->translate('nl', 'items', ['count' => 3]));
+    }
+
+    /**
+     * Ensure translate() substitutes {count} placeholder in the selected plural form.
+     */
+    public function testTranslateAppliesPlaceholdersToPluralForm(): void
+    {
+        $dir = $this->createTempDirectory();
+        file_put_contents($dir . '/en.neon', "pages:\n  - \"{count} page\"\n  - \"{count} pages\"\n");
+
+        $loader = new TranslationLoader($dir, 'en');
+
+        $this->assertSame('1 page', $loader->translate('en', 'pages', ['count' => 1]));
+        $this->assertSame('7 pages', $loader->translate('en', 'pages', ['count' => 7]));
+    }
 }
