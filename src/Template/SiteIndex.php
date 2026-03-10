@@ -40,6 +40,17 @@ final class SiteIndex
     protected array $taxonomyCache = [];
 
     /**
+     * Memoized translation index keyed by `translationKey`, then by language code.
+     *
+     * Built lazily on first call to `translationIndex()` and reused for every
+     * subsequent `translations()` / `translation()` lookup. This collapses the
+     * formerly O(n) scan per call down to a single O(n) build pass.
+     *
+     * @var array<string, array<string, \Glaze\Content\ContentPage>>|null
+     */
+    protected ?array $translationIndex = null;
+
+    /**
      * Constructor.
      *
      * @param array<\Glaze\Content\ContentPage> $pages All discoverable pages.
@@ -525,6 +536,31 @@ final class SiteIndex
     }
 
     /**
+     * Build and memoize the translation index on first access.
+     *
+     * The index maps each unique `translationKey` to a `language => ContentPage`
+     * map. Pages without a `translationKey` or without a `language` are skipped.
+     * Subsequent calls return the cached index without rescanning `$this->pages`.
+     *
+     * @return array<string, array<string, \Glaze\Content\ContentPage>>
+     */
+    protected function translationIndex(): array
+    {
+        if ($this->translationIndex !== null) {
+            return $this->translationIndex;
+        }
+
+        $this->translationIndex = [];
+        foreach ($this->pages as $page) {
+            if ($page->translationKey !== '' && $page->language !== '') {
+                $this->translationIndex[$page->translationKey][$page->language] = $page;
+            }
+        }
+
+        return $this->translationIndex;
+    }
+
+    /**
      * Return all translations of a page, keyed by language code.
      *
      * Pages are considered translations of each other when they share the same
@@ -540,15 +576,7 @@ final class SiteIndex
             return [];
         }
 
-        $result = [];
-
-        foreach ($this->pages as $candidate) {
-            if ($candidate->translationKey === $page->translationKey && $candidate->language !== '') {
-                $result[$candidate->language] = $candidate;
-            }
-        }
-
-        return $result;
+        return $this->translationIndex()[$page->translationKey] ?? [];
     }
 
     /**

@@ -222,6 +222,13 @@ final class TranslationLoader
     /**
      * Substitute `{key}` placeholders in a translation string with parameter values.
      *
+     * Uses a single-pass regex callback to replace all `{key}` tokens in one pass.
+     * This avoids double-substitution (where a param value containing a `{key}` pattern
+     * would be picked up by a subsequent replacement) and is safe against param names
+     * that share a common prefix.
+     *
+     * Placeholders that do not match any key in `$params` are left as-is.
+     *
      * @param string $value Translation string.
      * @param array<string, string|int|float> $params Parameter map.
      */
@@ -231,13 +238,12 @@ final class TranslationLoader
             return $value;
         }
 
-        $search = [];
-        $replace = [];
-        foreach ($params as $paramKey => $paramValue) {
-            $search[] = '{' . $paramKey . '}';
-            $replace[] = (string)$paramValue;
-        }
-
-        return str_replace($search, $replace, $value);
+        return preg_replace_callback(
+            '/\{([^}]+)\}/',
+            static function (array $matches) use ($params): string {
+                return isset($params[$matches[1]]) ? (string)$params[$matches[1]] : $matches[0];
+            },
+            $value,
+        ) ?? $value;
     }
 }

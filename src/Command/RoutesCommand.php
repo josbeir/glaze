@@ -174,7 +174,7 @@ final class RoutesCommand extends BaseCommand
             $allPages = array_values(
                 array_filter(
                     $allPages,
-                    static fn(ContentPage $p): bool => in_array($p->language, $filterLanguages, true),
+                    static fn(ContentPage $p): bool => in_array(strtolower($p->language), $filterLanguages, true),
                 ),
             );
         }
