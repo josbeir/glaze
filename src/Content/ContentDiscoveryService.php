@@ -618,7 +618,8 @@ final class ContentDiscoveryService
      *
      * Returns `null` when the key is not set, allowing the caller to fall back to the
      * default slug-derived path. When set, the value is normalized to a leading-slash-free
-     * relative path. Path traversal segments (`..`) are rejected with a `RuntimeException`.
+     * relative path. Path traversal segments (`..`) are rejected with a `RuntimeException`,
+     * as are values that end with a slash (which would resolve to a directory, not a file).
      *
      * When a custom output path is set, the page's `urlPath` is derived directly from it
      * (e.g. `outputPath: 404.html` → `urlPath: /404.html`), bypassing the standard
@@ -626,7 +627,7 @@ final class ContentDiscoveryService
      *
      * @param array<string, mixed> $meta Normalized page metadata.
      * @param string $relativePath Source-relative path used in error messages.
-     * @throws \RuntimeException When the outputPath value is invalid or contains path traversal.
+     * @throws \RuntimeException When the outputPath value is invalid, ends with a slash, or contains path traversal.
      */
     protected function resolveCustomOutputPath(array $meta, string $relativePath): ?string
     {
@@ -640,6 +641,13 @@ final class ContentDiscoveryService
         if ($normalized === '') {
             throw new RuntimeException(sprintf(
                 'Invalid frontmatter "outputPath" value in "%s": value must not be empty after normalization.',
+                $relativePath,
+            ));
+        }
+
+        if (str_ends_with($normalized, '/')) {
+            throw new RuntimeException(sprintf(
+                'Invalid frontmatter "outputPath" value in "%s": value must not end with a slash.',
                 $relativePath,
             ));
         }

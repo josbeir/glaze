@@ -176,4 +176,100 @@ final class DevPageRequestHandlerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('<h1>Not Found</h1>', (string)$response->getBody());
     }
+
+    /**
+     * Ensure the same not-found HTML is returned for two different missing paths (cached).
+     */
+    public function testHandleReusesNotFoundPageOnRepeatedMisses(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/content/not-found.dj',
+            "+++\ntitle: Not Found\noutputPath: 404.html\nunlisted: true\n+++\n# Not Found\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = $this->createHandler($config);
+
+        $response1 = $handler->handle((new ServerRequestFactory())->createServerRequest('GET', '/missing-a'));
+        $response2 = $handler->handle((new ServerRequestFactory())->createServerRequest('GET', '/missing-b'));
+
+        $this->assertSame(404, $response1->getStatusCode());
+        $this->assertSame(404, $response2->getStatusCode());
+        $this->assertSame((string)$response1->getBody(), (string)$response2->getBody());
+    }
+
+    /**
+     * Ensure a request under a language prefix uses the language-scoped 404 page.
+     */
+    public function testHandleServesLanguageScopedNotFoundPageForI18nPrefix(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        mkdir($projectRoot . '/content/en', 0755, true);
+        mkdir($projectRoot . '/content/nl', 0755, true);
+        file_put_contents($projectRoot . '/content/en/index.dj', "# Home\n");
+        file_put_contents($projectRoot . '/content/nl/index.dj', "# Start\n");
+        file_put_contents(
+            $projectRoot . '/content/nl/not-found.dj',
+            "+++\ntitle: Niet Gevonden\noutputPath: 404.html\nunlisted: true\n+++\n# Niet gevonden\n",
+        );
+
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<html><body><?= $content |> raw() ?></body></html>',
+        );
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "i18n:\n  defaultLanguage: en\n  languages:\n    en:\n      label: English\n      urlPrefix: \"\"\n      contentDir: content/en\n    nl:\n      label: Nederlands\n      urlPrefix: nl\n      contentDir: content/nl\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = $this->createHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/nl/missing-page');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Niet gevonden', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure a request with no language prefix falls back to the root 404 page.
+     */
+    public function testHandleI18nFallsBackToRootNotFoundPageForDefaultLanguage(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        mkdir($projectRoot . '/content/en', 0755, true);
+        mkdir($projectRoot . '/content/nl', 0755, true);
+        file_put_contents($projectRoot . '/content/en/index.dj', "# Home\n");
+        file_put_contents($projectRoot . '/content/nl/index.dj', "# Start\n");
+        file_put_contents(
+            $projectRoot . '/content/en/not-found.dj',
+            "+++\ntitle: Not Found\noutputPath: 404.html\nunlisted: true\n+++\n# Not Found EN\n",
+        );
+
+        mkdir($projectRoot . '/templates', 0755, true);
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<html><body><?= $content |> raw() ?></body></html>',
+        );
+
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "i18n:\n  defaultLanguage: en\n  languages:\n    en:\n      label: English\n      urlPrefix: \"\"\n      contentDir: content/en\n    nl:\n      label: Nederlands\n      urlPrefix: nl\n      contentDir: content/nl\n",
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $handler = $this->createHandler($config);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/missing-page');
+
+        $response = $handler->handle($request);
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Not Found EN', (string)$response->getBody());
+    }
 }

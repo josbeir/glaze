@@ -273,8 +273,8 @@ unlisted: true
 | --- | --- | --- |
 | URL style | Always `/{slug}/` (trailing slash) | Exact: `/{outputPath}` (no trailing slash) |
 | Output file | `{slug}/index.html` | Exactly as specified |
-| Value normalization | Lowercased and slugified | Preserved as-is (only leading `/` stripped) |
-| Path traversal | Allowed (absolute slugs) | Rejected (`..` segments throw an error) |
+| Value normalization | Lowercased and slugified via `Text::slug()` | Trimmed; `\` normalized to `/`; leading `/` stripped |
+| Path traversal | Silently sanitized (`..` segments slugify to `page`) | Rejected — `..` segments throw an error |
 
 ### Taxonomy fields
 

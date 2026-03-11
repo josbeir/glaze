@@ -869,6 +869,23 @@ final class ContentDiscoveryServiceTest extends TestCase
     }
 
     /**
+     * Validate that outputPath ending with a trailing slash throws a RuntimeException.
+     */
+    public function testOutputPathWithTrailingSlashThrowsException(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/bad.dj',
+            "+++\noutputPath: errors/\n+++\n# Bad\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('must not end with a slash');
+        $this->createService()->discover($contentPath);
+    }
+
+    /**
      * Validate that outputPath set to empty or whitespace-only falls back to default.
      */
     public function testOutputPathEmptyStringFallsBackToDefault(): void
