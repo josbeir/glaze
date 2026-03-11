@@ -17,7 +17,7 @@ no separate config files required.
 
 ::: info
 `$debug` maps 1-to-1 with the `glaze serve` / `glaze build` distinction
-— it is not affected by your Neon config, OS env-vars, or Vite settings.
+— it is not affected by your NEON config, OS environment variables, or Vite settings.
 :::
 
 ### Toggle an API key
@@ -143,6 +143,15 @@ model to the newer _GitHub Actions_ model:
 
 GitHub will not create or manage any branch. The workflow uploads an artifact and the
 `deploy-pages` action publishes it directly.
+
+::: warning
+The workflow examples below reference `shivammathur/setup-php@v2` by its mutable
+version tag. For production pipelines, pin third-party actions to a specific commit
+SHA to guard against supply-chain attacks — for example
+`shivammathur/setup-php@a36e8e9f167b4f5c80c4e3a58d51aaae79e22231`. Find the latest
+SHA on the [shivammathur/setup-php releases page](https://github.com/shivammathur/setup-php/releases)
+and update it periodically.
+:::
 
 ### Workflow: Glaze as a project dependency
 
