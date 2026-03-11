@@ -113,6 +113,7 @@ Reserved fields Glaze acts on:
 | `type` | string | Explicit content type override |
 | `template` | string | Per-page template override (without `.sugar.php`) |
 | `description` | string | Default meta description |
+| `outputPath` | string | Override the generated output file path (e.g. `404.html`) |
 | taxonomy keys | list | `tags`, `categories`, etc. — configured in `glaze.neon` |
 
 Any other key is preserved as custom metadata. Nested maps and lists are supported and
@@ -134,6 +135,32 @@ hero:
 ```
 
 Full field reference: [Frontmatter](frontmatter.dj).
+
+## Output path override
+
+By default, Glaze writes every page as `{slug}/index.html` and serves it at `/{slug}/`.
+The `outputPath` frontmatter field lets you bypass this convention and control the exact
+file path that is written during `glaze build`.
+
+When `outputPath` is set, the page URL is derived directly from the value instead of
+following the `/{slug}/` directory-index convention.
+
+```djot
+---
+title: Page Not Found
+outputPath: 404.html
+unlisted: true
+---
+# Not Found
+
+The page you are looking for does not exist.
+```
+
+This page will be written to `public/404.html` and served at `/404.html`. Glaze's dev
+server automatically picks it up as a custom 404 page: any request that does not match a
+known route will return this page with a `404` status code.
+
+See [Frontmatter § outputPath](frontmatter.dj#outputpath) for the full reference and more use cases.
 
 ## Content types
 

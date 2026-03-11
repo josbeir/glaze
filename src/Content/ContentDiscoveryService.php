@@ -35,6 +35,7 @@ final class ContentDiscoveryService
         'template',
         'description',
         'meta',
+        'outputpath',
     ];
 
     /**
@@ -93,12 +94,13 @@ final class ContentDiscoveryService
             [$meta, $taxonomyValues] = $this->extractTaxonomies($meta, $normalizedTaxonomies);
             $slug = $this->resolveSlug($relativePath, $meta);
             $title = $this->resolveTitle($slug, $meta);
+            $customOutputPath = $this->resolveCustomOutputPath($meta, $relativePath);
             $pages[] = new ContentPage(
                 sourcePath: $sourcePath,
                 relativePath: $relativePath,
                 slug: $slug,
-                urlPath: $this->toUrlPath($slug),
-                outputRelativePath: $this->toOutputRelativePath($slug),
+                urlPath: $customOutputPath !== null ? '/' . $customOutputPath : $this->toUrlPath($slug),
+                outputRelativePath: $customOutputPath ?? $this->toOutputRelativePath($slug),
                 title: $title,
                 source: $parsed->body,
                 draft: $this->resolveDraft($meta),
@@ -609,6 +611,57 @@ final class ContentDiscoveryService
         }
 
         return implode('/', $slugSegments);
+    }
+
+    /**
+     * Resolve the custom output path from the `outputPath` frontmatter key.
+     *
+     * Returns `null` when the key is not set, allowing the caller to fall back to the
+     * default slug-derived path. When set, the value is normalized to a leading-slash-free
+     * relative path. Path traversal segments (`..`) are rejected with a `RuntimeException`,
+     * as are values that end with a slash (which would resolve to a directory, not a file).
+     *
+     * When a custom output path is set, the page's `urlPath` is derived directly from it
+     * (e.g. `outputPath: 404.html` → `urlPath: /404.html`), bypassing the standard
+     * `/{slug}/` directory-index convention.
+     *
+     * @param array<string, mixed> $meta Normalized page metadata.
+     * @param string $relativePath Source-relative path used in error messages.
+     * @throws \RuntimeException When the outputPath value is invalid, ends with a slash, or contains path traversal.
+     */
+    protected function resolveCustomOutputPath(array $meta, string $relativePath): ?string
+    {
+        $raw = $meta['outputpath'] ?? null;
+        if (!is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', trim($raw)), '/');
+
+        if ($normalized === '') {
+            throw new RuntimeException(sprintf(
+                'Invalid frontmatter "outputPath" value in "%s": value must not be empty after normalization.',
+                $relativePath,
+            ));
+        }
+
+        if (str_ends_with($normalized, '/')) {
+            throw new RuntimeException(sprintf(
+                'Invalid frontmatter "outputPath" value in "%s": value must not end with a slash.',
+                $relativePath,
+            ));
+        }
+
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '..') {
+                throw new RuntimeException(sprintf(
+                    'Invalid frontmatter "outputPath" value in "%s": path traversal is not allowed.',
+                    $relativePath,
+                ));
+            }
+        }
+
+        return $normalized;
     }
 
     /**

@@ -752,4 +752,155 @@ final class ContentDiscoveryServiceTest extends TestCase
         /** @var \Glaze\Content\ContentDiscoveryService */
         return $this->service(ContentDiscoveryService::class);
     }
+
+    // -------------------------------------------------------------------------
+    // outputPath frontmatter override
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validate that outputPath frontmatter overrides the output file path and derives the URL from it.
+     */
+    public function testOutputPathFrontmatterOverridesOutputRelativePath(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/not-found.dj',
+            "+++\ntitle: Not Found\noutputPath: 404.html\n+++\n# 404\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertCount(1, $pages);
+        $page = $pages[0];
+        $this->assertSame('404.html', $page->outputRelativePath);
+        $this->assertSame('/404.html', $page->urlPath);
+    }
+
+    /**
+     * Validate that outputPath with a leading slash is normalized correctly.
+     */
+    public function testOutputPathLeadingSlashIsStripped(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/not-found.dj',
+            "+++\noutputPath: /404.html\n+++\n# 404\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertSame('404.html', $pages[0]->outputRelativePath);
+        $this->assertSame('/404.html', $pages[0]->urlPath);
+    }
+
+    /**
+     * Validate that nested outputPath values produce correct output and URL paths.
+     */
+    public function testOutputPathNestedPathIsPreserved(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/not-found.dj',
+            "+++\noutputPath: errors/404.html\n+++\n# 404\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertSame('errors/404.html', $pages[0]->outputRelativePath);
+        $this->assertSame('/errors/404.html', $pages[0]->urlPath);
+    }
+
+    /**
+     * Validate that outputPath is retained in page meta, consistent with other reserved keys.
+     */
+    public function testOutputPathIsRetainedInMeta(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/not-found.dj',
+            "+++\noutputPath: 404.html\n+++\n# 404\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertArrayHasKey('outputpath', $pages[0]->meta);
+        $this->assertSame('404.html', $pages[0]->meta['outputpath']);
+    }
+
+    /**
+     * Validate that outputPath without the key falls back to standard slug-based paths.
+     */
+    public function testOutputPathAbsentFallsBackToSlugBased(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents($contentPath . '/not-found.dj', "# 404\n");
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertSame('not-found/index.html', $pages[0]->outputRelativePath);
+        $this->assertSame('/not-found/', $pages[0]->urlPath);
+    }
+
+    /**
+     * Validate that outputPath with path traversal segments throws a RuntimeException.
+     */
+    public function testOutputPathWithPathTraversalThrowsException(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/bad.dj',
+            "+++\noutputPath: ../outside.html\n+++\n# Bad\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('path traversal is not allowed');
+        $this->createService()->discover($contentPath);
+    }
+
+    /**
+     * Validate that outputPath ending with a trailing slash throws a RuntimeException.
+     */
+    public function testOutputPathWithTrailingSlashThrowsException(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/bad.dj',
+            "+++\noutputPath: errors/\n+++\n# Bad\n",
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('must not end with a slash');
+        $this->createService()->discover($contentPath);
+    }
+
+    /**
+     * Validate that outputPath set to empty or whitespace-only falls back to default.
+     */
+    public function testOutputPathEmptyStringFallsBackToDefault(): void
+    {
+        $contentPath = $this->createTempDirectory() . '/content';
+        mkdir($contentPath, 0755, true);
+        file_put_contents(
+            $contentPath . '/page.dj',
+            "+++\noutputPath: \"\"\n+++\n# Page\n",
+        );
+
+        $service = $this->createService();
+        $pages = $service->discover($contentPath);
+
+        $this->assertSame('page/index.html', $pages[0]->outputRelativePath);
+        $this->assertSame('/page/', $pages[0]->urlPath);
+    }
 }

@@ -16,6 +16,14 @@ use Psr\Http\Server\RequestHandlerInterface;
 final class DevPageRequestHandler implements RequestHandlerInterface
 {
     /**
+     * Per-instance cache of rendered not-found page HTML keyed by lookup path.
+     * Null indicates the path was attempted but yielded no rendered page.
+     *
+     * @var array<string, string|null>
+     */
+    private array $notFoundCache = [];
+
+    /**
      * Constructor.
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
@@ -41,7 +49,7 @@ final class DevPageRequestHandler implements RequestHandlerInterface
             return (new Response(['charset' => 'UTF-8']))
                 ->withStatus(404)
                 ->withHeader('Content-Type', 'text/html; charset=UTF-8')
-                ->withStringBody('<h1>404 Not Found</h1>');
+                ->withStringBody($this->resolveNotFoundHtml($lookupPath) ?? '<h1>404 Not Found</h1>');
         }
 
         $canonicalPath = $this->canonicalDirectoryPath($requestPath);
@@ -73,6 +81,72 @@ final class DevPageRequestHandler implements RequestHandlerInterface
         }
 
         return $requestPath . '/';
+    }
+
+    /**
+     * Resolve the best-matching not-found page HTML for a failed lookup path.
+     *
+     * When i18n is enabled, first tries a language-scoped 404 page (e.g. `/nl/404.html`)
+     * derived from the request prefix, then falls back to the root `/404.html`.
+     * Results are cached per path on this instance to avoid redundant re-renders.
+     *
+     * @param string $lookupPath Normalized lookup path that yielded no result.
+     */
+    protected function resolveNotFoundHtml(string $lookupPath): ?string
+    {
+        $notFoundPath = $this->resolveNotFoundPath($lookupPath);
+        $html = $this->renderCachedNotFoundPage($notFoundPath);
+
+        if ($html === null && $notFoundPath !== '/404.html') {
+            return $this->renderCachedNotFoundPage('/404.html');
+        }
+
+        return $html;
+    }
+
+    /**
+     * Determine the not-found page lookup path for a failed request.
+     *
+     * When i18n is enabled and the failed path begins with a known language
+     * URL prefix (e.g. `/nl/…`), returns the language-scoped 404 path
+     * (e.g. `/nl/404.html`). Falls back to `/404.html` for all other cases.
+     *
+     * @param string $lookupPath Normalized lookup path that yielded no result.
+     */
+    protected function resolveNotFoundPath(string $lookupPath): string
+    {
+        if ($this->config->i18n->isEnabled()) {
+            foreach ($this->config->i18n->languages as $language) {
+                if ($language->urlPrefix === '') {
+                    continue;
+                }
+
+                $prefix = '/' . $language->urlPrefix;
+                if ($lookupPath === $prefix || str_starts_with($lookupPath, $prefix . '/')) {
+                    return $prefix . '/404.html';
+                }
+            }
+        }
+
+        return '/404.html';
+    }
+
+    /**
+     * Render the not-found page at the given path, caching the result.
+     *
+     * Null is stored in the cache when no page matches the path, preventing
+     * repeated redundant renders on every request that misses.
+     *
+     * @param string $path URL path to render.
+     */
+    protected function renderCachedNotFoundPage(string $path): ?string
+    {
+        if (!array_key_exists($path, $this->notFoundCache)) {
+            $html = $this->siteBuilder->renderRequest($this->config, $path);
+            $this->notFoundCache[$path] = is_string($html) ? $html : null;
+        }
+
+        return $this->notFoundCache[$path];
     }
 
     /**

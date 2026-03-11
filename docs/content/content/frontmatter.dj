@@ -43,6 +43,7 @@ Reserved keys are interpreted by Glaze runtime features:
 - `type`
 - `template`
 - `description`
+- `outputPath`
 - `meta` (page metadata override map used for generated `<meta>` defaults)
 - taxonomy keys configured in `glaze.neon` (`tags`, `categories`, ...)
 
@@ -192,6 +193,88 @@ template: landing
 ```
 
 This causes the page to render with `templates/landing.sugar.php` instead of the configured default.
+
+### `outputPath`
+
+Overrides the generated output file path and URL for a page. By default, a page at `content/about.dj` is written to `about/index.html` and served at `/about/`. Setting `outputPath` bypasses the standard `/{slug}/` directory-index convention entirely.
+
+The value is a relative path from the output root. Leading slashes are stripped automatically. Path traversal (`..`) is rejected with an error.
+
+```djot
+---
+title: Page Not Found
+outputPath: 404.html
+unlisted: true
+---
+# Not Found
+
+The page you are looking for does not exist.
+```
+
+When `outputPath` is set, the page's URL is derived directly from the value: `outputPath: 404.html` produces a URL of `/404.html`. This differs from `slug`, which always produces a trailing-slash directory URL.
+
+#### Custom 404 page
+
+The most common use case for `outputPath` is creating a custom 404 error page. When a content page has `outputPath: 404.html`, Glaze's dev server automatically uses it as the "not found" response for any unmatched route, returned with a proper `404` status code. During `glaze build`, the file is written to `public/404.html` where most hosting providers (Netlify, Vercel, Cloudflare Pages, GitHub Pages, etc.) will pick it up as the custom error page automatically.
+
+```djot
+---
+title: Page Not Found
+outputPath: 404.html
+unlisted: true
+---
+# 404 — Page not found
+
+Sorry, the page you are looking for does not exist.
+```
+
+{.info}
+Pair `outputPath` with `unlisted: true` to prevent the page from appearing in page collections and navigation.
+
+#### Nested output paths
+
+`outputPath` supports nested paths:
+
+```djot
+---
+outputPath: errors/404.html
+---
+```
+
+This writes the page to `public/errors/404.html` and serves it at `/errors/404.html`.
+
+#### Other use cases
+
+Generate an XML or JSON file from a content page:
+
+```djot
+---
+title: RSS Feed
+outputPath: feed.xml
+template: feed
+unlisted: true
+---
+```
+
+Place a file at a specific location unrelated to its content directory:
+
+```djot
+---
+title: Robots
+outputPath: robots.txt
+template: robots
+unlisted: true
+---
+```
+
+#### Difference from `slug`
+
+| Feature | `slug` | `outputPath` |
+| --- | --- | --- |
+| URL style | Always `/{slug}/` (trailing slash) | Exact: `/{outputPath}` (no trailing slash) |
+| Output file | `{slug}/index.html` | Exactly as specified |
+| Value normalization | Lowercased and slugified via `Text::slug()` | Trimmed; `\` normalized to `/`; leading `/` stripped |
+| Path traversal | Silently sanitized (`..` segments slugify to `page`) | Rejected — `..` segments throw an error |
 
 ### Taxonomy fields
 
