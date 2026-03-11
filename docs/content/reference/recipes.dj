@@ -1,0 +1,369 @@
+---
+title: Recipes
+description: "Practical template recipes for common real-world patterns in Glaze."
+weight: 50
+---
+# Recipes
+
+Short, copy-paste patterns for common real-world needs.
+
+## Environment-aware templates with `$debug`
+
+Every template receives a `$debug` boolean that is `true` when Glaze is running in
+`glaze serve` (development) mode and `false` during `glaze build` (production).
+
+This lets you keep a single template codebase while varying content by environment —
+no separate config files required.
+
+::: info
+`$debug` maps 1-to-1 with the `glaze serve` / `glaze build` distinction
+— it is not affected by your Neon config, OS env-vars, or Vite settings.
+:::
+
+### Toggle an API key
+
+Keep your development credentials out of production builds (and vice versa):
+
+```php
+<?php
+$apiKey = $debug
+    ? 'pk_test_xxxxxxxxxxxxxxxx'   // development key
+    : 'pk_live_xxxxxxxxxxxxxxxx';  // production key
+?>
+<script>
+  window.STRIPE_KEY = "<?= $apiKey ?>";
+</script>
+```
+
+Or pull each key from a custom `glaze.neon` site config entry so nothing is
+hardcoded in the template:
+
+```neon
+# glaze.neon
+site:
+  meta:
+    apiKeyDev: pk_test_xxxxxxxx
+    apiKeyLive: pk_live_xxxxxxxx
+```
+
+```php
+<?php
+$apiKey = $debug
+    ? $site->siteMeta('apiKeyDev')
+    : $site->siteMeta('apiKeyLive');
+?>
+<script>
+  window.STRIPE_KEY = "<?= $apiKey ?>";
+</script>
+```
+
+### Load Google Tag Manager only in production
+
+Emit the GTM snippet only when generating the static build so analytics data is
+never polluted by local development traffic:
+
+```php
+<?php if (!$debug): ?>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-XXXXXXX');</script>
+<!-- End Google Tag Manager -->
+<?php endif ?>
+```
+
+And the corresponding `<noscript>` body tag:
+
+```php
+<?php if (!$debug): ?>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<?php endif ?>
+```
+
+The same pattern works for Google Analytics 4 directly:
+
+```php
+<?php if (!$debug): ?>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXX');
+</script>
+<?php endif ?>
+```
+
+### Show a visible dev banner
+
+Render a strip at the top of every page in dev mode so it is immediately clear you
+are not looking at the live site:
+
+```php
+<?php if ($debug): ?>
+<div class="alert alert-warning rounded-none text-sm text-center">
+  Development preview — not the live site
+</div>
+<?php endif ?>
+```
+
+### Combine multiple conditions
+
+You can mix `$debug` with other template variables freely:
+
+```php
+<?php
+$gaId      = $debug ? null : 'G-XXXXXXXX';
+$cookieBanner = !$debug;
+$chatWidget   = !$debug && $site->siteMeta('chat.enabled');
+?>
+```
+
+---
+
+## Deploying to GitHub Pages with GitHub Actions
+
+Glaze generates a plain static directory — anything that can host static files works.
+GitHub Pages with the Actions-based deployment model is a zero-cost option that requires
+no separate CI service.
+
+### Configuring GitHub Pages
+
+Before the workflow runs you need to switch the Pages source from the classic _branch_
+model to the newer _GitHub Actions_ model:
+
+1. Go to your repository on GitHub.
+2. Open **Settings → Pages**.
+3. Under **Build and deployment → Source**, select **GitHub Actions**.
+
+GitHub will not create or manage any branch. The workflow uploads an artifact and the
+`deploy-pages` action publishes it directly.
+
+### Workflow: Glaze as a project dependency
+
+Use this layout when `josbeir/glaze` lives in your own `composer.json` (either
+`require` or `require-dev`). The static build output directory (`public/` by default)
+is uploaded as the Pages artifact.
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: intl, fileinfo
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Build site
+        run: vendor/bin/glaze build --clean
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+### Workflow: Glaze as a global Composer dependency
+
+Use this approach when Glaze is not listed in the project's own `composer.json` — for
+example a standalone `docs/` folder that only contains content, templates, and a
+`glaze.neon` but no PHP dependencies of its own.
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: intl, fileinfo
+
+      - name: Install Glaze globally
+        run: composer global require josbeir/glaze --prefer-dist --no-interaction --no-progress
+
+      - name: Add Composer global bin to PATH
+        run: echo "$HOME/.config/composer/vendor/bin" >> "$GITHUB_PATH"
+
+      - name: Build site
+        run: glaze build --clean
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+The global Composer bin directory on GitHub-hosted runners is
+`~/.config/composer/vendor/bin`. The `echo ... >> "$GITHUB_PATH"` step appends it to
+the PATH for all subsequent steps in the job.
+
+Alternatively, if your docs folder should stay self-contained (no pre-existing
+`composer.json`) you can initialise a throwaway Composer project in-place and require
+Glaze into it. This keeps Glaze out of the global context and makes the version
+explicit:
+
+```yaml
+      - name: Install Glaze via Composer
+        working-directory: docs
+        run: |
+          composer init --name my-org/my-docs --no-interaction
+          composer require josbeir/glaze --prefer-dist --no-interaction --no-progress
+
+      - name: Build site
+        working-directory: docs
+        run: vendor/bin/glaze build --clean
+```
+
+### Adding Vite to either workflow
+
+If your project uses Vite for CSS/JS bundling, add an npm install + build step
+**before** `glaze build` and pass `--vite` to let Glaze read the Vite manifest:
+
+```yaml
+      # after PHP setup, before glaze build
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build site (with Vite)
+        run: vendor/bin/glaze build --clean --vite
+```
+
+Or, if your content and front-end assets live in separate directories (for example
+a `docs/` subfolder with its own `package.json`):
+
+```yaml
+      - name: Install npm dependencies
+        working-directory: docs
+        run: npm install
+
+      - name: Build site (with Vite)
+        working-directory: docs
+        run: ../vendor/bin/glaze build --clean --vite
+```
+
+Make sure your `glaze.neon` has Vite configured so `--vite` knows where to find the
+manifest:
+
+```neon
+build:
+  vite:
+    enabled: true
+    manifestPath: public/.vite/manifest.json
+    defaultEntry: assets/css/site.css
+```
+
+### Path triggers and caching
+
+Limit the workflow to paths that actually affect the build output to avoid unnecessary
+runs on unrelated changes such as README edits:
+
+```yaml
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'content/**'
+      - 'templates/**'
+      - 'static/**'
+      - 'glaze.neon'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+```
+
+Speed up repeated runs by caching Composer and npm downloads:
+
+```yaml
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-
+```

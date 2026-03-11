@@ -109,6 +109,7 @@ final class PageRenderPipeline
                 ArrayObject::ARRAY_AS_PROPS,
             ),
             'site' => $config->site,
+            'debug' => $debug,
         ], $templateContext);
 
         if (!$debug) {

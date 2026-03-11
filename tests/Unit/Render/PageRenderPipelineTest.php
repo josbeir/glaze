@@ -81,6 +81,74 @@ final class PageRenderPipelineTest extends TestCase
     }
 
     /**
+     * Ensure debug variable is true when rendering in serve (debug) mode.
+     */
+    public function testRenderExposesDebugTrueInServeMode(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $debug ? "serve" : "build" ?>',
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $page = new ContentPage(
+            sourcePath: $projectRoot . '/content/index.dj',
+            relativePath: 'index.dj',
+            slug: 'index',
+            urlPath: '/index',
+            outputRelativePath: 'index.html',
+            title: 'Home',
+            source: 'Hello.',
+            draft: false,
+            meta: [],
+        );
+
+        $output = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            debug: true,
+        );
+
+        $this->assertSame('serve', $output->html);
+    }
+
+    /**
+     * Ensure debug variable is false when rendering in build mode.
+     */
+    public function testRenderExposesDebugFalseInBuildMode(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $debug ? "serve" : "build" ?>',
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $page = new ContentPage(
+            sourcePath: $projectRoot . '/content/index.dj',
+            relativePath: 'index.dj',
+            slug: 'index',
+            urlPath: '/index',
+            outputRelativePath: 'index.html',
+            title: 'Home',
+            source: 'Hello.',
+            draft: false,
+            meta: [],
+        );
+
+        $output = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            debug: false,
+        );
+
+        $this->assertSame('build', $output->html);
+    }
+
+    /**
      * Ensure render returns a PageRenderOutput with TOC-enriched page.
      */
     public function testRenderReturnsPageRenderOutputWithToc(): void
