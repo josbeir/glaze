@@ -5,6 +5,7 @@ namespace Glaze\Http\Middleware;
 
 use Glaze\Config\BuildConfig;
 use Glaze\Http\AssetResponder;
+use Glaze\Http\Concern\BasePathAwareTrait;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -15,6 +16,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 abstract class AbstractAssetMiddleware implements MiddlewareInterface
 {
+    use BasePathAwareTrait;
+
     /**
      * Constructor.
      *
@@ -100,42 +103,6 @@ abstract class AbstractAssetMiddleware implements MiddlewareInterface
     protected function urlPrefix(): ?string
     {
         return null;
-    }
-
-    /**
-     * Strip configured base path from request path for filesystem resolution.
-     *
-     * @param string $requestPath Request URI path.
-     */
-    protected function stripBasePathFromRequestPath(string $requestPath): string
-    {
-        $basePath = $this->config->site->basePath;
-        $normalizedPath = '/' . ltrim($requestPath, '/');
-
-        if ($basePath === null || $basePath === '') {
-            return $normalizedPath;
-        }
-
-        return $this->stripPathPrefix($normalizedPath, $basePath);
-    }
-
-    /**
-     * Strip a leading prefix from a path, returning the remainder or `/` when the path matches exactly.
-     *
-     * @param string $path Normalized request path.
-     * @param string $prefix Prefix to strip (e.g. `/glaze` or `/static`).
-     */
-    protected function stripPathPrefix(string $path, string $prefix): string
-    {
-        if ($path === $prefix) {
-            return '/';
-        }
-
-        if (str_starts_with($path, $prefix . '/')) {
-            return substr($path, strlen($prefix)) ?: '/';
-        }
-
-        return $path;
     }
 
     /**

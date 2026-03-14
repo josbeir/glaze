@@ -63,6 +63,7 @@ final class PhpServerProcess implements ProcessInterface
     {
         $variables = [
             'GLAZE_PROJECT_ROOT',
+            'GLAZE_STATIC_MODE',
             'GLAZE_INCLUDE_DRAFTS',
             'GLAZE_VITE_ENABLED',
             'GLAZE_VITE_URL',
@@ -124,24 +125,20 @@ final class PhpServerProcess implements ProcessInterface
     /**
      * Build command string for the PHP built-in server.
      *
+     * Both live and static modes use the dev-router.php script. The router reads
+     * the GLAZE_STATIC_MODE environment variable to select the appropriate
+     * fallback handler at runtime.
+     *
      * @param array<string, mixed> $configuration Server configuration.
      */
     protected function buildCommand(array $configuration): string
     {
         $this->assertConfiguration($configuration);
 
-        if ($configuration['staticMode']) {
-            return sprintf(
-                'php -S %s -t %s',
-                escapeshellarg($this->addressFromConfiguration($configuration)),
-                escapeshellarg($configuration['docRoot']),
-            );
-        }
-
-        $routerPath = $this->resolveLiveRouterPath($configuration['projectRoot']);
+        $routerPath = $this->resolveRouterPath($configuration['projectRoot']);
         if (!is_string($routerPath)) {
             throw new InvalidArgumentException(sprintf(
-                'Live router script not found: %s',
+                'Router script not found: %s',
                 $configuration['projectRoot'] . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php',
             ));
         }
@@ -170,7 +167,7 @@ final class PhpServerProcess implements ProcessInterface
      * Validate configuration payload.
      *
      * @param array<string, mixed> $configuration Server configuration.
-     * @phpstan-assert array{host: string, port: int, docRoot: string, projectRoot: string, staticMode: bool, streamOutput?: bool} $configuration
+     * @phpstan-assert array{host: string, port: int, docRoot: string, projectRoot: string, streamOutput?: bool} $configuration
      */
     protected function assertConfiguration(array $configuration): void
     {
@@ -195,13 +192,6 @@ final class PhpServerProcess implements ProcessInterface
             ));
         }
 
-        if (!array_key_exists('staticMode', $configuration) || !is_bool($configuration['staticMode'])) {
-            throw new InvalidArgumentException(sprintf(
-                'Invalid configuration for %s. Missing or invalid value for "staticMode".',
-                self::class,
-            ));
-        }
-
         if (array_key_exists('streamOutput', $configuration) && !is_bool($configuration['streamOutput'])) {
             throw new InvalidArgumentException(sprintf(
                 'Invalid configuration for %s. Missing or invalid value for "streamOutput".',
@@ -211,11 +201,14 @@ final class PhpServerProcess implements ProcessInterface
     }
 
     /**
-     * Resolve live router path for the given project root.
+     * Resolve the router script path for the given project root.
+     *
+     * Checks the project's own bin/ directory first, then falls back to the
+     * CLI package root (via GLAZE_CLI_ROOT) and finally the package itself.
      *
      * @param string $projectRoot Project root directory.
      */
-    protected function resolveLiveRouterPath(string $projectRoot): ?string
+    protected function resolveRouterPath(string $projectRoot): ?string
     {
         $projectRouterPath = $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
         if (is_file($projectRouterPath)) {
