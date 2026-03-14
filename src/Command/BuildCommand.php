@@ -11,7 +11,7 @@ use Cake\Core\Configure;
 use Glaze\Build\BuildManifest;
 use Glaze\Build\SiteBuilder;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Process\ViteBuildProcess;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\Path;

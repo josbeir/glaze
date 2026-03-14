@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Config;
 
 use Cake\Core\Configure;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Utility\Normalization;
 use Glaze\Utility\Path;
 use RuntimeException;
@@ -200,7 +201,7 @@ final class BuildConfig
     /**
      * Get absolute cache directory or a specific cache subpath.
      *
-     * @param \Glaze\Config\CachePath|string|null $path Optional named cache target or relative cache path.
+     * @param \Glaze\Config\Enum\CachePath|string|null $path Optional named cache target or relative cache path.
      */
     public function cachePath(CachePath|string|null $path = null): string
     {

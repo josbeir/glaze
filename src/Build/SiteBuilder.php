@@ -3,15 +3,15 @@ declare(strict_types=1);
 
 namespace Glaze\Build;
 
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\BuildCompletedEvent;
-use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\BuildStartedEvent;
 use Glaze\Build\Event\ContentDiscoveredEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\PageRenderedEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Config\I18nConfig;
 use Glaze\Content\ContentDiscoveryService;
 use Glaze\Content\ContentPage;

@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Extension;
 
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\BuildCompletedEvent;
-use Glaze\Build\Event\BuildEvent;
 use Glaze\Build\Event\ContentDiscoveredEvent;
 use Glaze\Build\Event\PageWrittenEvent;
 use Glaze\Content\ContentPage;

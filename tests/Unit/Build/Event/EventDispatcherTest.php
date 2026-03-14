@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build\Event;
 
-use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\PageRenderedEvent;
 use Glaze\Config\BuildConfig;

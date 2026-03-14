@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace Glaze\Render;
 
-use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\SugarRendererCreatedEvent;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Support\ResourcePathRewriter;
 use Glaze\Utility\Hash;
 

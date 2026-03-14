@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Glaze\Build\Event;
 
+use Glaze\Build\Enum\BuildEvent;
+
 /**
  * Lightweight synchronous event dispatcher for the Glaze build pipeline.
  *
@@ -35,7 +37,7 @@ final class EventDispatcher
      *
      * Listeners for the same event are called in registration order.
      *
-     * @param \Glaze\Build\Event\BuildEvent $event Build event case to subscribe to.
+     * @param \Glaze\Build\Enum\BuildEvent $event Build event case to subscribe to.
      * @param callable $listener Callable receiving the event payload object.
      */
     public function on(BuildEvent $event, callable $listener): void
@@ -46,7 +48,7 @@ final class EventDispatcher
     /**
      * Dispatch an event, invoking all registered listeners with the payload.
      *
-     * @param \Glaze\Build\Event\BuildEvent $event Build event case being dispatched.
+     * @param \Glaze\Build\Enum\BuildEvent $event Build event case being dispatched.
      * @param object $payload Typed event payload object passed to each listener.
      */
     public function dispatch(BuildEvent $event, object $payload): void
@@ -61,7 +63,7 @@ final class EventDispatcher
      *
      * Primarily useful for testing and diagnostics.
      *
-     * @param \Glaze\Build\Event\BuildEvent $event Build event case to query.
+     * @param \Glaze\Build\Enum\BuildEvent $event Build event case to query.
      */
     public function listenerCount(BuildEvent $event): int
     {

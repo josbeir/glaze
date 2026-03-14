@@ -5,7 +5,7 @@ namespace Glaze\Tests\Unit\Build;
 
 use Glaze\Build\BuildManifest;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Content\ContentPage;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;

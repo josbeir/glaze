@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Template\Extension;
 
-use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\BuildStartedEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Config\BuildConfig;
@@ -360,7 +360,7 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/hybrid.php',
             sprintf(
                 "<?php\n"
-                . "use Glaze\Build\Event\BuildEvent;\n"
+                . "use Glaze\Build\Enum\BuildEvent;\n"
                 . "use Glaze\Build\Event\BuildStartedEvent;\n"
                 . "use Glaze\Template\Extension\GlazeExtension;\n"
                 . "use Glaze\Template\Extension\ListensTo;\n"
@@ -457,7 +457,7 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/recorder.php',
             sprintf(
                 "<?php\n"
-                . "use Glaze\Build\Event\BuildEvent;\n"
+                . "use Glaze\Build\Enum\BuildEvent;\n"
                 . "use Glaze\Build\Event\BuildStartedEvent;\n"
                 . "use Glaze\Template\Extension\GlazeExtension;\n"
                 . "use Glaze\Template\Extension\ListensTo;\n"
@@ -551,7 +551,7 @@ final class ExtensionLoaderTest extends TestCase
             $extDir . '/subscriber.php',
             sprintf(
                 "<?php\n"
-                . "use Glaze\Build\Event\BuildEvent;\n"
+                . "use Glaze\Build\Enum\BuildEvent;\n"
                 . "use Glaze\Build\Event\\%s;\n"
                 . "use Glaze\Template\Extension\GlazeExtension;\n"
                 . "use Glaze\Template\Extension\ListensTo;\n"

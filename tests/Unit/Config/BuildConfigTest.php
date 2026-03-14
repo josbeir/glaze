@@ -5,8 +5,8 @@ namespace Glaze\Tests\Unit\Config;
 
 use Cake\Core\Configure;
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
 use Glaze\Config\DjotOptions;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Config\NeonConfigEngine;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Config\SiteConfig;

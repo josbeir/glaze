@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Support;
 
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Utility\Hash;
