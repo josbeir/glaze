@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Render;
 
 use Djot\DjotConverter;
-use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\DjotConverterCreatedEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Config\BuildConfig;

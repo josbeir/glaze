@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Http\Middleware;
 
 use Glaze\Config\BuildConfig;
-use Glaze\Config\CachePath;
+use Glaze\Config\Enum\CachePath;
 use Glaze\Http\AssetResponder;
 use Glaze\Image\ImageTransformerInterface;
 use Psr\Http\Message\ResponseInterface;

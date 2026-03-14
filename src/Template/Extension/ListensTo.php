@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Template\Extension;
 
 use Attribute;
-use Glaze\Build\Event\BuildEvent;
+use Glaze\Build\Enum\BuildEvent;
 
 /**
  * Marks a public method as a build-event listener.
@@ -54,7 +54,7 @@ final class ListensTo
     /**
      * Constructor.
      *
-     * @param \Glaze\Build\Event\BuildEvent $event Build event case to subscribe to.
+     * @param \Glaze\Build\Enum\BuildEvent $event Build event case to subscribe to.
      */
     public function __construct(
         public readonly BuildEvent $event,

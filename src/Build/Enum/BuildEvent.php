@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Build\Event;
+namespace Glaze\Build\Enum;
 
 /**
  * Enumeration of all build pipeline event points.

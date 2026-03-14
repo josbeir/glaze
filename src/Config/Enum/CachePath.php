@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Glaze\Config;
+namespace Glaze\Config\Enum;
 
 /**
  * Named cache subpaths used by build and runtime services.
