@@ -84,9 +84,9 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
-     * Ensure live environment payload reflects includeDrafts state.
+     * Ensure router environment payload reflects includeDrafts and staticMode state.
      */
-    public function testBuildLiveEnvironmentContainsExpectedValues(): void
+    public function testBuildRouterEnvironmentContainsExpectedValues(): void
     {
         $command = $this->createCommand();
         $viteEnabled = [
@@ -102,23 +102,25 @@ final class ServeCommandTest extends TestCase
             'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
         ];
 
-        $enabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true, $viteDisabled);
-        $disabled = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', false, $viteDisabled);
-        $enabledWithVite = $this->callProtected($command, 'buildLiveEnvironment', '/tmp/project', true, $viteEnabled);
+        $live = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteDisabled, false);
+        $static = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', false, $viteDisabled, true);
+        $liveWithVite = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteEnabled, false);
 
-        $this->assertIsArray($enabled);
-        $this->assertIsArray($disabled);
-        $this->assertIsArray($enabledWithVite);
-        /** @var array<string, string> $enabled */
-        /** @var array<string, string> $disabled */
-        /** @var array<string, string> $enabledWithVite */
-        $this->assertSame('/tmp/project', $enabled['GLAZE_PROJECT_ROOT']);
-        $this->assertSame('1', $enabled['GLAZE_INCLUDE_DRAFTS']);
-        $this->assertSame('0', $disabled['GLAZE_INCLUDE_DRAFTS']);
-        $this->assertSame('0', $disabled['GLAZE_VITE_ENABLED']);
-        $this->assertSame('', $disabled['GLAZE_VITE_URL']);
-        $this->assertSame('1', $enabledWithVite['GLAZE_VITE_ENABLED']);
-        $this->assertSame('http://127.0.0.1:5173', $enabledWithVite['GLAZE_VITE_URL']);
+        $this->assertIsArray($live);
+        $this->assertIsArray($static);
+        $this->assertIsArray($liveWithVite);
+        /** @var array<string, string> $live */
+        /** @var array<string, string> $static */
+        /** @var array<string, string> $liveWithVite */
+        $this->assertSame('/tmp/project', $live['GLAZE_PROJECT_ROOT']);
+        $this->assertSame('0', $live['GLAZE_STATIC_MODE']);
+        $this->assertSame('1', $live['GLAZE_INCLUDE_DRAFTS']);
+        $this->assertSame('1', $static['GLAZE_STATIC_MODE']);
+        $this->assertSame('0', $static['GLAZE_INCLUDE_DRAFTS']);
+        $this->assertSame('0', $live['GLAZE_VITE_ENABLED']);
+        $this->assertSame('', $live['GLAZE_VITE_URL']);
+        $this->assertSame('1', $liveWithVite['GLAZE_VITE_ENABLED']);
+        $this->assertSame('http://127.0.0.1:5173', $liveWithVite['GLAZE_VITE_URL']);
     }
 
     /**
@@ -176,6 +178,34 @@ final class ServeCommandTest extends TestCase
     }
 
     /**
+     * Ensure Vite is silently disabled when static mode is active, even if enabled in config.
+     */
+    public function testResolveViteConfigurationDisabledInStaticMode(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        file_put_contents(
+            $projectRoot . '/glaze.neon',
+            "devServer:\n  vite:\n    enabled: true\n    host: 0.0.0.0\n    port: 5175\n",
+        );
+
+        (new ProjectConfigurationReader())->read($projectRoot);
+
+        $command = $this->createCommand();
+
+        $args = new Arguments([], [
+            'vite' => false,
+            'vite-host' => null,
+            'vite-port' => null,
+            'vite-command' => null,
+        ], []);
+
+        $resolved = $this->callProtected($command, 'resolveViteConfiguration', $args, true);
+
+        $this->assertIsArray($resolved);
+        $this->assertFalse($resolved['enabled']);
+    }
+
+    /**
      * Ensure PHP server configuration can be loaded from glaze.neon and overridden by CLI options.
      */
     public function testResolvePhpServerConfigurationFromConfigAndCliOverrides(): void
@@ -200,8 +230,6 @@ final class ServeCommandTest extends TestCase
             'resolvePhpServerConfiguration',
             $argsFromConfig,
             $projectRoot,
-            $projectRoot,
-            false,
         );
 
         $this->assertIsArray($resolvedFromConfig);
@@ -218,8 +246,6 @@ final class ServeCommandTest extends TestCase
             'resolvePhpServerConfiguration',
             $argsFromCli,
             $projectRoot,
-            $projectRoot,
-            false,
         );
 
         $this->assertIsArray($resolvedFromCli);
@@ -271,8 +297,6 @@ final class ServeCommandTest extends TestCase
             'resolvePhpServerConfiguration',
             $args,
             $projectRoot,
-            $projectRoot,
-            false,
         );
     }
 

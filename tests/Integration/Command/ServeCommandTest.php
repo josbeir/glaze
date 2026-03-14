@@ -71,7 +71,7 @@ final class ServeCommandTest extends IntegrationCommandTestCase
     }
 
     /**
-     * Ensure Vite integration is rejected when static mode is enabled.
+     * Ensure Vite integration is rejected when --vite is explicitly passed with --static.
      */
     public function testServeCommandViteRequiresLiveMode(): void
     {
@@ -138,7 +138,7 @@ final class ServeCommandTest extends IntegrationCommandTestCase
         $this->exec(sprintf('serve --root "%s"', $projectRoot));
 
         $this->assertExitCode(1);
-        $this->assertErrorContains('Live router script not found');
+        $this->assertErrorContains('Router script not found');
     }
 
     /**

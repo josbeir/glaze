@@ -128,16 +128,15 @@ final class ServeCommand extends BaseCommand
 
         $isStaticMode = (bool)$args->getOption('static');
         $includeDrafts = !$isStaticMode || (bool)$args->getOption('drafts');
-        $viteConfiguration = $this->resolveViteConfiguration($args);
-        /** @var array{enabled: bool, host: string, port: int, command: string} $viteConfiguration */
 
-        if ($viteConfiguration['enabled'] && $isStaticMode) {
+        if ((bool)$args->getOption('vite') && $isStaticMode) {
             $io->err('<error>--vite can only be used in live mode (without --static).</error>');
 
             return self::CODE_ERROR;
         }
 
-        $docRoot = $isStaticMode ? $projectRoot . DIRECTORY_SEPARATOR . 'public' : $projectRoot;
+        $viteConfiguration = $this->resolveViteConfiguration($args, $isStaticMode);
+        /** @var array{enabled: bool, host: string, port: int, command: string} $viteConfiguration */
 
         if ((bool)$args->getOption('build')) {
             if (!$isStaticMode) {
@@ -158,8 +157,9 @@ final class ServeCommand extends BaseCommand
             }
         }
 
-        if (!is_dir($docRoot)) {
-            $io->err(sprintf('<error>Public directory not found: %s</error>', $docRoot));
+        $staticPublicDir = $projectRoot . DIRECTORY_SEPARATOR . 'public';
+        if ($isStaticMode && !is_dir($staticPublicDir)) {
+            $io->err(sprintf('<error>Public directory not found: %s</error>', $staticPublicDir));
 
             return self::CODE_ERROR;
         }
@@ -168,11 +168,9 @@ final class ServeCommand extends BaseCommand
             $phpServerConfiguration = $this->resolvePhpServerConfiguration(
                 $args,
                 $projectRoot,
-                $docRoot,
-                $isStaticMode,
                 $verbose,
             );
-            /** @var array{host: string, port: int, docRoot: string, projectRoot: string, staticMode: bool, streamOutput: bool} $phpServerConfiguration */
+            /** @var array{host: string, port: int, docRoot: string, projectRoot: string, streamOutput: bool} $phpServerConfiguration */
             $this->phpServerProcess->assertCanRun($phpServerConfiguration);
         } catch (InvalidArgumentException $invalidArgumentException) {
             $io->err(sprintf('<error>%s</error>', $invalidArgumentException->getMessage()));
@@ -183,7 +181,7 @@ final class ServeCommand extends BaseCommand
         $address = $this->phpServerProcess->address($phpServerConfiguration);
         if ($verbose) {
             if ($isStaticMode) {
-                $io->out(sprintf('Serving static output from %s at http://%s', $docRoot, $address));
+                $io->out(sprintf('Serving static output from %s at http://%s', $staticPublicDir, $address));
             } else {
                 $io->out(sprintf('Serving live templates/content from %s at http://%s', $projectRoot, $address));
             }
@@ -197,12 +195,9 @@ final class ServeCommand extends BaseCommand
             $io->out(sprintf('<info>Glaze development server:</info> http://%s', $address));
         }
 
-        $previousEnvironment = [];
-        if (!$isStaticMode) {
-            $previousEnvironment = $this->applyEnvironment(
-                $this->buildLiveEnvironment($projectRoot, $includeDrafts, $viteConfiguration),
-            );
-        }
+        $previousEnvironment = $this->applyEnvironment(
+            $this->buildRouterEnvironment($projectRoot, $includeDrafts, $viteConfiguration, $isStaticMode),
+        );
 
         $viteProcess = null;
         if (!$isStaticMode && $viteConfiguration['enabled']) {
@@ -239,30 +234,33 @@ final class ServeCommand extends BaseCommand
             );
         } finally {
             $this->viteServeProcess->stop($viteProcess);
-
-            if (!$isStaticMode) {
-                $this->restoreEnvironment($previousEnvironment);
-            }
+            $this->restoreEnvironment($previousEnvironment);
         }
 
         return $exitCode;
     }
 
     /**
-     * Build environment variables for live router execution.
+     * Build environment variables for the router process.
+     *
+     * Sets all variables the dev-router reads at boot time. GLAZE_STATIC_MODE
+     * tells the router to use StaticPageRequestHandler instead of live rendering.
      *
      * @param string $projectRoot Project root directory.
      * @param bool $includeDrafts Whether draft pages should be included.
      * @param array{enabled: bool, host: string, port: int, command: string} $viteConfiguration Vite runtime configuration.
+     * @param bool $isStaticMode Whether static serving mode is active.
      * @return array<string, string>
      */
-    protected function buildLiveEnvironment(
+    protected function buildRouterEnvironment(
         string $projectRoot,
         bool $includeDrafts,
         array $viteConfiguration,
+        bool $isStaticMode,
     ): array {
         return [
             'GLAZE_PROJECT_ROOT' => $projectRoot,
+            'GLAZE_STATIC_MODE' => $isStaticMode ? '1' : '0',
             'GLAZE_INCLUDE_DRAFTS' => $includeDrafts ? '1' : '0',
             'GLAZE_VITE_ENABLED' => $viteConfiguration['enabled'] ? '1' : '0',
             'GLAZE_VITE_URL' => $viteConfiguration['enabled'] ? $this->viteServeProcess->url($viteConfiguration) : '',
@@ -274,19 +272,21 @@ final class ServeCommand extends BaseCommand
      *
      * Reads devServer.vite values from Configure (populated by the
      * ProjectConfigurationReader call in execute()) and merges with
-     * any CLI overrides.
+     * any CLI overrides. When $isStaticMode is true, vite is always disabled
+     * regardless of configuration, since static serving does not use Vite.
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
+     * @param bool $isStaticMode Whether static mode is active.
      * @return array{enabled: bool, host: string, port: int, command: string}
      */
-    protected function resolveViteConfiguration(Arguments $args): array
+    protected function resolveViteConfiguration(Arguments $args, bool $isStaticMode = false): array
     {
         $viteConfig = Configure::read('devServer.vite');
         if (!is_array($viteConfig)) {
             $viteConfig = [];
         }
 
-        $enabledFromConfig = is_bool($viteConfig['enabled'] ?? null) && $viteConfig['enabled'];
+        $enabledFromConfig = !$isStaticMode && is_bool($viteConfig['enabled'] ?? null) && $viteConfig['enabled'];
         $enabled = (bool)$args->getOption('vite') || $enabledFromConfig;
 
         $host = Normalization::optionalString($args->getOption('vite-host'))
@@ -319,17 +319,13 @@ final class ServeCommand extends BaseCommand
      * Resolve PHP server runtime configuration from Configure state and CLI options.
      *
      * @param \Cake\Console\Arguments $args Parsed CLI arguments.
-     * @param string $projectRoot Project root directory.
-     * @param string $docRoot PHP server document root.
-     * @param bool $isStaticMode Whether static mode is enabled.
+     * @param string $projectRoot Project root directory (used as both docRoot and projectRoot).
      * @param bool $streamOutput Whether process output should be streamed.
-     * @return array{host: string, port: int, docRoot: string, projectRoot: string, staticMode: bool, streamOutput: bool}
+     * @return array{host: string, port: int, docRoot: string, projectRoot: string, streamOutput: bool}
      */
     protected function resolvePhpServerConfiguration(
         Arguments $args,
         string $projectRoot,
-        string $docRoot,
-        bool $isStaticMode,
         bool $streamOutput = false,
     ): array {
         $phpConfig = Configure::read('devServer.php');
@@ -354,9 +350,8 @@ final class ServeCommand extends BaseCommand
         return [
             'host' => $host,
             'port' => $port,
-            'docRoot' => $docRoot,
+            'docRoot' => $projectRoot,
             'projectRoot' => $projectRoot,
-            'staticMode' => $isStaticMode,
             'streamOutput' => $streamOutput,
         ];
     }

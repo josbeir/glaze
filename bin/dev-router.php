@@ -13,6 +13,7 @@ use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\ErrorHandlingMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
 use Glaze\Http\Middleware\StaticAssetMiddleware;
+use Glaze\Http\StaticPageRequestHandler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -28,6 +29,7 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 }
 
 $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
+$staticMode = getenv('GLAZE_STATIC_MODE') === '1';
 
 $application = new Application();
 $application->bootstrap();
@@ -45,8 +47,14 @@ $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
 $staticAssetMiddleware = $container->get(StaticAssetMiddleware::class);
 /** @var \Glaze\Http\Middleware\ContentAssetMiddleware $contentAssetMiddleware */
 $contentAssetMiddleware = $container->get(ContentAssetMiddleware::class);
-/** @var \Glaze\Http\DevPageRequestHandler $devPageRequestHandler */
-$devPageRequestHandler = $container->get(DevPageRequestHandler::class);
+
+if ($staticMode) {
+    /** @var \Glaze\Http\StaticPageRequestHandler $fallbackHandler */
+    $fallbackHandler = $container->get(StaticPageRequestHandler::class);
+} else {
+    /** @var \Glaze\Http\DevPageRequestHandler $fallbackHandler */
+    $fallbackHandler = $container->get(DevPageRequestHandler::class);
+}
 
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
 if (!is_string($requestMethod) || $requestMethod === '') {
@@ -74,7 +82,7 @@ $queue->add($publicAssetMiddleware);
 $queue->add($staticAssetMiddleware);
 $queue->add($contentAssetMiddleware);
 
-$response = (new Runner())->run($queue, $request, $devPageRequestHandler);
+$response = (new Runner())->run($queue, $request, $fallbackHandler);
 
 (new ResponseEmitter())->emit($response);
 

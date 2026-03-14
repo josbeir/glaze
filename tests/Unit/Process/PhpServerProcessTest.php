@@ -20,7 +20,7 @@ final class PhpServerProcessTest extends TestCase
     /**
      * Ensure live server command is shell-agnostic and does not rely on inline env assignments.
      */
-    public function testBuildCommandForLiveModeUsesRouterWithoutInlineEnvironmentAssignments(): void
+    public function testBuildCommandUsesRouterWithoutInlineEnvironmentAssignments(): void
     {
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/bin', 0755, true);
@@ -32,7 +32,6 @@ final class PhpServerProcessTest extends TestCase
             'port' => 8080,
             'docRoot' => $projectRoot,
             'projectRoot' => $projectRoot,
-            'staticMode' => false,
         ];
 
         $builtCommand = $this->callProtected($process, 'buildCommand', $config);
@@ -45,35 +44,12 @@ final class PhpServerProcessTest extends TestCase
     }
 
     /**
-     * Ensure static mode command generation does not require router script.
+     * Ensure the router is required and throws when not found.
      */
-    public function testBuildCommandForStaticModeUsesDocumentRootOnly(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-
-        $process = new PhpServerProcess();
-        $config = [
-            'host' => '127.0.0.1',
-            'port' => 8080,
-            'docRoot' => $projectRoot,
-            'projectRoot' => $projectRoot,
-            'staticMode' => true,
-        ];
-
-        $builtCommand = $this->callProtected($process, 'buildCommand', $config);
-
-        $this->assertIsString($builtCommand);
-        $this->assertStringStartsWith('php -S ', $builtCommand);
-        $this->assertStringNotContainsString('dev-router.php', $builtCommand);
-    }
-
-    /**
-     * Ensure live mode fails when router file is missing.
-     */
-    public function testBuildCommandThrowsWhenLiveRouterIsMissing(): void
+    public function testBuildCommandThrowsWhenRouterIsMissing(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Live router script not found');
+        $this->expectExceptionMessage('Router script not found');
 
         $projectRoot = $this->createTempDirectory();
         $process = new PhpServerProcess();
@@ -82,7 +58,6 @@ final class PhpServerProcessTest extends TestCase
             'port' => 8080,
             'docRoot' => $projectRoot,
             'projectRoot' => $projectRoot,
-            'staticMode' => false,
         ];
 
         $this->callProtected($process, 'buildCommand', $config);
@@ -110,7 +85,6 @@ final class PhpServerProcessTest extends TestCase
                 'port' => 8080,
                 'docRoot' => $projectRoot,
                 'projectRoot' => $projectRoot,
-                'staticMode' => false,
             ];
 
             $builtCommand = $this->callProtected($process, 'buildCommand', $config);
@@ -148,6 +122,8 @@ final class PhpServerProcessTest extends TestCase
     public function testStartInvokesCustomOutputCallbackForStreamOutput(): void
     {
         $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . DIRECTORY_SEPARATOR . 'bin', 0755, true);
+        file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php', '<?php // stub router');
         $process = new PhpServerProcess();
 
         $config = [
@@ -155,7 +131,6 @@ final class PhpServerProcessTest extends TestCase
             'port' => 8099,
             'docRoot' => $projectRoot,
             'projectRoot' => $projectRoot,
-            'staticMode' => true,
             'streamOutput' => true,
         ];
 
@@ -197,6 +172,7 @@ final class PhpServerProcessTest extends TestCase
             putenv('GLAZE_VITE_ENABLED=1');
             putenv('GLAZE_VITE_URL=http://127.0.0.1:5174');
             putenv('GLAZE_CLI_ROOT=/tmp/glaze-cli');
+            putenv('GLAZE_STATIC_MODE=1');
 
             $environment = $this->callProtected($process, 'forwardedEnvironmentVariables');
         } finally {
@@ -205,6 +181,7 @@ final class PhpServerProcessTest extends TestCase
             $this->restoreVariable('GLAZE_VITE_ENABLED', $originalViteEnabled);
             $this->restoreVariable('GLAZE_VITE_URL', $originalViteUrl);
             $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
+            putenv('GLAZE_STATIC_MODE');
         }
 
         $this->assertIsArray($environment);
@@ -213,6 +190,7 @@ final class PhpServerProcessTest extends TestCase
         $this->assertSame('1', $environment['GLAZE_VITE_ENABLED'] ?? null);
         $this->assertSame('http://127.0.0.1:5174', $environment['GLAZE_VITE_URL'] ?? null);
         $this->assertSame('/tmp/glaze-cli', $environment['GLAZE_CLI_ROOT'] ?? null);
+        $this->assertSame('1', $environment['GLAZE_STATIC_MODE'] ?? null);
     }
 
     /**
@@ -233,7 +211,6 @@ final class PhpServerProcessTest extends TestCase
                 'port' => 8080,
                 'docRoot' => $projectRoot,
                 'projectRoot' => $projectRoot,
-                'staticMode' => false,
             ];
 
             $builtCommand = $this->callProtected($process, 'buildCommand', $config);
