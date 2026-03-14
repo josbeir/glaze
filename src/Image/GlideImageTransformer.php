@@ -133,25 +133,18 @@ final class GlideImageTransformer implements ImageTransformerInterface
      * path, making stale cache invalidation automatic — no file deletion or
      * mtime stamping required.
      *
-     * The callable is bound to the Glide Server instance by Glide itself,
-     * giving access to getSourcePath() and getAllParams() for consistent
-     * path resolution and parameter filtering.
-     *
      * @param int $sourceMtime Source file modification timestamp.
      */
     protected function createVersionedCachePathCallable(int $sourceMtime): Closure
     {
-        // This closure is rebound by Glide to the Server instance at runtime
-        // via Closure::bind($callable, $this, static::class), so $this refers
-        // to the League\Glide\Server within the callable body.
+        // Glide rebinds this closure via Closure::bind(), so it must not be static.
         return function (string $path, array $params) use ($sourceMtime): string {
-            /** @var \League\Glide\Server $this */ // @phpstan-ignore varTag.nativeType
-            $sourcePath = $this->getSourcePath($path);
-            $filteredParams = $this->getAllParams($params); // @phpstan-ignore argument.type
-            unset($filteredParams['s'], $filteredParams['p']);
-            ksort($filteredParams);
+            $sourcePath = trim($path, '/');
 
-            $hashInput = $sourcePath . '?' . http_build_query($filteredParams)
+            unset($params['s'], $params['p']);
+            ksort($params);
+
+            $hashInput = $sourcePath . '?' . http_build_query($params)
                 . '#' . $sourceMtime;
 
             return $sourcePath . '/' . hash('xxh3', $hashInput);
@@ -164,7 +157,7 @@ final class GlideImageTransformer implements ImageTransformerInterface
      * @param string $rootPath Source image root path.
      * @param string $cachePath Absolute cache directory path.
      * @param array<string, string> $options Optional Glide server options.
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function buildServerConfiguration(string $rootPath, string $cachePath, array $options): array
     {

@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Http;
 
-use Cake\Http\MiddlewareQueue;
 use Cake\Http\Response;
-use Cake\Http\Runner;
 use Cake\Http\ServerRequestFactory;
 use Closure;
 use Glaze\Config\BuildConfig;
@@ -241,8 +239,30 @@ final class AssetMiddlewareTest extends TestCase
     }
 
     /**
-     * Ensure Glide-aware middleware helper methods normalize expected values.
+     * Ensure public asset middleware correctly skips URL-encoded source paths.
+     *
+     * Requests with percent-encoded characters (e.g. spaces) must still be
+     * matched against source directories after decoding, preventing stale
+     * public/ copies from being served when the source file exists.
      */
+    public function testPublicAssetMiddlewareSkipsUrlEncodedSourceFilePaths(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public/my images', 0755, true);
+        mkdir($projectRoot . '/content/my images', 0755, true);
+        file_put_contents($projectRoot . '/public/my images/photo.jpg', 'stale-bytes');
+        file_put_contents($projectRoot . '/content/my images/photo.jpg', 'fresh-bytes');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/my%20images/photo.jpg');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('fallback', (string)$response->getBody());
+    }
+
     public function testGlideAssetMiddlewareHelperMethods(): void
     {
         $projectRoot = $this->createTempDirectory();

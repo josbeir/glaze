@@ -238,16 +238,28 @@ final class GlideImageTransformerTest extends TestCase
 
     /**
      * Ensure versioned cache path callable produces different hashes for different mtimes.
+     *
+     * Both callables receive the same path and params. The only variable is the
+     * captured $sourceMtime, so the resulting cache paths must differ.
      */
     public function testVersionedCachePathCallableProducesDifferentHashesForDifferentMtimes(): void
     {
         $transformer = $this->createTransformer();
 
+        /** @var Closure(string, array<string, mixed>): string $callable1 */
         $callable1 = $this->callProtected($transformer, 'createVersionedCachePathCallable', 1000);
+        /** @var Closure(string, array<string, mixed>): string $callable2 */
         $callable2 = $this->callProtected($transformer, 'createVersionedCachePathCallable', 2000);
 
         $this->assertInstanceOf(Closure::class, $callable1);
         $this->assertInstanceOf(Closure::class, $callable2);
+
+        $path1 = $callable1('images/test.jpg', ['w' => '100', 'h' => '100']);
+        $path2 = $callable2('images/test.jpg', ['w' => '100', 'h' => '100']);
+
+        $this->assertNotSame($path1, $path2, 'Cache paths must differ when source mtime differs.');
+        $this->assertStringStartsWith('images/test.jpg/', $path1);
+        $this->assertStringStartsWith('images/test.jpg/', $path2);
     }
 
     /**

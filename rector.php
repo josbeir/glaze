@@ -17,6 +17,10 @@ return RectorConfig::configure()
 	)
     ->withSkip([
         SimplifyIfElseToTernaryRector::class,
+        // Glide rebinds the closure via Closure::bind(), so it must not be static.
+        StaticClosureRector::class => [
+            __DIR__ . '/src/Image/GlideImageTransformer.php',
+        ],
     ])
     ->withImportNames(
         importDocBlockNames: false,
