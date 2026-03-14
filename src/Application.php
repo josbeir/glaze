@@ -18,6 +18,9 @@ use Glaze\Command\RoutesCommand;
 use Glaze\Command\ServeCommand;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\NeonConfigEngine;
+use Glaze\Http\Middleware\ControllerMiddleware;
+use Glaze\Http\Routing\ControllerRouter;
+use Glaze\Http\Routing\ControllerViewRenderer;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Image\ImageTransformerInterface;
@@ -96,6 +99,20 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
                 $scaffoldsDirectory = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'scaffolds';
 
                 return new ScaffoldRegistry($scaffoldsDirectory, new ScaffoldSchemaLoader());
+            },
+        );
+
+        $container->addShared(
+            ControllerMiddleware::class,
+            static function () use ($container): ControllerMiddleware {
+                /** @var \Glaze\Http\Routing\ControllerRouter $router */
+                $router = $container->get(ControllerRouter::class);
+                /** @var \Glaze\Http\Routing\ControllerViewRenderer $viewRenderer */
+                $viewRenderer = $container->get(ControllerViewRenderer::class);
+                /** @var \Glaze\Config\BuildConfig $config */
+                $config = $container->get(BuildConfig::class);
+
+                return new ControllerMiddleware($router, $viewRenderer, $container, $config);
             },
         );
     }

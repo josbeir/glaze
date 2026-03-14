@@ -10,6 +10,8 @@ use Glaze\Application;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
+use Glaze\Http\Middleware\ControllerMiddleware;
+use Glaze\Http\Middleware\CoreAssetMiddleware;
 use Glaze\Http\Middleware\ErrorHandlingMiddleware;
 use Glaze\Http\Middleware\PublicAssetMiddleware;
 use Glaze\Http\Middleware\StaticAssetMiddleware;
@@ -81,6 +83,15 @@ $queue->add(new ErrorHandlingMiddleware(true));
 $queue->add($publicAssetMiddleware);
 $queue->add($staticAssetMiddleware);
 $queue->add($contentAssetMiddleware);
+
+if (!$staticMode) {
+    /** @var \Glaze\Http\Middleware\CoreAssetMiddleware $coreAssetMiddleware */
+    $coreAssetMiddleware = $container->get(CoreAssetMiddleware::class);
+    /** @var \Glaze\Http\Middleware\ControllerMiddleware $controllerMiddleware */
+    $controllerMiddleware = $container->get(ControllerMiddleware::class);
+    $queue->add($coreAssetMiddleware);
+    $queue->add($controllerMiddleware);
+}
 
 $response = (new Runner())->run($queue, $request, $fallbackHandler);
 
