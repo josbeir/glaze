@@ -283,7 +283,12 @@ final class AssetMiddlewareTest extends TestCase
 
         // Create initial black source image with a past mtime
         $image = imagecreatetruecolor(4, 4);
-        imagefill($image, 0, 0, imagecolorallocate($image, 0, 0, 0));
+        $black = imagecolorallocate($image, 0, 0, 0);
+        if ($black === false) {
+            self::fail('Unable to allocate test image color.');
+        }
+
+        imagefill($image, 0, 0, $black);
         imagejpeg($image, $projectRoot . '/content/images/photo.jpg', 100);
         touch($projectRoot . '/content/images/photo.jpg', time() - 120);
 
@@ -305,7 +310,12 @@ final class AssetMiddlewareTest extends TestCase
 
         // Replace source with a white image (natural overwrite, no touch)
         $image = imagecreatetruecolor(4, 4);
-        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        $white = imagecolorallocate($image, 255, 255, 255);
+        if ($white === false) {
+            self::fail('Unable to allocate test image color.');
+        }
+
+        imagefill($image, 0, 0, $white);
         imagejpeg($image, $projectRoot . '/content/images/photo.jpg', 100);
         clearstatcache(true);
 
