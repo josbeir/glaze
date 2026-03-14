@@ -37,6 +37,7 @@ final class ControllerMiddlewareTest extends TestCase
             $router,
             $this->makeViewRenderer($config),
             $this->container(),
+            $config,
             $this->createTempDirectory(),
         );
 
@@ -78,6 +79,7 @@ final class ControllerMiddlewareTest extends TestCase
             $router,
             $this->makeViewRenderer($config),
             $this->container(),
+            $config,
             $controllersDir,
         );
 
@@ -117,6 +119,7 @@ final class ControllerMiddlewareTest extends TestCase
             $router,
             $this->makeViewRenderer($config),
             $this->container(),
+            $config,
             $controllersDir,
         );
 
@@ -157,6 +160,7 @@ final class ControllerMiddlewareTest extends TestCase
             $router,
             $this->makeViewRenderer($config),
             $this->container(),
+            $config,
             $controllersDir,
         );
 
@@ -199,6 +203,7 @@ final class ControllerMiddlewareTest extends TestCase
             $router,
             $this->makeViewRenderer($config),
             $this->container(),
+            $config,
             $controllersDir,
         );
 

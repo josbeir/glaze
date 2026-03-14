@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Glaze\Http\Middleware;
 
 use Cake\Core\ContainerInterface;
+use Glaze\Config\BuildConfig;
+use Glaze\Http\Concern\BasePathAwareTrait;
 use Glaze\Http\Routing\ControllerRouter;
 use Glaze\Http\Routing\ControllerViewRenderer;
 use Glaze\Http\Routing\MatchedRoute;
@@ -39,6 +41,8 @@ use RuntimeException;
  */
 final class ControllerMiddleware implements MiddlewareInterface
 {
+    use BasePathAwareTrait;
+
     /**
      * Whether controller discovery has run for this request cycle.
      */
@@ -50,6 +54,7 @@ final class ControllerMiddleware implements MiddlewareInterface
      * @param \Glaze\Http\Routing\ControllerRouter $router Controller router.
      * @param \Glaze\Http\Routing\ControllerViewRenderer $viewRenderer View renderer for array returns.
      * @param \Cake\Core\ContainerInterface $container DI container for controller and service resolution.
+     * @param \Glaze\Config\BuildConfig $config Build configuration (provides site basePath).
      * @param string $controllersDirectory Absolute path to the controllers directory to scan. Defaults to
      *   the package's own src/Http/Controller/ when empty.
      */
@@ -57,6 +62,7 @@ final class ControllerMiddleware implements MiddlewareInterface
         protected ControllerRouter $router,
         protected ControllerViewRenderer $viewRenderer,
         protected ContainerInterface $container,
+        protected BuildConfig $config,
         private string $controllersDirectory = '',
     ) {
     }
@@ -67,6 +73,10 @@ final class ControllerMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $this->discoverOnce();
+
+        $request = $request->withUri(
+            $request->getUri()->withPath($this->stripBasePathFromRequestPath($request->getUri()->getPath())),
+        );
 
         $match = $this->router->match($request);
         if (!$match instanceof MatchedRoute) {

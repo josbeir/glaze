@@ -28,52 +28,41 @@
                 <span class="glaze-badge"><?= count($pages) ?> pages</span>
             </div>
 
-            <?php if (count($pages) === 0): ?>
-                <p class="glaze-empty">No content pages discovered.</p>
-            <?php else: ?>
-                <div class="glaze-table-wrap">
-                    <table class="glaze-table">
-                        <thead>
-                            <tr>
-                                <th>URL Path</th>
-                                <th>Title</th>
-                                <th>Type</th>
-                                <th>Flags</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($pages as $page): ?>
-                                <tr>
-                                    <td>
-                                        <a href="<?= htmlspecialchars($page->urlPath, ENT_QUOTES, 'UTF-8') ?>" class="glaze-link">
-                                            <?= htmlspecialchars($page->urlPath, ENT_QUOTES, 'UTF-8') ?>
-                                        </a>
-                                    </td>
-                                    <td><?= htmlspecialchars($page->title, ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td>
-                                        <?php if ($page->type !== null): ?>
-                                            <span class="glaze-tag"><?= htmlspecialchars($page->type, ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php else: ?>
-                                            <span class="glaze-muted">default</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="glaze-flags">
-                                        <?php if ($page->draft): ?>
-                                            <span class="glaze-tag glaze-tag-warn">draft</span>
-                                        <?php endif; ?>
-                                        <?php if ($page->unlisted): ?>
-                                            <span class="glaze-tag glaze-tag-info">unlisted</span>
-                                        <?php endif; ?>
-                                        <?php if ($page->virtual): ?>
-                                            <span class="glaze-tag glaze-tag-info">virtual</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+            <p class="glaze-empty" s:empty="$pages">No content pages discovered.</p>
+
+            <div class="glaze-table-wrap" s:notempty="$pages">
+                <table class="glaze-table">
+                    <thead>
+                        <tr>
+                            <th>URL Path</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Flags</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr s:foreach="$pages as $page">
+                            <td>
+                                <a href="<?= $page->urlPath ?>" class="glaze-link">
+                                    <?= $page->urlPath ?>
+                                </a>
+                            </td>
+                            <td><?= $page->title ?></td>
+                            <td>
+                                <span class="glaze-tag" s:if="$page->type"><?= $page->type ?></span>
+                                <span class="glaze-muted" s:unless="$page->type">default</span>
+                            </td>
+                            <td>
+                                <div class="glaze-flags">
+                                <span class="glaze-tag glaze-tag-warn" s:if="$page->draft">draft</span>
+                                <span class="glaze-tag glaze-tag-info" s:if="$page->unlisted">unlisted</span>
+                                <span class="glaze-tag glaze-tag-info" s:if="$page->virtual">virtual</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </main>
     </div>
 </body>

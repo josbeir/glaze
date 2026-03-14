@@ -109,8 +109,10 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
                 $router = $container->get(ControllerRouter::class);
                 /** @var \Glaze\Http\Routing\ControllerViewRenderer $viewRenderer */
                 $viewRenderer = $container->get(ControllerViewRenderer::class);
+                /** @var \Glaze\Config\BuildConfig $config */
+                $config = $container->get(BuildConfig::class);
 
-                return new ControllerMiddleware($router, $viewRenderer, $container);
+                return new ControllerMiddleware($router, $viewRenderer, $container, $config);
             },
         );
     }
