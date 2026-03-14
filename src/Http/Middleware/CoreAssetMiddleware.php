@@ -19,10 +19,11 @@ use Psr\Http\Server\RequestHandlerInterface;
  * that glaze's dev-UI (inspector, routes viewer, etc.) works without any
  * project-level configuration.
  *
- * When a project configures a basePath (e.g. `/myapp`), Sugar templates emit
- * asset hrefs prefixed with that basePath (e.g. `/myapp/_glaze/assets/...`).
- * This middleware strips the project basePath before matching so that
- * `/_glaze/assets/` is always resolved correctly regardless of deployment prefix.
+ * Inspector templates emit asset hrefs with the basePath prepended via PHP
+ * (e.g. `<?= $basePath ?>/_glaze/assets/css/dev.css`), so the browser always
+ * requests the full `/{basePath}/_glaze/assets/...` URL. This middleware strips
+ * the configured basePath before matching so both bare and prefixed forms are
+ * resolved correctly:
  *
  * Example:
  *   GET /_glaze/assets/css/dev.css         → {package}/resources/assets/css/dev.css

@@ -90,7 +90,7 @@ final class ControllerMiddleware implements MiddlewareInterface
         $controller = $this->container->get($match->controllerClass);
 
         $reflectionMethod = new ReflectionMethod($controller, $match->actionMethod);
-        $args = $this->resolveArguments($reflectionMethod, $routingRequest, $match->params);
+        $args = $this->resolveArguments($reflectionMethod, $request, $match->params);
 
         $result = $reflectionMethod->invokeArgs($controller, $args);
 

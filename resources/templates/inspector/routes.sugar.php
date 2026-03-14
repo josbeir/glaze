@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Glaze Inspector - Routes</title>
-    <link rel="stylesheet" href="/_glaze/assets/css/dev.css">
+    <link rel="stylesheet" href="<?= $basePath ?>/_glaze/assets/css/dev.css">
 </head>
 <body>
     <div class="glaze-container">
@@ -18,7 +18,7 @@
             <div class="glaze-header-inner">
                 <span class="glaze-logo">⬡ Glaze</span>
                 <nav class="glaze-nav">
-                    <a href="/_glaze/routes" class="glaze-nav-link glaze-nav-active">Routes</a>
+                    <a href="<?= $basePath ?>/_glaze/routes" class="glaze-nav-link glaze-nav-active">Routes</a>
                 </nav>
             </div>
         </header>
@@ -44,13 +44,13 @@
                     <tbody>
                         <tr s:foreach="$pages as $page">
                             <td>
-                                <a href="<?= $basePath . $page->urlPath ?>" class="glaze-link">
-                                    <?= $page->urlPath ?>
+                                <a href="<?= htmlspecialchars($basePath . $page->urlPath, ENT_QUOTES, 'UTF-8') ?>" class="glaze-link">
+                                    <?= htmlspecialchars($page->urlPath, ENT_QUOTES, 'UTF-8') ?>
                                 </a>
                             </td>
-                            <td><?= $page->title ?></td>
+                            <td><?= htmlspecialchars($page->title, ENT_QUOTES, 'UTF-8') ?></td>
                             <td>
-                                <span class="glaze-tag" s:if="$page->type"><?= $page->type ?></span>
+                                <span class="glaze-tag" s:if="$page->type"><?= htmlspecialchars($page->type, ENT_QUOTES, 'UTF-8') ?></span>
                                 <span class="glaze-muted" s:unless="$page->type">default</span>
                             </td>
                             <td>
