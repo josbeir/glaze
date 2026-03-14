@@ -157,6 +157,7 @@ final class BuildGlideHtmlRewriter
         $sourcePath = $this->resourcePathRewriter->stripBasePathFromPath($path, $config->site);
         $resolvedManipulations = $this->presetResolver->resolve($normalizedQueryParams, $config->imagePresets);
         $transformedPath = null;
+        $matchedRoot = null;
         foreach ([$config->contentPath(), $config->staticPath()] as $candidateRoot) {
             $transformedPath = $this->glideImageTransformer->createTransformedPath(
                 rootPath: $candidateRoot,
@@ -167,17 +168,23 @@ final class BuildGlideHtmlRewriter
                 options: $config->imageOptions,
             );
             if (is_string($transformedPath)) {
+                $matchedRoot = $candidateRoot;
                 break;
             }
         }
 
-        if (!is_string($transformedPath)) {
+        if (!is_string($transformedPath) || !is_string($matchedRoot)) {
             return $source;
         }
+
+        $sourceAbsolutePath = $matchedRoot
+            . DIRECTORY_SEPARATOR
+            . ltrim($sourcePath, '/');
 
         return $this->publishBuildGlideAsset(
             transformedPath: $transformedPath,
             sourcePath: $sourcePath,
+            sourceAbsolutePath: $sourceAbsolutePath,
             queryString: $queryString,
             resolvedManipulations: $resolvedManipulations,
             config: $config,
@@ -306,6 +313,7 @@ final class BuildGlideHtmlRewriter
      *
      * @param string $transformedPath Absolute transformed image path.
      * @param string $sourcePath Internal source image path.
+     * @param string $sourceAbsolutePath Absolute source file path for mtime resolution.
      * @param string $queryString Original query string (used for hash computation).
      * @param array<string, string> $resolvedManipulations Fully resolved Glide manipulations including preset expansion.
      * @param \Glaze\Config\BuildConfig $config Build configuration.
@@ -313,6 +321,7 @@ final class BuildGlideHtmlRewriter
     protected function publishBuildGlideAsset(
         string $transformedPath,
         string $sourcePath,
+        string $sourceAbsolutePath,
         string $queryString,
         array $resolvedManipulations,
         BuildConfig $config,
@@ -323,7 +332,9 @@ final class BuildGlideHtmlRewriter
             $extension = $fm;
         }
 
-        $hashedName = Hash::make($sourcePath . '?' . $queryString);
+        $mtime = is_file($sourceAbsolutePath) ? filemtime($sourceAbsolutePath) : false;
+        $versionSuffix = $mtime !== false ? '#' . $mtime : '';
+        $hashedName = Hash::make($sourcePath . '?' . $queryString . $versionSuffix);
         $fileName = $extension === '' ? $hashedName : $hashedName . '.' . $extension;
         $relativePath = '_glide/' . $fileName;
 

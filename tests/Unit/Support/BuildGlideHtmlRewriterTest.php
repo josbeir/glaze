@@ -42,7 +42,8 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash = Hash::make('/images/hero.png?w=100&h=50');
+        $mtime = (string)filemtime($projectRoot . '/content/images/hero.png');
+        $hash = Hash::make('/images/hero.png?w=100&h=50#' . $mtime);
         $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
         $this->assertStringContainsString('/images/plain.png', $rewritten);
         $this->assertStringContainsString('https://example.com/img.png?w=100', $rewritten);
@@ -71,7 +72,8 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash = Hash::make('/images/logo.png?w=80');
+        $mtime = (string)filemtime($projectRoot . '/static/images/logo.png');
+        $hash = Hash::make('/images/logo.png?w=80#' . $mtime);
         $this->assertStringContainsString('/_glide/' . $hash . '.png', $rewritten);
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.png');
     }
@@ -103,9 +105,10 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash100 = Hash::make('/images/hero.png?w=100');
-        $hash200 = Hash::make('/images/hero.png?w=200');
-        $hash300 = Hash::make('/images/hero.png?w=300');
+        $mtime = (string)filemtime($projectRoot . '/content/images/hero.png');
+        $hash100 = Hash::make('/images/hero.png?w=100#' . $mtime);
+        $hash200 = Hash::make('/images/hero.png?w=200#' . $mtime);
+        $hash300 = Hash::make('/images/hero.png?w=300#' . $mtime);
 
         $this->assertStringContainsString('/docs/_glide/' . $hash100 . '.png 1x', $rewritten);
         $this->assertStringContainsString('/docs/_glide/' . $hash200 . '.png 2x', $rewritten);
@@ -137,7 +140,8 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash = Hash::make('/images/hero.png?fm=webp');
+        $mtime = (string)filemtime($projectRoot . '/content/images/hero.png');
+        $hash = Hash::make('/images/hero.png?fm=webp#' . $mtime);
         $this->assertStringContainsString('/_glide/' . $hash . '.webp', $rewritten);
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.webp');
     }
@@ -211,11 +215,14 @@ final class BuildGlideHtmlRewriterTest extends TestCase
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
         $rewriter = $this->createRewriter();
 
+        $sourceAbsolutePath = $projectRoot . '/nonexistent/images/raw';
+
         $publishedPath = $this->callProtected(
             $rewriter,
             'publishBuildGlideAsset',
             $transformedPath,
             '/images/raw',
+            $sourceAbsolutePath,
             'w=100',
             [],
             $config,
@@ -250,9 +257,42 @@ final class BuildGlideHtmlRewriterTest extends TestCase
 
         $rewritten = $rewriter->rewrite($html, $config);
 
-        $hash = Hash::make('/images/hero.png?p=large');
+        $mtime = (string)filemtime($projectRoot . '/content/images/hero.png');
+        $hash = Hash::make('/images/hero.png?p=large#' . $mtime);
         $this->assertStringContainsString('/_glide/' . $hash . '.webp', $rewritten);
         $this->assertFileExists($projectRoot . '/public/_glide/' . $hash . '.webp');
+    }
+
+    /**
+     * Ensure a changed source image produces a different published hash.
+     */
+    public function testRewriteProducesDifferentHashWhenSourceImageChanges(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is required for Glide image transformation tests.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+        mkdir($projectRoot . '/public', 0755, true);
+
+        $this->createPng($projectRoot . '/content/images/hero.png');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $rewriter = $this->createRewriter();
+
+        $html = '<img src="/images/hero.png?w=100">';
+        $firstRewritten = $rewriter->rewrite($html, $config);
+
+        // Simulate source file change by advancing mtime
+        touch($projectRoot . '/content/images/hero.png', time() + 10);
+        clearstatcache(true, $projectRoot . '/content/images/hero.png');
+
+        // Recreate config to avoid any internal state
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $secondRewritten = $rewriter->rewrite($html, $config);
+
+        $this->assertNotSame($firstRewritten, $secondRewritten);
     }
 
     /**

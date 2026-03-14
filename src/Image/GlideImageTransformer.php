@@ -5,12 +5,17 @@ namespace Glaze\Image;
 
 use Cake\Http\MimeType;
 use Cake\Http\Response;
+use Closure;
 use League\Glide\ServerFactory;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 /**
  * Transforms image requests using League Glide and returns PSR responses.
+ *
+ * Source file modification times are included in the Glide cache hash so
+ * that replacing a source image with the same filename automatically
+ * produces a new cache entry without requiring explicit cache invalidation.
  */
 final class GlideImageTransformer implements ImageTransformerInterface
 {
@@ -53,12 +58,16 @@ final class GlideImageTransformer implements ImageTransformerInterface
         return (new Response(['charset' => 'UTF-8']))
             ->withStatus(200)
             ->withHeader('Content-Type', MimeType::getMimeTypeForFile($resolvedCachedPath))
-            ->withHeader('Cache-Control', 'max-age=31536000, public')
+            ->withHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->withStringBody($content);
     }
 
     /**
      * Create transformed image and return absolute cached file path.
+     *
+     * The source file's modification time is embedded in the Glide cache
+     * hash, so replacing a source image (even with the same filename)
+     * automatically produces a different cache entry.
      *
      * @param string $rootPath Source image root path.
      * @param string $requestPath Request URI path.
@@ -88,7 +97,10 @@ final class GlideImageTransformer implements ImageTransformerInterface
         $this->ensureDirectory($cachePath);
 
         try {
-            $server = ServerFactory::create($this->buildServerConfiguration($rootPath, $cachePath, $options));
+            $sourceMtime = $this->sourceFileMtime($rootPath, $relativePath);
+            $config = $this->buildServerConfiguration($rootPath, $cachePath, $options);
+            $config['cache_path_callable'] = $this->createVersionedCachePathCallable($sourceMtime);
+            $server = ServerFactory::create($config);
             $cachedRelativePath = $server->makeImage($relativePath, $manipulations);
         } catch (Throwable) {
             return null;
@@ -100,12 +112,52 @@ final class GlideImageTransformer implements ImageTransformerInterface
     }
 
     /**
+     * Read the source file modification time with a cleared stat cache.
+     *
+     * @param string $rootPath Source root directory.
+     * @param string $relativePath Relative image path within root.
+     */
+    protected function sourceFileMtime(string $rootPath, string $relativePath): int
+    {
+        $sourceFilePath = $rootPath . DIRECTORY_SEPARATOR . $relativePath;
+        clearstatcache(true, $sourceFilePath);
+        $mtime = is_file($sourceFilePath) ? filemtime($sourceFilePath) : false;
+
+        return $mtime !== false ? $mtime : 0;
+    }
+
+    /**
+     * Create a Glide cache path callable that includes source mtime in the hash.
+     *
+     * This ensures that replacing a source image produces a different cache
+     * path, making stale cache invalidation automatic — no file deletion or
+     * mtime stamping required.
+     *
+     * @param int $sourceMtime Source file modification timestamp.
+     */
+    protected function createVersionedCachePathCallable(int $sourceMtime): Closure
+    {
+        // Glide rebinds this closure via Closure::bind(), so it must not be static.
+        return function (string $path, array $params) use ($sourceMtime): string {
+            $sourcePath = trim($path, '/');
+
+            unset($params['s'], $params['p']);
+            ksort($params);
+
+            $hashInput = $sourcePath . '?' . http_build_query($params)
+                . '#' . $sourceMtime;
+
+            return $sourcePath . '/' . hash('xxh3', $hashInput);
+        };
+    }
+
+    /**
      * Build Glide server configuration from defaults and optional overrides.
      *
      * @param string $rootPath Source image root path.
      * @param string $cachePath Absolute cache directory path.
      * @param array<string, string> $options Optional Glide server options.
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function buildServerConfiguration(string $rootPath, string $cachePath, array $options): array
     {

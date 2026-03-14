@@ -112,7 +112,7 @@ final class GlideImageTransformerTest extends TestCase
         $this->assertInstanceOf(ResponseInterface::class, $response);
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('image/jpeg', $response->getHeaderLine('Content-Type'));
-        $this->assertStringContainsString('max-age=31536000', $response->getHeaderLine('Cache-Control'));
+        $this->assertStringContainsString('no-cache', $response->getHeaderLine('Cache-Control'));
         $this->assertGreaterThan(0, strlen((string)$response->getBody()));
         $this->assertDirectoryExists($cachePath);
     }
@@ -234,6 +234,244 @@ final class GlideImageTransformerTest extends TestCase
         $typedServerConfigWithoutDriver = $serverConfigWithoutDriver;
         $this->assertSame('imagick', $typedServerConfigWithDriver['driver'] ?? null);
         $this->assertSame('gd', $typedServerConfigWithoutDriver['driver'] ?? null);
+    }
+
+    /**
+     * Ensure versioned cache path callable produces different hashes for different mtimes.
+     *
+     * Both callables receive the same path and params. The only variable is the
+     * captured $sourceMtime, so the resulting cache paths must differ.
+     */
+    public function testVersionedCachePathCallableProducesDifferentHashesForDifferentMtimes(): void
+    {
+        $transformer = $this->createTransformer();
+
+        /** @var Closure(string, array<string, mixed>): string $callable1 */
+        $callable1 = $this->callProtected($transformer, 'createVersionedCachePathCallable', 1000);
+        /** @var Closure(string, array<string, mixed>): string $callable2 */
+        $callable2 = $this->callProtected($transformer, 'createVersionedCachePathCallable', 2000);
+
+        $this->assertInstanceOf(Closure::class, $callable1);
+        $this->assertInstanceOf(Closure::class, $callable2);
+
+        $path1 = $callable1('images/test.jpg', ['w' => '100', 'h' => '100']);
+        $path2 = $callable2('images/test.jpg', ['w' => '100', 'h' => '100']);
+
+        $this->assertNotSame($path1, $path2, 'Cache paths must differ when source mtime differs.');
+        $this->assertStringStartsWith('images/test.jpg/', $path1);
+        $this->assertStringStartsWith('images/test.jpg/', $path2);
+    }
+
+    /**
+     * Ensure sourceFileMtime returns file modification time with cleared stat cache.
+     */
+    public function testSourceFileMtimeReturnsCorrectMtime(): void
+    {
+        $tempDir = $this->createTempDirectory();
+        $mtime = time() - 300;
+        file_put_contents($tempDir . '/source.jpg', 'source-data');
+        touch($tempDir . '/source.jpg', $mtime);
+
+        $transformer = $this->createTransformer();
+        $result = $this->callProtected($transformer, 'sourceFileMtime', $tempDir, 'source.jpg');
+
+        $this->assertSame($mtime, $result);
+    }
+
+    /**
+     * Ensure sourceFileMtime returns zero for missing files.
+     */
+    public function testSourceFileMtimeReturnsZeroForMissingFile(): void
+    {
+        $tempDir = $this->createTempDirectory();
+        $transformer = $this->createTransformer();
+        $result = $this->callProtected($transformer, 'sourceFileMtime', $tempDir, 'missing.jpg');
+
+        $this->assertSame(0, $result);
+    }
+
+    /**
+     * Ensure a changed source image produces a new cache entry via versioned cache path.
+     *
+     * The cache_path_callable includes source mtime in the hash, so replacing
+     * the source file (which changes mtime) produces a different cache path
+     * and fresh transform automatically, without needing cache deletion.
+     */
+    public function testCreateTransformedPathUsesNewCachePathWhenSourceChanges(): void
+    {
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD image functions are required for Glide transformer tests.');
+        }
+
+        $rootPath = $this->createTempDirectory();
+        mkdir($rootPath . '/images', 0755, true);
+
+        // Create initial black source image with a past mtime
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 0, 0, 0);
+        touch($rootPath . '/images/pixel.jpg', time() - 120);
+
+        $cachePath = $this->createTempDirectory() . '/cache';
+        $transformer = $this->createTransformer();
+
+        $firstCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['w' => '2'],
+            presets: [],
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($firstCachedPath);
+        $firstContent = file_get_contents($firstCachedPath);
+
+        // Replace with a different (white) image — natural file overwrite changes mtime
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 255, 255, 255);
+        clearstatcache(true);
+
+        $secondCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['w' => '2'],
+            presets: [],
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($secondCachedPath);
+        $secondContent = file_get_contents($secondCachedPath);
+
+        // Different cache path (mtime changed) and different content
+        $this->assertNotSame($firstCachedPath, $secondCachedPath);
+        $this->assertNotSame($firstContent, $secondContent);
+    }
+
+    /**
+     * Ensure versioned cache path works when source has an older mtime than cache.
+     *
+     * Simulates the scenario where a user replaces an image file with one
+     * that has a historically older modification time (e.g. restored from backup).
+     */
+    public function testCreateTransformedPathUsesNewCachePathWhenSourceIsOlderThanCache(): void
+    {
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD image functions are required for Glide transformer tests.');
+        }
+
+        $rootPath = $this->createTempDirectory();
+        mkdir($rootPath . '/images', 0755, true);
+
+        // Create initial black source image
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 0, 0, 0);
+
+        $cachePath = $this->createTempDirectory() . '/cache';
+        $transformer = $this->createTransformer();
+
+        $firstCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['w' => '2'],
+            presets: [],
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($firstCachedPath);
+        $firstContent = file_get_contents($firstCachedPath);
+
+        // Replace with a different (white) image with a PAST mtime (e.g., backup restore)
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 255, 255, 255);
+        touch($rootPath . '/images/pixel.jpg', time() - 600);
+        clearstatcache(true);
+
+        $secondCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['w' => '2'],
+            presets: [],
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($secondCachedPath);
+        $secondContent = file_get_contents($secondCachedPath);
+
+        // Different cache path (mtime changed) and different content
+        $this->assertNotSame($firstCachedPath, $secondCachedPath);
+        $this->assertNotSame($firstContent, $secondContent);
+    }
+
+    /**
+     * Ensure versioned cache path works with preset-based transforms.
+     *
+     * When using `?p=product`, the preset params are resolved and the cache
+     * path includes both the resolved params and source mtime. Replacing the
+     * source image produces a new cache entry for the same preset.
+     */
+    public function testCreateTransformedPathWithPresetUsesNewCachePathWhenSourceChanges(): void
+    {
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD image functions are required for Glide transformer tests.');
+        }
+
+        $rootPath = $this->createTempDirectory();
+        mkdir($rootPath . '/images', 0755, true);
+
+        // Create initial black source image with past mtime
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 0, 0, 0);
+        touch($rootPath . '/images/pixel.jpg', time() - 120);
+
+        $cachePath = $this->createTempDirectory() . '/cache';
+        $presets = ['product' => ['w' => '2', 'h' => '2', 'fit' => 'crop']];
+        $transformer = $this->createTransformer();
+
+        // First transform using preset
+        $firstCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['p' => 'product'],
+            presets: $presets,
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($firstCachedPath);
+        $firstContent = file_get_contents($firstCachedPath);
+
+        // Replace with a different (white) image
+        $this->createColoredJpeg($rootPath . '/images/pixel.jpg', 255, 255, 255);
+        clearstatcache(true);
+
+        // Second transform using same preset
+        $secondCachedPath = $transformer->createTransformedPath(
+            rootPath: $rootPath,
+            requestPath: '/images/pixel.jpg',
+            queryParams: ['p' => 'product'],
+            presets: $presets,
+            cachePath: $cachePath,
+            options: [],
+        );
+        $this->assertIsString($secondCachedPath);
+        $secondContent = file_get_contents($secondCachedPath);
+
+        // Different cache path and different content
+        $this->assertNotSame($firstCachedPath, $secondCachedPath);
+        $this->assertNotSame($firstContent, $secondContent);
+    }
+
+    /**
+     * Build a minimal valid JPEG image file with a specific fill color.
+     *
+     * @param string $path File path to write JPEG to.
+     * @param int<0, 255> $red Red channel value (0-255).
+     * @param int<0, 255> $green Green channel value (0-255).
+     * @param int<0, 255> $blue Blue channel value (0-255).
+     */
+    protected function createColoredJpeg(string $path, int $red, int $green, int $blue): void
+    {
+        $image = imagecreatetruecolor(4, 4);
+        $color = imagecolorallocate($image, $red, $green, $blue);
+        if ($color === false) {
+            self::fail('Unable to allocate test image color.');
+        }
+
+        imagefill($image, 0, 0, $color);
+        imagejpeg($image, $path, 100);
     }
 
     /**

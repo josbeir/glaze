@@ -31,44 +31,88 @@ final class AssetMiddlewareTest extends TestCase
     use FilesystemTestTrait;
 
     /**
-     * Ensure public asset middleware returns matching files from output directory.
+     * Ensure public asset middleware serves files that only exist in public output.
      */
-    public function testPublicAssetMiddlewareReturnsAssetResponse(): void
+    public function testPublicAssetMiddlewareServesPublicOnlyFiles(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public/assets', 0755, true);
+        mkdir($projectRoot . '/content', 0755, true);
+        file_put_contents($projectRoot . '/public/assets/app.css', 'body{}');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('text/css', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('body{}', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure public asset middleware skips files that also exist in content directory.
+     */
+    public function testPublicAssetMiddlewareSkipsFilesExistingInContentDir(): void
     {
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/public/images', 0755, true);
-        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
+        mkdir($projectRoot . '/content/images', 0755, true);
+        file_put_contents($projectRoot . '/public/images/logo.jpg', 'stale-jpg-bytes');
+        file_put_contents($projectRoot . '/content/images/logo.jpg', 'fresh-jpg-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/images/logo.jpg');
 
         $response = $middleware->process($request, $this->fallbackHandler());
 
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('image/jpeg', $response->getHeaderLine('Content-Type'));
-        $this->assertSame('jpg-bytes', (string)$response->getBody());
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('fallback', (string)$response->getBody());
     }
 
     /**
-     * Ensure public asset middleware resolves basePath-prefixed requests.
+     * Ensure public asset middleware skips files that also exist in static directory.
+     */
+    public function testPublicAssetMiddlewareSkipsFilesExistingInStaticDir(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/public', 0755, true);
+        mkdir($projectRoot . '/static', 0755, true);
+        file_put_contents($projectRoot . '/public/manual.pdf', 'stale-pdf');
+        file_put_contents($projectRoot . '/static/manual.pdf', 'fresh-pdf');
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/manual.pdf');
+
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('fallback', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure public asset middleware resolves basePath-prefixed requests for public-only files.
      */
     public function testPublicAssetMiddlewareResolvesBasePathPrefixedAssetResponse(): void
     {
         $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/public/images', 0755, true);
-        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
+        mkdir($projectRoot . '/public/assets', 0755, true);
+        mkdir($projectRoot . '/content', 0755, true);
+        file_put_contents($projectRoot . '/public/assets/app.js', 'var x=1;');
         file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $this->service(GlideImageTransformer::class));
-        $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/images/logo.jpg');
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/glaze/assets/app.js');
 
         $response = $middleware->process($request, $this->fallbackHandler());
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('image/jpeg', $response->getHeaderLine('Content-Type'));
-        $this->assertSame('jpg-bytes', (string)$response->getBody());
+        $this->assertStringContainsString('javascript', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('var x=1;', (string)$response->getBody());
     }
 
     /**
@@ -172,129 +216,53 @@ final class AssetMiddlewareTest extends TestCase
     }
 
     /**
-     * Ensure middleware returns transformed image response when transformer handles request.
+     * Ensure public asset middleware skips source-directory files even with query params.
      */
-    public function testPublicAssetMiddlewareUsesImageTransformerForImageRequests(): void
+    public function testPublicAssetMiddlewareSkipsSourceFileWithQueryParams(): void
     {
         $projectRoot = $this->createTempDirectory();
         mkdir($projectRoot . '/public/images', 0755, true);
-        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
+        mkdir($projectRoot . '/content/images', 0755, true);
+        file_put_contents($projectRoot . '/public/images/logo.jpg', 'stale-bytes');
+        file_put_contents($projectRoot . '/content/images/logo.jpg', 'fresh-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $transformer = new class implements ImageTransformerInterface {
-            public function createResponse(
-                string $rootPath,
-                string $requestPath,
-                array $queryParams,
-                array $presets,
-                string $cachePath,
-                array $options = [],
-            ): ?ResponseInterface {
-                if (($queryParams['h'] ?? null) !== '500') {
-                    return null;
-                }
-
-                return (new Response(['charset' => 'UTF-8']))
-                    ->withStatus(206)
-                    ->withHeader('Content-Type', 'image/jpeg')
-                    ->withStringBody('transformed-jpg');
-            }
-        };
-
-        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
         $request = (new ServerRequestFactory())
             ->createServerRequest('GET', '/images/logo.jpg')
             ->withQueryParams(['h' => '500']);
 
         $response = $middleware->process($request, $this->fallbackHandler());
 
-        $this->assertSame(206, $response->getStatusCode());
-        $this->assertSame('transformed-jpg', (string)$response->getBody());
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('fallback', (string)$response->getBody());
     }
 
     /**
-     * Ensure image transformer receives stripped request path for basePath-prefixed URLs.
+     * Ensure public asset middleware correctly skips URL-encoded source paths.
+     *
+     * Requests with percent-encoded characters (e.g. spaces) must still be
+     * matched against source directories after decoding, preventing stale
+     * public/ copies from being served when the source file exists.
      */
-    public function testPublicAssetMiddlewareUsesImageTransformerForBasePathPrefixedImageRequests(): void
+    public function testPublicAssetMiddlewareSkipsUrlEncodedSourceFilePaths(): void
     {
         $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/public/images', 0755, true);
-        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
-        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /glaze\n");
+        mkdir($projectRoot . '/public/my images', 0755, true);
+        mkdir($projectRoot . '/content/my images', 0755, true);
+        file_put_contents($projectRoot . '/public/my images/photo.jpg', 'stale-bytes');
+        file_put_contents($projectRoot . '/content/my images/photo.jpg', 'fresh-bytes');
 
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $transformer = new class implements ImageTransformerInterface {
-            public function createResponse(
-                string $rootPath,
-                string $requestPath,
-                array $queryParams,
-                array $presets,
-                string $cachePath,
-                array $options = [],
-            ): ?ResponseInterface {
-                if ($requestPath !== '/images/logo.jpg') {
-                    return null;
-                }
-
-                if (($queryParams['h'] ?? null) !== '500') {
-                    return null;
-                }
-
-                return (new Response(['charset' => 'UTF-8']))
-                    ->withStatus(206)
-                    ->withHeader('Content-Type', 'image/jpeg')
-                    ->withStringBody('transformed-jpg');
-            }
-        };
-
-        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
-        $request = (new ServerRequestFactory())
-            ->createServerRequest('GET', '/glaze/images/logo.jpg')
-            ->withQueryParams(['h' => '500']);
+        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class));
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/my%20images/photo.jpg');
 
         $response = $middleware->process($request, $this->fallbackHandler());
 
-        $this->assertSame(206, $response->getStatusCode());
-        $this->assertSame('transformed-jpg', (string)$response->getBody());
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('fallback', (string)$response->getBody());
     }
 
-    /**
-     * Ensure middleware falls back to raw asset serving when transformer skips request.
-     */
-    public function testPublicAssetMiddlewareFallsBackToRawAssetWhenTransformerSkips(): void
-    {
-        $projectRoot = $this->createTempDirectory();
-        mkdir($projectRoot . '/public/images', 0755, true);
-        file_put_contents($projectRoot . '/public/images/logo.jpg', 'jpg-bytes');
-
-        $config = BuildConfig::fromProjectRoot($projectRoot, true);
-        $transformer = new class implements ImageTransformerInterface {
-            public function createResponse(
-                string $rootPath,
-                string $requestPath,
-                array $queryParams,
-                array $presets,
-                string $cachePath,
-                array $options = [],
-            ): ?ResponseInterface {
-                return null;
-            }
-        };
-
-        $middleware = new PublicAssetMiddleware($config, $this->service(AssetResponder::class), $transformer);
-        $request = (new ServerRequestFactory())
-            ->createServerRequest('GET', '/images/logo.jpg')
-            ->withQueryParams(['h' => '500']);
-
-        $response = $middleware->process($request, $this->fallbackHandler());
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('jpg-bytes', (string)$response->getBody());
-    }
-
-    /**
-     * Ensure Glide-aware middleware helper methods normalize expected values.
-     */
     public function testGlideAssetMiddlewareHelperMethods(): void
     {
         $projectRoot = $this->createTempDirectory();
@@ -315,6 +283,68 @@ final class AssetMiddlewareTest extends TestCase
             ['h' => '500'],
             $this->callProtected($middleware, 'normalizeQueryParams', ['h' => '500', 0 => 'ignored']),
         );
+    }
+
+    /**
+     * Ensure ContentAssetMiddleware serves a fresh transform when the source image is replaced.
+     *
+     * This simulates the real dev-mode scenario: make a request with a Glide
+     * param, replace the source image, make the same request again. The second
+     * response must reflect the new image, not the stale cached transform.
+     */
+    public function testContentMiddlewareServesUpdatedImageAfterSourceReplacement(): void
+    {
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD image functions are required.');
+        }
+
+        $projectRoot = $this->createTempDirectory();
+        mkdir($projectRoot . '/content/images', 0755, true);
+
+        // Create initial black source image with a past mtime
+        $image = imagecreatetruecolor(4, 4);
+        $black = imagecolorallocate($image, 0, 0, 0);
+        if ($black === false) {
+            self::fail('Unable to allocate test image color.');
+        }
+
+        imagefill($image, 0, 0, $black);
+        imagejpeg($image, $projectRoot . '/content/images/photo.jpg', 100);
+        touch($projectRoot . '/content/images/photo.jpg', time() - 120);
+
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+        $middleware = new ContentAssetMiddleware(
+            $config,
+            $this->service(AssetResponder::class),
+            $this->service(GlideImageTransformer::class),
+        );
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('GET', '/images/photo.jpg')
+            ->withQueryParams(['w' => '2']);
+
+        // First request — transforms the black image
+        $firstResponse = $middleware->process($request, $this->fallbackHandler());
+        $this->assertSame(200, $firstResponse->getStatusCode());
+        $firstBody = (string)$firstResponse->getBody();
+
+        // Replace source with a white image (natural overwrite, no touch)
+        $image = imagecreatetruecolor(4, 4);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        if ($white === false) {
+            self::fail('Unable to allocate test image color.');
+        }
+
+        imagefill($image, 0, 0, $white);
+        imagejpeg($image, $projectRoot . '/content/images/photo.jpg', 100);
+        clearstatcache(true);
+
+        // Second request — must serve the white image, not stale black cache
+        $secondResponse = $middleware->process($request, $this->fallbackHandler());
+        $this->assertSame(200, $secondResponse->getStatusCode());
+        $secondBody = (string)$secondResponse->getBody();
+
+        $this->assertNotSame($firstBody, $secondBody, 'Middleware must serve fresh transform after source replacement');
     }
 
     /**
