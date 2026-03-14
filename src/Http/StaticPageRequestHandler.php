@@ -5,6 +5,7 @@ namespace Glaze\Http;
 
 use Cake\Http\Response;
 use Glaze\Config\BuildConfig;
+use Glaze\Http\Concern\BasePathAwareTrait;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -30,6 +31,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class StaticPageRequestHandler implements RequestHandlerInterface
 {
+    use BasePathAwareTrait;
+
     /**
      * Constructor.
      *
@@ -190,30 +193,5 @@ final class StaticPageRequestHandler implements RequestHandlerInterface
         }
 
         return $path . '?' . $query;
-    }
-
-    /**
-     * Strip configured base path prefix from incoming request path.
-     *
-     * @param string $requestPath Incoming request path.
-     */
-    protected function stripBasePathFromRequestPath(string $requestPath): string
-    {
-        $basePath = $this->config->site->basePath;
-        $normalizedPath = '/' . ltrim($requestPath, '/');
-
-        if ($basePath === null || $basePath === '') {
-            return $normalizedPath;
-        }
-
-        if ($normalizedPath === $basePath) {
-            return '/';
-        }
-
-        if (str_starts_with($normalizedPath, $basePath . '/')) {
-            return substr($normalizedPath, strlen($basePath)) ?: '/';
-        }
-
-        return $normalizedPath;
     }
 }

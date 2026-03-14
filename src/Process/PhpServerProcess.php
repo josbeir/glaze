@@ -135,7 +135,7 @@ final class PhpServerProcess implements ProcessInterface
     {
         $this->assertConfiguration($configuration);
 
-        $routerPath = $this->resolveLiveRouterPath($configuration['projectRoot']);
+        $routerPath = $this->resolveRouterPath($configuration['projectRoot']);
         if (!is_string($routerPath)) {
             throw new InvalidArgumentException(sprintf(
                 'Router script not found: %s',
@@ -201,11 +201,14 @@ final class PhpServerProcess implements ProcessInterface
     }
 
     /**
-     * Resolve live router path for the given project root.
+     * Resolve the router script path for the given project root.
+     *
+     * Checks the project's own bin/ directory first, then falls back to the
+     * CLI package root (via GLAZE_CLI_ROOT) and finally the package itself.
      *
      * @param string $projectRoot Project root directory.
      */
-    protected function resolveLiveRouterPath(string $projectRoot): ?string
+    protected function resolveRouterPath(string $projectRoot): ?string
     {
         $projectRouterPath = $projectRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'dev-router.php';
         if (is_file($projectRouterPath)) {

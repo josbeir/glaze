@@ -6,7 +6,6 @@ namespace Glaze\Tests\Unit\Http;
 use Cake\Http\ServerRequestFactory;
 use Glaze\Config\BuildConfig;
 use Glaze\Http\StaticPageRequestHandler;
-use Glaze\Tests\Helper\ContainerTestTrait;
 use Glaze\Tests\Helper\FilesystemTestTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -19,7 +18,6 @@ use PHPUnit\Framework\TestCase;
  */
 final class StaticPageRequestHandlerTest extends TestCase
 {
-    use ContainerTestTrait;
     use FilesystemTestTrait;
 
     /**
@@ -229,5 +227,71 @@ final class StaticPageRequestHandlerTest extends TestCase
 
         $this->assertSame(301, $response->getStatusCode());
         $this->assertSame('/about/?ref=nav', $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * Ensure i18n-enabled sites serve language-scoped 404.html for requests under a language prefix.
+     *
+     * When i18n is enabled and the project has a pre-built `public/nl/404.html`, a request
+     * to a missing page under `/nl/` must serve that file instead of the root `/404.html`.
+     */
+    public function testHandleServesLanguageScopedNotFoundPageForI18nPrefix(): void
+    {
+        $projectRoot = $this->createStaticProject(
+            ['nl/404.html' => '<html><body>Dutch 404</body></html>'],
+            [
+                'i18n:',
+                '  defaultLanguage: en',
+                '  languages:',
+                '    en:',
+                '      label: English',
+                '      urlPrefix: ""',
+                '    nl:',
+                '      label: Nederlands',
+                '      urlPrefix: nl',
+            ],
+        );
+        $config = BuildConfig::fromProjectRoot($projectRoot, false);
+        $handler = new StaticPageRequestHandler($config);
+
+        $response = $handler->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/nl/missing/'),
+        );
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Dutch 404', (string)$response->getBody());
+    }
+
+    /**
+     * Ensure root-language requests fall back to /404.html even when i18n is enabled.
+     *
+     * The default language has an empty urlPrefix, so requests that are not prefixed
+     * with a known language code should still serve the global public/404.html.
+     */
+    public function testHandleServesRootNotFoundPageForDefaultLanguageWhenI18nEnabled(): void
+    {
+        $projectRoot = $this->createStaticProject(
+            ['nl/404.html' => '<html><body>Dutch 404</body></html>'],
+            [
+                'i18n:',
+                '  defaultLanguage: en',
+                '  languages:',
+                '    en:',
+                '      label: English',
+                '      urlPrefix: ""',
+                '    nl:',
+                '      label: Nederlands',
+                '      urlPrefix: nl',
+            ],
+        );
+        $config = BuildConfig::fromProjectRoot($projectRoot, false);
+        $handler = new StaticPageRequestHandler($config);
+
+        $response = $handler->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/missing/'),
+        );
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Custom 404', (string)$response->getBody());
     }
 }
