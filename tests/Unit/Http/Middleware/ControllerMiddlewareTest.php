@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use ReflectionProperty;
 
 /**
  * Tests for ControllerMiddleware routing and injection behavior.
@@ -174,8 +175,9 @@ final class ControllerMiddlewareTest extends TestCase
     /**
      * Ensure controller discovery only runs once even across multiple requests.
      *
-     * A temp directory is created with one controller file. Both requests match
-     * the same route, confirming discovery persisted after the first request.
+     * After the first request triggers discovery, the route table is inspected
+     * via reflection before and after a second request to confirm the entries
+     * were not duplicated or cleared.
      */
     public function testDiscoveryRunsOnlyOnce(): void
     {
@@ -213,9 +215,113 @@ final class ControllerMiddlewareTest extends TestCase
         $response1 = $middleware->process($request, $this->fallbackHandler());
         $this->assertSame(200, $response1->getStatusCode());
 
-        // Second request — discovery must NOT clear and re-run (route still matched).
+        // Capture route table size immediately after discovery.
+        $routesProp = new ReflectionProperty($router, 'routes');
+        /** @var array<mixed> $routesAfterFirst */
+        $routesAfterFirst = $routesProp->getValue($router);
+        $routeCountAfterFirstRequest = count($routesAfterFirst);
+        $this->assertGreaterThan(0, $routeCountAfterFirstRequest, 'Routes must be registered after first request.');
+
+        // Second request — discovery must NOT re-run; the route table must be unchanged.
         $response2 = $middleware->process($request, $this->fallbackHandler());
         $this->assertSame(200, $response2->getStatusCode());
+        /** @var array<mixed> $routesAfterSecond */
+        $routesAfterSecond = $routesProp->getValue($router);
+        $this->assertCount(
+            $routeCountAfterFirstRequest,
+            $routesAfterSecond,
+            'Route count must not change after the second request; discoverOnce must not have re-run.',
+        );
+    }
+
+    /**
+     * Ensure the original (basePath-prefixed) request is forwarded unchanged when no route matches.
+     *
+     * Downstream handlers such as DevPageRequestHandler rely on the full original
+     * path (including any basePath prefix) for canonical redirects and Location headers.
+     */
+    public function testProcessForwardsOriginalRequestPathOnMiss(): void
+    {
+        $projectRoot = $this->createProjectRoot();
+        file_put_contents($projectRoot . '/glaze.neon', "site:\n  basePath: /app\n");
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+
+        $router = new ControllerRouter();
+        $middleware = new ControllerMiddleware(
+            $router,
+            $this->makeViewRenderer($config),
+            $this->container(),
+            $config,
+            $this->createTempDirectory(),
+        );
+
+        $capturedPath = null;
+        $capturingHandler = new class ($capturedPath) implements RequestHandlerInterface {
+            public function __construct(public ?string &$path)
+            {
+            }
+
+            /**
+             * @inheritDoc
+             */
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $this->path = $request->getUri()->getPath();
+
+                return (new Response(['charset' => 'UTF-8']))->withStatus(404)->withStringBody('miss');
+            }
+        };
+
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/app/about/');
+        $middleware->process($request, $capturingHandler);
+
+        $this->assertSame('/app/about/', $capturedPath, 'The original basePath-prefixed path must be forwarded unchanged.');
+    }
+
+    /**
+     * Ensure path parameters are coerced to declared scalar types (int, float, bool).
+     */
+    public function testProcessCoercesScalarPathParams(): void
+    {
+        $projectRoot = $this->createProjectRoot();
+        $config = BuildConfig::fromProjectRoot($projectRoot, true);
+
+        $controllersDir = $projectRoot . '/controllers';
+        mkdir($controllersDir, 0755, true);
+        file_put_contents($controllersDir . '/TypedController.php', <<<'PHP'
+        <?php
+        declare(strict_types=1);
+        use Cake\Http\Response;
+        use Glaze\Http\Attribute\Route;
+        use Psr\Http\Message\ResponseInterface;
+        final class TypedController {
+            #[Route('/items/{id}/{score}/{active}')]
+            public function show(int $id, float $score, bool $active): ResponseInterface {
+                return (new Response(['charset' => 'UTF-8']))
+                    ->withStatus(200)
+                    ->withStringBody(json_encode(['id' => $id, 'score' => $score, 'active' => $active]));
+            }
+        }
+        PHP);
+
+        $router = new ControllerRouter();
+        $middleware = new ControllerMiddleware(
+            $router,
+            $this->makeViewRenderer($config),
+            $this->container(),
+            $config,
+            $controllersDir,
+        );
+
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/items/42/3.14/true');
+        $response = $middleware->process($request, $this->fallbackHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $decoded = json_decode((string)$response->getBody(), true);
+        $this->assertIsArray($decoded);
+        $this->assertSame(42, $decoded['id']);
+        $this->assertEqualsWithDelta(3.14, $decoded['score'], PHP_FLOAT_EPSILON);
+        $this->assertTrue($decoded['active']);
     }
 
     /**

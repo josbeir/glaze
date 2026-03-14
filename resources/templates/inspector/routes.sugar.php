@@ -1,6 +1,7 @@
 <?php
 /**
  * @var array<\Glaze\Content\ContentPage> $pages
+ * @var string $basePath Configured site base path (empty string when not set).
  */
 ?>
 <!DOCTYPE html>
@@ -43,7 +44,7 @@
                     <tbody>
                         <tr s:foreach="$pages as $page">
                             <td>
-                                <a href="<?= $page->urlPath ?>" class="glaze-link">
+                                <a href="<?= $basePath . $page->urlPath ?>" class="glaze-link">
                                     <?= $page->urlPath ?>
                                 </a>
                             </td>

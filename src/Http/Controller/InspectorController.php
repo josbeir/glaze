@@ -52,6 +52,9 @@ final class InspectorController
             $this->config->contentTypes,
         );
 
-        return ['pages' => $pages];
+        return [
+            'pages' => $pages,
+            'basePath' => $this->config->site->basePath ?? '',
+        ];
     }
 }

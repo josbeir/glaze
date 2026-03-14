@@ -74,11 +74,14 @@ final class ControllerMiddleware implements MiddlewareInterface
     {
         $this->discoverOnce();
 
-        $request = $request->withUri(
-            $request->getUri()->withPath($this->stripBasePathFromRequestPath($request->getUri()->getPath())),
-        );
+        // Use a stripped copy for route matching so the original request (with any
+        // basePath prefix intact) is forwarded unchanged when no route matches.
+        // Downstream handlers such as DevPageRequestHandler rely on the original
+        // path for canonical redirects and Location headers.
+        $strippedPath = $this->stripBasePathFromRequestPath($request->getUri()->getPath());
+        $routingRequest = $request->withUri($request->getUri()->withPath($strippedPath));
 
-        $match = $this->router->match($request);
+        $match = $this->router->match($routingRequest);
         if (!$match instanceof MatchedRoute) {
             return $handler->handle($request);
         }
@@ -87,7 +90,7 @@ final class ControllerMiddleware implements MiddlewareInterface
         $controller = $this->container->get($match->controllerClass);
 
         $reflectionMethod = new ReflectionMethod($controller, $match->actionMethod);
-        $args = $this->resolveArguments($reflectionMethod, $request, $match->params);
+        $args = $this->resolveArguments($reflectionMethod, $routingRequest, $match->params);
 
         $result = $reflectionMethod->invokeArgs($controller, $args);
 
@@ -165,9 +168,20 @@ final class ControllerMiddleware implements MiddlewareInterface
                 continue;
             }
 
-            // 2. Path parameter by name.
+            // 2. Path parameter by name — coerced to the declared builtin type when possible.
             if (array_key_exists($name, $params)) {
-                $args[] = $params[$name];
+                $rawValue = $params[$name];
+
+                if ($type instanceof ReflectionNamedType && $type->isBuiltin()) {
+                    $rawValue = $this->coercePathParam(
+                        $rawValue,
+                        $type->getName(),
+                        $name,
+                        $method,
+                    );
+                }
+
+                $args[] = $rawValue;
                 continue;
             }
 
@@ -192,5 +206,57 @@ final class ControllerMiddleware implements MiddlewareInterface
         }
 
         return $args;
+    }
+
+    /**
+     * Coerce a raw path-parameter string to the declared PHP builtin type.
+     *
+     * Handles `int`, `float`, and `bool`; passes all other types through as-is.
+     *
+     * @param string $raw Raw string extracted from the URL path.
+     * @param string $typeName PHP builtin type name (e.g. 'int', 'float', 'bool', 'string').
+     * @param string $paramName Parameter name (used in error messages).
+     * @param \ReflectionMethod $method Reflected action method (used in error messages).
+     * @return string|float|int|bool Coerced value.
+     * @throws \RuntimeException When the value cannot be converted to the required type.
+     */
+    private function coercePathParam(
+        string $raw,
+        string $typeName,
+        string $paramName,
+        ReflectionMethod $method,
+    ): int|float|bool|string {
+        return match ($typeName) {
+            'int' => is_numeric($raw) && !str_contains($raw, '.')
+                ? (int)$raw
+                : throw new RuntimeException(sprintf(
+                    'Path parameter "$%s" for "%s::%s" expects int, got "%s".',
+                    $paramName,
+                    $method->getDeclaringClass()->getName(),
+                    $method->getName(),
+                    $raw,
+                )),
+            'float' => is_numeric($raw)
+                ? (float)$raw
+                : throw new RuntimeException(sprintf(
+                    'Path parameter "$%s" for "%s::%s" expects float, got "%s".',
+                    $paramName,
+                    $method->getDeclaringClass()->getName(),
+                    $method->getName(),
+                    $raw,
+                )),
+            'bool' => match (strtolower($raw)) {
+                '1', 'true', 'yes', 'on' => true,
+                '0', 'false', 'no', 'off', '' => false,
+                default => throw new RuntimeException(sprintf(
+                    'Path parameter "$%s" for "%s::%s" expects bool, got "%s".',
+                    $paramName,
+                    $method->getDeclaringClass()->getName(),
+                    $method->getName(),
+                    $raw,
+                )),
+            },
+            default => $raw,
+        };
     }
 }
