@@ -41,8 +41,6 @@ if ($includeDrafts) {
     Configure::write('build.drafts', true);
 }
 
-/** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
-$publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
 /** @var \Glaze\Http\Middleware\StaticAssetMiddleware $staticAssetMiddleware */
 $staticAssetMiddleware = $container->get(StaticAssetMiddleware::class);
 /** @var \Glaze\Http\Middleware\ContentAssetMiddleware $contentAssetMiddleware */
@@ -78,7 +76,13 @@ if (is_string($query) && $query !== '') {
 
 $queue = new MiddlewareQueue();
 $queue->add(new ErrorHandlingMiddleware(true));
-$queue->add($publicAssetMiddleware);
+
+if ($staticMode) {
+    /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
+    $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
+    $queue->add($publicAssetMiddleware);
+}
+
 $queue->add($staticAssetMiddleware);
 $queue->add($contentAssetMiddleware);
 
