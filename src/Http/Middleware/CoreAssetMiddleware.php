@@ -15,7 +15,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Serves package-internal assets from under the /_glaze/assets/ URL prefix.
  *
- * Assets are resolved from the package's own resources/assets/ directory so
+ * Assets are resolved from the package's own resources/backend/assets/ directory so
  * that glaze's dev-UI (inspector, routes viewer, etc.) works without any
  * project-level configuration.
  *
@@ -26,7 +26,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  * resolved correctly:
  *
  * Example:
- *   GET /_glaze/assets/css/dev.css         → {package}/resources/assets/css/dev.css
+ *   GET /_glaze/assets/css/dev.css         → {package}/resources/backend/assets/css/dev.css
  *   GET /myapp/_glaze/assets/css/dev.css   → same (basePath stripped first)
  */
 final class CoreAssetMiddleware implements MiddlewareInterface
@@ -39,7 +39,7 @@ final class CoreAssetMiddleware implements MiddlewareInterface
     private const URL_PREFIX = '/_glaze/assets';
 
     /**
-     * Absolute path to the package's resources/assets/ directory.
+     * Absolute path to the package's resources/backend/assets/ directory.
      */
     private string $assetsRootPath;
 
@@ -53,7 +53,7 @@ final class CoreAssetMiddleware implements MiddlewareInterface
         protected BuildConfig $config,
         private AssetResponder $assetResponder,
     ) {
-        $this->assetsRootPath = dirname(__DIR__, 3) . '/resources/assets';
+        $this->assetsRootPath = dirname(__DIR__, 3) . '/resources/backend/assets';
     }
 
     /**

@@ -5,9 +5,16 @@ namespace Glaze\Tests\Unit;
 
 use Cake\Console\CommandCollection;
 use Cake\Core\Configure;
+use Cake\Http\MiddlewareQueue;
 use Glaze\Application;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\ProjectConfigurationReader;
+use Glaze\Http\Middleware\ContentAssetMiddleware;
+use Glaze\Http\Middleware\ControllerMiddleware;
+use Glaze\Http\Middleware\CoreAssetMiddleware;
+use Glaze\Http\Middleware\ErrorHandlingMiddleware;
+use Glaze\Http\Middleware\PublicAssetMiddleware;
+use Glaze\Http\Middleware\StaticAssetMiddleware;
 use Glaze\Image\ImageTransformerInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -119,5 +126,50 @@ final class ApplicationTest extends TestCase
         $second = $container->get(BuildConfig::class);
 
         $this->assertSame($first, $second);
+    }
+
+    /**
+     * Ensure middleware() registers the expected stack in live mode.
+     */
+    public function testMiddlewareRegistersExpectedLiveStack(): void
+    {
+        $application = new Application();
+        $application->bootstrap();
+
+        (new ProjectConfigurationReader())->read('/tmp/glaze-project');
+        Configure::write('projectRoot', '/tmp/glaze-project');
+
+        $queue = $application->middleware(new MiddlewareQueue(), false);
+        $middlewares = iterator_to_array($queue);
+
+        $this->assertSame([
+            ErrorHandlingMiddleware::class,
+            StaticAssetMiddleware::class,
+            ContentAssetMiddleware::class,
+            CoreAssetMiddleware::class,
+            ControllerMiddleware::class,
+        ], array_map(static fn(object $middleware): string => $middleware::class, $middlewares));
+    }
+
+    /**
+     * Ensure middleware() registers the expected stack in static mode.
+     */
+    public function testMiddlewareRegistersExpectedStaticStack(): void
+    {
+        $application = new Application();
+        $application->bootstrap();
+
+        (new ProjectConfigurationReader())->read('/tmp/glaze-project');
+        Configure::write('projectRoot', '/tmp/glaze-project');
+
+        $queue = $application->middleware(new MiddlewareQueue(), true);
+        $middlewares = iterator_to_array($queue);
+
+        $this->assertSame([
+            ErrorHandlingMiddleware::class,
+            PublicAssetMiddleware::class,
+            StaticAssetMiddleware::class,
+            ContentAssetMiddleware::class,
+        ], array_map(static fn(object $middleware): string => $middleware::class, $middlewares));
     }
 }

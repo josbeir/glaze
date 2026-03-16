@@ -14,8 +14,8 @@ use Psr\Http\Message\ResponseInterface;
 /**
  * Renders core controller action views using the Sugar template engine.
  *
- * Templates are resolved from the package's own resources/templates/ directory:
- *   {package}/resources/templates/{controller}/{action}.sugar.php
+ * Templates are resolved from the package's own resources/backend/templates/ directory:
+ *   {package}/resources/backend/templates/{controller}/{action}.sugar.php
  *
  * An alternative template directory may be injected via the constructor for
  * testing or future extension. The renderer always runs in debug mode so that
@@ -41,14 +41,14 @@ final class ControllerViewRenderer
      * @param \Glaze\Config\BuildConfig $config Build configuration (cache path + site config).
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
      * @param string|null $templateDirectory Override template directory for testing. Defaults to
-     *   the package's resources/templates/ when null.
+     *   the package's resources/backend/templates/ when null.
      */
     public function __construct(
         private BuildConfig $config,
         private ResourcePathRewriter $resourcePathRewriter,
         ?string $templateDirectory = null,
     ) {
-        $this->templateDirectory = $templateDirectory ?? dirname(__DIR__, 3) . '/resources/templates';
+        $this->templateDirectory = $templateDirectory ?? dirname(__DIR__, 3) . '/resources/backend/templates';
     }
 
     /**

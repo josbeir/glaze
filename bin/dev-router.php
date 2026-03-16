@@ -9,12 +9,6 @@ use Cake\Http\ServerRequestFactory;
 use Glaze\Application;
 use Glaze\Config\ProjectConfigurationReader;
 use Glaze\Http\DevPageRequestHandler;
-use Glaze\Http\Middleware\ContentAssetMiddleware;
-use Glaze\Http\Middleware\ControllerMiddleware;
-use Glaze\Http\Middleware\CoreAssetMiddleware;
-use Glaze\Http\Middleware\ErrorHandlingMiddleware;
-use Glaze\Http\Middleware\PublicAssetMiddleware;
-use Glaze\Http\Middleware\StaticAssetMiddleware;
 use Glaze\Http\StaticPageRequestHandler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -42,11 +36,6 @@ Configure::write('projectRoot', $projectRoot);
 if ($includeDrafts) {
     Configure::write('build.drafts', true);
 }
-
-/** @var \Glaze\Http\Middleware\StaticAssetMiddleware $staticAssetMiddleware */
-$staticAssetMiddleware = $container->get(StaticAssetMiddleware::class);
-/** @var \Glaze\Http\Middleware\ContentAssetMiddleware $contentAssetMiddleware */
-$contentAssetMiddleware = $container->get(ContentAssetMiddleware::class);
 
 if ($staticMode) {
     /** @var \Glaze\Http\StaticPageRequestHandler $fallbackHandler */
@@ -76,26 +65,7 @@ if (is_string($query) && $query !== '') {
     $request = $request->withQueryParams($queryParams);
 }
 
-$queue = new MiddlewareQueue();
-$queue->add(new ErrorHandlingMiddleware(true));
-
-if ($staticMode) {
-    /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
-    $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
-    $queue->add($publicAssetMiddleware);
-}
-
-$queue->add($staticAssetMiddleware);
-$queue->add($contentAssetMiddleware);
-
-if (!$staticMode) {
-    /** @var \Glaze\Http\Middleware\CoreAssetMiddleware $coreAssetMiddleware */
-    $coreAssetMiddleware = $container->get(CoreAssetMiddleware::class);
-    /** @var \Glaze\Http\Middleware\ControllerMiddleware $controllerMiddleware */
-    $controllerMiddleware = $container->get(ControllerMiddleware::class);
-    $queue->add($coreAssetMiddleware);
-    $queue->add($controllerMiddleware);
-}
+$queue = $application->middleware(new MiddlewareQueue(), $staticMode);
 
 $response = (new Runner())->run($queue, $request, $fallbackHandler);
 

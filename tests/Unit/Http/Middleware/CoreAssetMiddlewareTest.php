@@ -116,7 +116,7 @@ final class CoreAssetMiddlewareTest extends TestCase
     /**
      * Build a CoreAssetMiddleware with the given assets directory root overridden via reflection.
      *
-     * @param string $assetsDir Temporary assets directory acting as resources/assets/.
+     * @param string $assetsDir Temporary assets directory acting as resources/backend/assets/.
      * @param string|null $basePath Optional site basePath (simulates glaze.neon site.basePath).
      */
     protected function makeMiddleware(string $assetsDir, ?string $basePath = null): CoreAssetMiddleware

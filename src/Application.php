@@ -9,6 +9,7 @@ use Cake\Core\ConsoleApplicationInterface;
 use Cake\Core\Container;
 use Cake\Core\ContainerApplicationInterface;
 use Cake\Core\ContainerInterface;
+use Cake\Http\MiddlewareQueue;
 use Glaze\Command\BuildCommand;
 use Glaze\Command\CacheCommand;
 use Glaze\Command\HelpCommand;
@@ -18,7 +19,12 @@ use Glaze\Command\RoutesCommand;
 use Glaze\Command\ServeCommand;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\NeonConfigEngine;
+use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\ControllerMiddleware;
+use Glaze\Http\Middleware\CoreAssetMiddleware;
+use Glaze\Http\Middleware\ErrorHandlingMiddleware;
+use Glaze\Http\Middleware\PublicAssetMiddleware;
+use Glaze\Http\Middleware\StaticAssetMiddleware;
 use Glaze\Http\Routing\ControllerRouter;
 use Glaze\Http\Routing\ControllerViewRenderer;
 use Glaze\Image\GlideImageTransformer;
@@ -115,6 +121,44 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
                 return new ControllerMiddleware($router, $viewRenderer, $container, $config);
             },
         );
+    }
+
+    /**
+     * Register HTTP middleware stack for dev-router execution.
+     *
+     * @param \Cake\Http\MiddlewareQueue $queue Middleware queue to populate.
+     * @param bool $staticMode Whether static mode is active.
+     * @return \Cake\Http\MiddlewareQueue Populated middleware queue.
+     */
+    public function middleware(MiddlewareQueue $queue, bool $staticMode): MiddlewareQueue
+    {
+        $container = $this->getContainer();
+
+        $queue->add(new ErrorHandlingMiddleware(true));
+
+        if ($staticMode) {
+            /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
+            $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
+            $queue->add($publicAssetMiddleware);
+        }
+
+        /** @var \Glaze\Http\Middleware\StaticAssetMiddleware $staticAssetMiddleware */
+        $staticAssetMiddleware = $container->get(StaticAssetMiddleware::class);
+        /** @var \Glaze\Http\Middleware\ContentAssetMiddleware $contentAssetMiddleware */
+        $contentAssetMiddleware = $container->get(ContentAssetMiddleware::class);
+        $queue->add($staticAssetMiddleware);
+        $queue->add($contentAssetMiddleware);
+
+        if (!$staticMode) {
+            /** @var \Glaze\Http\Middleware\CoreAssetMiddleware $coreAssetMiddleware */
+            $coreAssetMiddleware = $container->get(CoreAssetMiddleware::class);
+            /** @var \Glaze\Http\Middleware\ControllerMiddleware $controllerMiddleware */
+            $controllerMiddleware = $container->get(ControllerMiddleware::class);
+            $queue->add($coreAssetMiddleware);
+            $queue->add($controllerMiddleware);
+        }
+
+        return $queue;
     }
 
     /**
