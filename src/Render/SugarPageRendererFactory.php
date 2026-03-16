@@ -46,13 +46,17 @@ final class SugarPageRendererFactory
         bool $debug = false,
         ?EventDispatcher $dispatcher = null,
     ): SugarPageRenderer {
+        $viteOptions = $debug
+            ? $config->templateViteOptions->applyEnvironmentOverrides()
+            : $config->templateViteOptions;
+
         $renderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->cachePath(CachePath::Sugar),
             template: $template,
             siteConfig: $config->site,
             resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: $config->templateViteOptions,
+            templateVite: $viteOptions,
             debug: $debug,
         );
 

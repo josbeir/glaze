@@ -33,6 +33,9 @@ final readonly class TemplateViteOptions
      * @param string $devServerUrl Dev server origin URL.
      * @param bool $injectClient Whether `@vite/client` is auto-injected in dev mode.
      * @param string|null $defaultEntry Default entry used when directive is boolean.
+     * @param string $mode Vite resolver mode: `auto` delegates to the Sugar engine debug flag, `dev` always uses
+     *                     the dev server, `prod` always uses the manifest. When `auto`, the mode is determined by
+     *                     whether the parent `SugarPageRenderer` was created with `debug: true`.
      */
     public function __construct(
         public bool $buildEnabled = false,
@@ -42,6 +45,7 @@ final readonly class TemplateViteOptions
         public string $devServerUrl = 'http://127.0.0.1:5173',
         public bool $injectClient = true,
         public ?string $defaultEntry = null,
+        public string $mode = 'auto',
     ) {
     }
 
@@ -89,6 +93,47 @@ final readonly class TemplateViteOptions
             devServerUrl: $devServerUrl,
             injectClient: is_bool($devVite['injectClient'] ?? null) ? $devVite['injectClient'] : true,
             defaultEntry: $defaultEntry,
+            mode: is_string($buildVite['mode'] ?? null) && in_array($buildVite['mode'], ['auto', 'dev', 'prod'], true)
+                ? $buildVite['mode']
+                : 'auto',
+        );
+    }
+
+    /**
+     * Return a new instance with runtime environment overrides applied.
+     *
+     * Reads `GLAZE_VITE_ENABLED` and `GLAZE_VITE_URL` from the process environment and
+     * overlays them on the current options. This is the only place in the codebase that
+     * reads these variables; call it at the factory/construction layer, not inside renderers.
+     *
+     * - `GLAZE_VITE_ENABLED=1` forces devEnabled on; `0` forces it off.
+     * - `GLAZE_VITE_URL` replaces devServerUrl when non-empty.
+     */
+    public function applyEnvironmentOverrides(): self
+    {
+        $devEnabled = $this->devEnabled;
+        $enabledOverride = getenv('GLAZE_VITE_ENABLED');
+        if ($enabledOverride === '1') {
+            $devEnabled = true;
+        } elseif ($enabledOverride === '0') {
+            $devEnabled = false;
+        }
+
+        $devServerUrl = $this->devServerUrl;
+        $runtimeUrl = getenv('GLAZE_VITE_URL');
+        if (is_string($runtimeUrl) && $runtimeUrl !== '') {
+            $devServerUrl = $runtimeUrl;
+        }
+
+        return new self(
+            buildEnabled: $this->buildEnabled,
+            devEnabled: $devEnabled,
+            assetBaseUrl: $this->assetBaseUrl,
+            manifestPath: $this->manifestPath,
+            devServerUrl: $devServerUrl,
+            injectClient: $this->injectClient,
+            defaultEntry: $this->defaultEntry,
+            mode: $this->mode,
         );
     }
 

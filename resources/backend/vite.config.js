@@ -9,7 +9,7 @@ export default defineConfig({
         cors: true,
     },
     build: {
-        outDir: 'dist',
+        outDir: 'assets/dist',
         manifest: true,
         rollupOptions: {
             input: {

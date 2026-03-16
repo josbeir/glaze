@@ -10,7 +10,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Glaze Inspector - Routes</title>
-    <link rel="stylesheet" href="<?= $basePath ?>/_glaze/assets/css/dev.css">
+    <s-vite src="[
+        '/assets/css/dev.css'
+    ]" />
 </head>
 <body>
     <div class="glaze-container">

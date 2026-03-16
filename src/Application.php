@@ -19,6 +19,7 @@ use Glaze\Command\RoutesCommand;
 use Glaze\Command\ServeCommand;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\NeonConfigEngine;
+use Glaze\Http\DevPageRequestHandler;
 use Glaze\Http\Middleware\ContentAssetMiddleware;
 use Glaze\Http\Middleware\ControllerMiddleware;
 use Glaze\Http\Middleware\CoreAssetMiddleware;
@@ -27,12 +28,14 @@ use Glaze\Http\Middleware\PublicAssetMiddleware;
 use Glaze\Http\Middleware\StaticAssetMiddleware;
 use Glaze\Http\Routing\ControllerRouter;
 use Glaze\Http\Routing\ControllerViewRenderer;
+use Glaze\Http\StaticPageRequestHandler;
 use Glaze\Image\GlideImageTransformer;
 use Glaze\Image\ImagePresetResolver;
 use Glaze\Image\ImageTransformerInterface;
 use Glaze\Scaffold\ScaffoldRegistry;
 use Glaze\Scaffold\ScaffoldSchemaLoader;
 use League\Container\ReflectionContainer;
+use Psr\Http\Server\RequestHandlerInterface;
 
 /**
  * Console application entrypoint for Glaze commands.
@@ -159,6 +162,29 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
         }
 
         return $queue;
+    }
+
+    /**
+     * Resolve the request fallback handler for the selected router mode.
+     *
+     * @param bool $staticMode Whether static mode is active.
+     * @return \Psr\Http\Server\RequestHandlerInterface Fallback request handler.
+     */
+    public function fallbackHandler(bool $staticMode): RequestHandlerInterface
+    {
+        $container = $this->getContainer();
+
+        if ($staticMode) {
+            /** @var \Glaze\Http\StaticPageRequestHandler $fallbackHandler */
+            $fallbackHandler = $container->get(StaticPageRequestHandler::class);
+
+            return $fallbackHandler;
+        }
+
+        /** @var \Glaze\Http\DevPageRequestHandler $fallbackHandler */
+        $fallbackHandler = $container->get(DevPageRequestHandler::class);
+
+        return $fallbackHandler;
     }
 
     /**

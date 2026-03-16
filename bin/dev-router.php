@@ -8,8 +8,6 @@ use Cake\Http\Runner;
 use Cake\Http\ServerRequestFactory;
 use Glaze\Application;
 use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Http\DevPageRequestHandler;
-use Glaze\Http\StaticPageRequestHandler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -29,7 +27,6 @@ $staticMode = getenv('GLAZE_STATIC_MODE') === '1';
 
 $application = new Application();
 $application->bootstrap();
-$container = $application->getContainer();
 
 (new ProjectConfigurationReader())->read($projectRoot);
 Configure::write('projectRoot', $projectRoot);
@@ -37,13 +34,7 @@ if ($includeDrafts) {
     Configure::write('build.drafts', true);
 }
 
-if ($staticMode) {
-    /** @var \Glaze\Http\StaticPageRequestHandler $fallbackHandler */
-    $fallbackHandler = $container->get(StaticPageRequestHandler::class);
-} else {
-    /** @var \Glaze\Http\DevPageRequestHandler $fallbackHandler */
-    $fallbackHandler = $container->get(DevPageRequestHandler::class);
-}
+$fallbackHandler = $application->fallbackHandler($staticMode);
 
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
 if (!is_string($requestMethod) || $requestMethod === '') {

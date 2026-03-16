@@ -17,13 +17,9 @@ use Psr\Http\Message\ResponseInterface;
  * Templates are resolved from the package's own resources/backend/templates/ directory:
  *   {package}/resources/backend/templates/{controller}/{action}.sugar.php
  *
- * An alternative template directory may be injected via the constructor for
- * testing or future extension. The renderer always runs in debug mode so that
- * template edits during Glaze development are picked up on every request.
- *
- * Vite integration is intentionally disabled here; core dev-UI templates link
- * to /_glaze/assets/ directly. The Vite pipeline (resources/vite.config.js)
- * is wired in once the built assets are committed to resources/dist/.
+ * Vite integration is wired to the package's own resources/backend/vite.config.js build
+ * (port 5184, outDir assets/dist). A custom TemplateViteOptions instance may be injected
+ * via the constructor to override the defaults, which is useful in tests.
  *
  * Example:
  *   $viewRenderer->render($matchedRoute, ['pages' => $pages]);
@@ -36,19 +32,33 @@ final class ControllerViewRenderer
     private string $templateDirectory;
 
     /**
+     * Vite options used when creating SugarPageRenderer instances.
+     */
+    protected TemplateViteOptions $backendVite;
+
+    /**
      * Constructor.
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration (cache path + site config).
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
-     * @param string|null $templateDirectory Override template directory for testing. Defaults to
-     *   the package's resources/backend/templates/ when null.
+     * @param string|null $templateDirectory Override template directory. Defaults to the package's
+     *   resources/backend/templates/ when null.
      */
     public function __construct(
         private BuildConfig $config,
         private ResourcePathRewriter $resourcePathRewriter,
         ?string $templateDirectory = null,
     ) {
-        $this->templateDirectory = $templateDirectory ?? dirname(__DIR__, 3) . '/resources/backend/templates';
+        $packageRoot = dirname(__DIR__, 3);
+        $this->templateDirectory = $templateDirectory ?? $packageRoot . '/resources/backend/templates';
+        $this->backendVite = new TemplateViteOptions(
+            buildEnabled: true,
+            devEnabled: true,
+            assetBaseUrl: '/_glaze/assets/dist/',
+            manifestPath: $packageRoot . '/resources/backend/assets/dist/.vite/manifest.json',
+            devServerUrl: 'http://localhost:5174',
+            mode: 'dev',
+        );
     }
 
     /**
@@ -63,11 +73,11 @@ final class ControllerViewRenderer
 
         $renderer = new SugarPageRenderer(
             templatePath: $this->templateDirectory,
-            cachePath: $this->config->cachePath(CachePath::Sugar),
+            cachePath: $this->config->cachePath(CachePath::Sugar) . '/backend',
             template: $templateName,
             siteConfig: $this->config->site,
             resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: new TemplateViteOptions(),
+            templateVite: $this->backendVite,
             debug: true,
         );
 
