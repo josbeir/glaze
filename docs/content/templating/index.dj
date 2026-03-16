@@ -74,7 +74,8 @@ These variables are injected into every page template by Glaze:
 | `$page` | `ContentPage` | Full page object |
 | `$meta` | `array` | Merged page metadata |
 | `$site` | `SiteConfig` | Global site config |
-| `$debug` | `bool` | `true` when running `glaze serve`, `false` during `glaze build` |
+
+Use `$this->isLiveMode()` from `SiteContext` to check live (`glaze serve`) vs build (`glaze build`) mode.
 
 ### `$page` properties
 
@@ -137,6 +138,7 @@ $this->tree()                           // root Section node
 $this->section('blog')                  // ?Section for a path (supports nesting: docs/guides)
 $this->sections()                       // array<string, Section> — top-level sections, ordered by weight
 $this->rootPages()                      // PageCollection — root-level pages (no section)
+$this->isLiveMode()                     // bool -- true in live mode (`glaze serve`), false in build mode
 $this->isCurrent('/blog/')              // bool -- true when current page matches path
 $this->previous(?callable $predicate = null)           // ?ContentPage — previous in global display order
 $this->next(?callable $predicate = null)               // ?ContentPage — next in global display order

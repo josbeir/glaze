@@ -8,12 +8,6 @@ use Cake\Http\Runner;
 use Cake\Http\ServerRequestFactory;
 use Glaze\Application;
 use Glaze\Config\ProjectConfigurationReader;
-use Glaze\Http\DevPageRequestHandler;
-use Glaze\Http\Middleware\ContentAssetMiddleware;
-use Glaze\Http\Middleware\ErrorHandlingMiddleware;
-use Glaze\Http\Middleware\PublicAssetMiddleware;
-use Glaze\Http\Middleware\StaticAssetMiddleware;
-use Glaze\Http\StaticPageRequestHandler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -30,29 +24,19 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 
 $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
 $staticMode = getenv('GLAZE_STATIC_MODE') === '1';
+$debug = getenv('GLAZE_DEBUG') === '1';
 
 $application = new Application();
 $application->bootstrap();
-$container = $application->getContainer();
 
 (new ProjectConfigurationReader())->read($projectRoot);
 Configure::write('projectRoot', $projectRoot);
+Configure::write('debug', $debug);
 if ($includeDrafts) {
     Configure::write('build.drafts', true);
 }
 
-/** @var \Glaze\Http\Middleware\StaticAssetMiddleware $staticAssetMiddleware */
-$staticAssetMiddleware = $container->get(StaticAssetMiddleware::class);
-/** @var \Glaze\Http\Middleware\ContentAssetMiddleware $contentAssetMiddleware */
-$contentAssetMiddleware = $container->get(ContentAssetMiddleware::class);
-
-if ($staticMode) {
-    /** @var \Glaze\Http\StaticPageRequestHandler $fallbackHandler */
-    $fallbackHandler = $container->get(StaticPageRequestHandler::class);
-} else {
-    /** @var \Glaze\Http\DevPageRequestHandler $fallbackHandler */
-    $fallbackHandler = $container->get(DevPageRequestHandler::class);
-}
+$fallbackHandler = $application->fallbackHandler($staticMode);
 
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
 if (!is_string($requestMethod) || $requestMethod === '') {
@@ -74,17 +58,7 @@ if (is_string($query) && $query !== '') {
     $request = $request->withQueryParams($queryParams);
 }
 
-$queue = new MiddlewareQueue();
-$queue->add(new ErrorHandlingMiddleware(true));
-
-if ($staticMode) {
-    /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
-    $publicAssetMiddleware = $container->get(PublicAssetMiddleware::class);
-    $queue->add($publicAssetMiddleware);
-}
-
-$queue->add($staticAssetMiddleware);
-$queue->add($contentAssetMiddleware);
+$queue = $application->middleware(new MiddlewareQueue(), $staticMode);
 
 $response = (new Runner())->run($queue, $request, $fallbackHandler);
 

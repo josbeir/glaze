@@ -25,6 +25,7 @@ final class TemplateViteOptionsTest extends TestCase
         $this->assertSame('http://127.0.0.1:5173', $options->devServerUrl);
         $this->assertTrue($options->injectClient);
         $this->assertNull($options->defaultEntry);
+        $this->assertSame('auto', $options->mode);
     }
 
     /**
@@ -40,6 +41,31 @@ final class TemplateViteOptionsTest extends TestCase
         $this->assertSame('http://127.0.0.1:5173', $options->devServerUrl);
         $this->assertTrue($options->injectClient);
         $this->assertNull($options->defaultEntry);
+        $this->assertSame('auto', $options->mode);
+    }
+
+    /**
+     * Ensure a valid `mode` in the build config block is read and preserved.
+     */
+    public function testFromProjectConfigReadsExplicitMode(): void
+    {
+        $optionsDev = TemplateViteOptions::fromProjectConfig(['mode' => 'dev'], [], '/project');
+        $optionsProd = TemplateViteOptions::fromProjectConfig(['mode' => 'prod'], [], '/project');
+        $optionsAuto = TemplateViteOptions::fromProjectConfig(['mode' => 'auto'], [], '/project');
+
+        $this->assertSame('dev', $optionsDev->mode);
+        $this->assertSame('prod', $optionsProd->mode);
+        $this->assertSame('auto', $optionsAuto->mode);
+    }
+
+    /**
+     * Ensure an invalid or unrecognised `mode` value falls back to `auto`.
+     */
+    public function testFromProjectConfigInvalidModeFallsBackToAuto(): void
+    {
+        $options = TemplateViteOptions::fromProjectConfig(['mode' => 'invalid'], [], '/project');
+
+        $this->assertSame('auto', $options->mode);
     }
 
     /**
@@ -285,5 +311,119 @@ final class TemplateViteOptionsTest extends TestCase
         );
 
         $this->assertNull($options->defaultEntry);
+    }
+
+    /**
+     * Ensure applyEnvironmentOverrides returns the same options when no env vars are set.
+     */
+    public function testApplyEnvironmentOverridesReturnsUnchangedOptionsWhenNoEnvVarsAreSet(): void
+    {
+        $original = new TemplateViteOptions(devEnabled: true, devServerUrl: 'http://127.0.0.1:5173');
+        $result = $original->applyEnvironmentOverrides();
+
+        $this->assertTrue($result->devEnabled);
+        $this->assertSame('http://127.0.0.1:5173', $result->devServerUrl);
+    }
+
+    /**
+     * Ensure GLAZE_VITE_ENABLED=1 forces devEnabled on regardless of config.
+     */
+    public function testApplyEnvironmentOverridesEnablesDevWhenEnvVarIsOne(): void
+    {
+        putenv('GLAZE_VITE_ENABLED=1');
+
+        try {
+            $result = (new TemplateViteOptions(devEnabled: false))->applyEnvironmentOverrides();
+
+            $this->assertTrue($result->devEnabled);
+        } finally {
+            putenv('GLAZE_VITE_ENABLED');
+        }
+    }
+
+    /**
+     * Ensure GLAZE_VITE_ENABLED=0 forces devEnabled off regardless of config.
+     */
+    public function testApplyEnvironmentOverridesDisablesDevWhenEnvVarIsZero(): void
+    {
+        putenv('GLAZE_VITE_ENABLED=0');
+
+        try {
+            $result = (new TemplateViteOptions(devEnabled: true))->applyEnvironmentOverrides();
+
+            $this->assertFalse($result->devEnabled);
+        } finally {
+            putenv('GLAZE_VITE_ENABLED');
+        }
+    }
+
+    /**
+     * Ensure GLAZE_VITE_URL replaces devServerUrl when set.
+     */
+    public function testApplyEnvironmentOverridesReplacesDevServerUrlFromEnv(): void
+    {
+        putenv('GLAZE_VITE_URL=http://127.0.0.1:9999');
+
+        try {
+            $result = (new TemplateViteOptions(devServerUrl: 'http://127.0.0.1:5173'))
+                ->applyEnvironmentOverrides();
+
+            $this->assertSame('http://127.0.0.1:9999', $result->devServerUrl);
+        } finally {
+            putenv('GLAZE_VITE_URL');
+        }
+    }
+
+    /**
+     * Ensure all other fields are preserved unchanged by applyEnvironmentOverrides.
+     */
+    public function testApplyEnvironmentOverridesPreservesAllOtherFields(): void
+    {
+        $original = new TemplateViteOptions(
+            buildEnabled: true,
+            assetBaseUrl: '/_glaze/assets/',
+            manifestPath: '/some/path/manifest.json',
+            injectClient: false,
+            defaultEntry: 'assets/app.js',
+        );
+
+        $result = $original->applyEnvironmentOverrides();
+
+        $this->assertSame($original->buildEnabled, $result->buildEnabled);
+        $this->assertSame($original->assetBaseUrl, $result->assetBaseUrl);
+        $this->assertSame($original->manifestPath, $result->manifestPath);
+        $this->assertSame($original->injectClient, $result->injectClient);
+        $this->assertSame($original->defaultEntry, $result->defaultEntry);
+        $this->assertSame($original->mode, $result->mode);
+    }
+
+    /**
+     * Ensure withMode returns a new immutable instance and only changes mode.
+     */
+    public function testWithModeReturnsNewInstanceWithOnlyModeChanged(): void
+    {
+        $original = new TemplateViteOptions(
+            buildEnabled: true,
+            devEnabled: true,
+            assetBaseUrl: '/assets/',
+            manifestPath: '/project/public/.vite/manifest.json',
+            devServerUrl: 'http://localhost:5173',
+            injectClient: false,
+            defaultEntry: 'assets/app.js',
+            mode: 'auto',
+        );
+
+        $result = $original->withMode('prod');
+
+        $this->assertNotSame($original, $result);
+        $this->assertSame('auto', $original->mode);
+        $this->assertSame('prod', $result->mode);
+        $this->assertSame($original->buildEnabled, $result->buildEnabled);
+        $this->assertSame($original->devEnabled, $result->devEnabled);
+        $this->assertSame($original->assetBaseUrl, $result->assetBaseUrl);
+        $this->assertSame($original->manifestPath, $result->manifestPath);
+        $this->assertSame($original->devServerUrl, $result->devServerUrl);
+        $this->assertSame($original->injectClient, $result->injectClient);
+        $this->assertSame($original->defaultEntry, $result->defaultEntry);
     }
 }

@@ -82,6 +82,11 @@ final class ServeCommand extends BaseCommand
                 'boolean' => true,
                 'default' => false,
             ])
+            ->addOption('debug', [
+                'help' => 'Enable debug mode.',
+                'boolean' => true,
+                'default' => false,
+            ])
             ->addOption('vite', [
                 'help' => 'Enable Vite dev server integration in live mode.',
                 'boolean' => true,
@@ -127,6 +132,7 @@ final class ServeCommand extends BaseCommand
         (new ProjectConfigurationReader())->read($projectRoot);
 
         $isStaticMode = (bool)$args->getOption('static');
+        $debug = (bool)$args->getOption('debug');
         $includeDrafts = !$isStaticMode || (bool)$args->getOption('drafts');
 
         if ((bool)$args->getOption('vite') && $isStaticMode) {
@@ -196,7 +202,7 @@ final class ServeCommand extends BaseCommand
         }
 
         $previousEnvironment = $this->applyEnvironment(
-            $this->buildRouterEnvironment($projectRoot, $includeDrafts, $viteConfiguration, $isStaticMode),
+            $this->buildRouterEnvironment($projectRoot, $includeDrafts, $viteConfiguration, $isStaticMode, $debug),
         );
 
         $viteProcess = null;
@@ -250,6 +256,7 @@ final class ServeCommand extends BaseCommand
      * @param bool $includeDrafts Whether draft pages should be included.
      * @param array{enabled: bool, host: string, port: int, command: string} $viteConfiguration Vite runtime configuration.
      * @param bool $isStaticMode Whether static serving mode is active.
+     * @param bool $debug Whether diagnostic debug behavior is enabled.
      * @return array<string, string>
      */
     protected function buildRouterEnvironment(
@@ -257,11 +264,13 @@ final class ServeCommand extends BaseCommand
         bool $includeDrafts,
         array $viteConfiguration,
         bool $isStaticMode,
+        bool $debug,
     ): array {
         return [
             'GLAZE_PROJECT_ROOT' => $projectRoot,
             'GLAZE_STATIC_MODE' => $isStaticMode ? '1' : '0',
             'GLAZE_INCLUDE_DRAFTS' => $includeDrafts ? '1' : '0',
+            'GLAZE_DEBUG' => $debug ? '1' : '0',
             'GLAZE_VITE_ENABLED' => $viteConfiguration['enabled'] ? '1' : '0',
             'GLAZE_VITE_URL' => $viteConfiguration['enabled'] ? $this->viteServeProcess->url($viteConfiguration) : '',
         ];

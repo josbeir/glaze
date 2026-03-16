@@ -7,16 +7,17 @@ weight: 50
 
 Short, copy-paste patterns for common real-world needs.
 
-## Environment-aware templates with `$debug`
+## Environment-aware templates with `$this->isLiveMode()`
 
-Every template receives a `$debug` boolean that is `true` when Glaze is running in
-`glaze serve` (development) mode and `false` during `glaze build` (production).
+Inside templates, `$this` is a `SiteContext` object. Use `$this->isLiveMode()` to
+detect whether Glaze is running in `glaze serve` (live mode) or `glaze build`
+(static build mode).
 
 This lets you keep a single template codebase while varying content by environment —
 no separate config files required.
 
 ::: info
-`$debug` maps 1-to-1 with the `glaze serve` / `glaze build` distinction
+`$this->isLiveMode()` maps 1-to-1 with the `glaze serve` / `glaze build` distinction
 — it is not affected by your NEON config, OS environment variables, or Vite settings.
 :::
 
@@ -26,7 +27,7 @@ Keep your development credentials out of production builds (and vice versa):
 
 ```php
 <?php
-$apiKey = $debug
+$apiKey = $this->isLiveMode()
     ? 'pk_test_xxxxxxxxxxxxxxxx'   // development key
     : 'pk_live_xxxxxxxxxxxxxxxx';  // production key
 ?>
@@ -48,7 +49,7 @@ site:
 
 ```php
 <?php
-$apiKey = $debug
+$apiKey = $this->isLiveMode()
     ? $site->siteMeta('apiKeyDev')
     : $site->siteMeta('apiKeyLive');
 ?>
@@ -63,7 +64,7 @@ Emit the GTM snippet only when generating the static build so analytics data is
 never polluted by local development traffic:
 
 ```php
-<?php if (!$debug): ?>
+<?php if (!$this->isLiveMode()): ?>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -77,7 +78,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 And the corresponding `<noscript>` body tag:
 
 ```php
-<?php if (!$debug): ?>
+<?php if (!$this->isLiveMode()): ?>
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -88,7 +89,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 The same pattern works for Google Analytics 4 directly:
 
 ```php
-<?php if (!$debug): ?>
+<?php if (!$this->isLiveMode()): ?>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXX"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -105,7 +106,7 @@ Render a strip at the top of every page in dev mode so it is immediately clear y
 are not looking at the live site:
 
 ```php
-<?php if ($debug): ?>
+<?php if ($this->isLiveMode()): ?>
 <div class="alert alert-warning rounded-none text-sm text-center">
   Development preview — not the live site
 </div>
@@ -114,13 +115,14 @@ are not looking at the live site:
 
 ### Combine multiple conditions
 
-You can mix `$debug` with other template variables freely:
+You can mix `$this->isLiveMode()` with other template variables freely:
 
 ```php
 <?php
-$gaId      = $debug ? null : 'G-XXXXXXXX';
-$cookieBanner = !$debug;
-$chatWidget   = !$debug && $site->siteMeta('chat.enabled');
+$isLiveMode = $this->isLiveMode();
+$gaId      = $isLiveMode ? null : 'G-XXXXXXXX';
+$cookieBanner = !$isLiveMode;
+$chatWidget   = !$isLiveMode && $site->siteMeta('chat.enabled');
 ?>
 ```
 

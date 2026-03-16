@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Render;
 
+use Cake\Core\Configure;
 use Glaze\Build\Enum\BuildEvent;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\Event\SugarRendererCreatedEvent;
@@ -17,7 +18,7 @@ use Glaze\Utility\Hash;
 final class SugarPageRendererFactory
 {
     /**
-     * Renderer cache keyed by config/template/debug combination.
+     * Renderer cache keyed by config/template/liveMode/debug combination.
      *
      * @var array<string, \Glaze\Render\SugarPageRenderer>
      */
@@ -37,23 +38,29 @@ final class SugarPageRendererFactory
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param string $template Sugar template name.
-     * @param bool $debug Whether to enable debug freshness checks.
+     * @param bool $liveMode Whether this renderer is used for live serving.
      * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
     public function create(
         BuildConfig $config,
         string $template,
-        bool $debug = false,
+        bool $liveMode = false,
         ?EventDispatcher $dispatcher = null,
     ): SugarPageRenderer {
+        $debug = $liveMode && (bool)Configure::read('debug', false);
+
+        $viteOptions = $liveMode && $debug
+            ? $config->templateViteOptions->applyEnvironmentOverrides()
+            : $config->templateViteOptions;
+
         $renderer = new SugarPageRenderer(
             templatePath: $config->templatePath(),
             cachePath: $config->cachePath(CachePath::Sugar),
             template: $template,
             siteConfig: $config->site,
             resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: $config->templateViteOptions,
-            debug: $debug,
+            templateVite: $viteOptions,
+            liveMode: $liveMode,
         );
 
         $dispatcher?->dispatch(
@@ -69,21 +76,22 @@ final class SugarPageRendererFactory
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param string $template Sugar template name.
-     * @param bool $debug Whether to enable debug freshness checks.
+     * @param bool $liveMode Whether this renderer is used for live serving.
      * @param \Glaze\Build\Event\EventDispatcher|null $dispatcher Optional build event dispatcher.
      */
     public function createCached(
         BuildConfig $config,
         string $template,
-        bool $debug = false,
+        bool $liveMode = false,
         ?EventDispatcher $dispatcher = null,
     ): SugarPageRenderer {
-        $cacheKey = $this->cacheKey($config, $template, $debug);
+        $debug = $liveMode && (bool)Configure::read('debug', false);
+        $cacheKey = $this->cacheKey($config, $template, $liveMode, $debug);
         if (isset($this->cache[$cacheKey])) {
             return $this->cache[$cacheKey];
         }
 
-        $this->cache[$cacheKey] = $this->create($config, $template, $debug, $dispatcher);
+        $this->cache[$cacheKey] = $this->create($config, $template, $liveMode, $dispatcher);
 
         return $this->cache[$cacheKey];
     }
@@ -93,13 +101,15 @@ final class SugarPageRendererFactory
      *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param string $template Sugar template name.
-     * @param bool $debug Whether to enable debug freshness checks.
+     * @param bool $liveMode Whether this renderer is used for live serving.
+     * @param bool $debug Effective debug state for this renderer context.
      */
-    protected function cacheKey(BuildConfig $config, string $template, bool $debug): string
+    protected function cacheKey(BuildConfig $config, string $template, bool $liveMode, bool $debug): string
     {
         return Hash::makeFromParts([
             $config->projectRoot,
             $template,
+            $liveMode ? '1' : '0',
             $debug ? '1' : '0',
         ]);
     }

@@ -48,7 +48,7 @@ final class PageRenderPipeline
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @param \Glaze\Content\ContentPage $page Page to render.
      * @param string $pageTemplate Template name to render with.
-     * @param bool $debug Whether to enable template debug freshness checks.
+     * @param bool $liveMode Whether this render is for live serving instead of static build output.
      * @param \Glaze\Template\SiteIndex|null $siteIndex Language-scoped index for navigation.
      *   When `$globalIndex` is also provided this should contain only the current language's pages.
      * @param \Glaze\Template\SiteIndex|null $globalIndex Full site-wide index for cross-language lookups.
@@ -60,13 +60,18 @@ final class PageRenderPipeline
         BuildConfig $config,
         ContentPage $page,
         string $pageTemplate,
-        bool $debug,
+        bool $liveMode,
         ?SiteIndex $siteIndex = null,
         ?SiteIndex $globalIndex = null,
         ?ExtensionRegistry $extensionRegistry = null,
         ?EventDispatcher $dispatcher = null,
     ): PageRenderOutput {
-        $pageRenderer = $this->sugarPageRendererFactory->createCached($config, $pageTemplate, $debug, $dispatcher);
+        $pageRenderer = $this->sugarPageRendererFactory->createCached(
+            $config,
+            $pageTemplate,
+            $liveMode,
+            $dispatcher,
+        );
 
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex ??= new SiteIndex([$page], $assetResolver);
@@ -94,6 +99,7 @@ final class PageRenderPipeline
                 ? $config->translationsPath()
                 : '',
             globalIndex: $globalIndex,
+            liveMode: $liveMode,
         );
 
         $htmlContent = $renderResult->html;
@@ -109,10 +115,9 @@ final class PageRenderPipeline
                 ArrayObject::ARRAY_AS_PROPS,
             ),
             'site' => $config->site,
-            'debug' => $debug,
         ], $templateContext);
 
-        if (!$debug) {
+        if (!$liveMode) {
             return new PageRenderOutput($this->buildGlideHtmlRewriter->rewrite($output, $config), $page);
         }
 

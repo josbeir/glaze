@@ -45,7 +45,7 @@ final class SugarPageRenderer
      * @param \Glaze\Config\SiteConfig $siteConfig Site configuration for static attribute rewriting.
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
      * @param \Glaze\Config\TemplateViteOptions $templateVite Sugar Vite extension configuration.
-     * @param bool $debug Whether to enable debug freshness checks.
+     * @param bool $liveMode Whether this renderer is used for live serving.
      */
     public function __construct(
         protected string $templatePath,
@@ -54,7 +54,7 @@ final class SugarPageRenderer
         protected SiteConfig $siteConfig,
         protected ResourcePathRewriter $resourcePathRewriter,
         protected TemplateViteOptions $templateVite,
-        protected bool $debug = false,
+        protected bool $liveMode = false,
     ) {
     }
 
@@ -78,11 +78,19 @@ final class SugarPageRenderer
     }
 
     /**
+     * Return live mode state.
+     */
+    public function isLiveMode(): bool
+    {
+        return $this->liveMode;
+    }
+
+    /**
      * Return debug mode state.
      */
     public function isDebugEnabled(): bool
     {
-        return $this->debug;
+        return $this->liveMode;
     }
 
     /**
@@ -130,10 +138,12 @@ final class SugarPageRenderer
      */
     protected function createEngine(?object $templateContext = null): Engine
     {
+        $debug = $this->isDebugEnabled();
+
         $builder = Engine::builder()
             ->withTemplateLoader($this->getLoader())
             ->withCache($this->getCache())
-            ->withDebug($this->debug)
+            ->withDebug($debug)
             ->withTemplateContext($templateContext)
             ->withExtension(new ComponentExtension(['components']))
             ->withExtension(new ResourcePathSugarExtension(
@@ -166,43 +176,37 @@ final class SugarPageRenderer
     /**
      * Resolve Sugar Vite extension configuration for current render mode.
      *
+     * The `mode` field of {@see TemplateViteOptions} is passed directly to the Sugar Vite extension:
+     * - `auto` — Glaze resolves mode by render mode: live => `dev`, build => `prod`.
+     * - `dev`  — always connects to the Vite dev server regardless of debug state.
+     * - `prod` — always reads from the manifest regardless of debug state.
+     *
      * @return array{mode: string, assetBaseUrl: string, manifestPath: string|null, devServerUrl: string, injectClient: bool, defaultEntry: string|null}|null
      */
     protected function resolveViteConfiguration(): ?array
     {
         $viteConfiguration = $this->templateVite;
-        $isEnabled = $this->debug
+        $isEnabled = $this->liveMode
             ? $viteConfiguration->devEnabled
             : $viteConfiguration->buildEnabled;
-
-        if ($this->debug) {
-            $enabledOverride = getenv('GLAZE_VITE_ENABLED');
-            if ($enabledOverride === '1') {
-                $isEnabled = true;
-            } elseif ($enabledOverride === '0') {
-                $isEnabled = false;
-            }
-        }
 
         if (!$isEnabled) {
             return null;
         }
 
         $devServerUrl = $viteConfiguration->devServerUrl;
-        if ($this->debug) {
-            $runtimeViteUrl = getenv('GLAZE_VITE_URL');
-            if (is_string($runtimeViteUrl) && $runtimeViteUrl !== '') {
-                $devServerUrl = $runtimeViteUrl;
-            }
-        }
-
         $assetBaseUrl = $viteConfiguration->assetBaseUrl;
         if (!$this->resourcePathRewriter->isExternalResourcePath($assetBaseUrl)) {
             $assetBaseUrl = $this->resourcePathRewriter->applyBasePathToPath($assetBaseUrl, $this->siteConfig);
         }
 
+        $mode = $viteConfiguration->mode;
+        if ($mode === 'auto') {
+            $mode = $this->liveMode ? 'dev' : 'prod';
+        }
+
         return [
-            'mode' => $this->debug ? 'dev' : 'prod',
+            'mode' => $mode,
             'assetBaseUrl' => $assetBaseUrl,
             'manifestPath' => $viteConfiguration->manifestPath,
             'devServerUrl' => $devServerUrl,
