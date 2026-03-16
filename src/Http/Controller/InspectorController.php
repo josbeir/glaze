@@ -46,6 +46,7 @@ final class InspectorController
      * @return array<string, mixed> Template variables with key `pages` containing
      *   all discovered {@see \Glaze\Content\ContentPage} instances.
      */
+    #[Route('/')]
     #[Route('/routes')]
     public function routes(): array
     {
