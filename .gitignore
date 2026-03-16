@@ -6,3 +6,4 @@ public/
 build/
 composer.lock
 .rules
+resources/backend/node_modules/

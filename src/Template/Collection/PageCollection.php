@@ -475,6 +475,7 @@ final class PageCollection implements IteratorAggregate, Countable
             return false;
         }
 
+        /** @phpstan-ignore argument.type, argument.type */
         return array_intersect($actual, $expected) !== [];
     }
 

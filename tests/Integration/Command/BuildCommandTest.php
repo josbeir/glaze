@@ -209,6 +209,7 @@ final class BuildCommandTest extends IntegrationCommandTestCase
 
         preg_match('/src="(\/_glide\/[a-f0-9]+\.jpg)"/', $output, $matches);
         $this->assertArrayHasKey(1, $matches);
+        assert(array_key_exists(1, $matches));
         $transformedRelativePath = $matches[1];
         $this->assertFileExists($projectRoot . '/public' . $transformedRelativePath);
     }
