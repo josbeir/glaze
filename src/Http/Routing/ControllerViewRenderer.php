@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Http\Routing;
 
+use Cake\Core\Configure;
 use Cake\Http\Response;
 use Glaze\Config\BuildConfig;
 use Glaze\Config\Enum\CachePath;
@@ -57,7 +58,7 @@ final class ControllerViewRenderer
             assetBaseUrl: '/_glaze/assets/dist/',
             manifestPath: $packageRoot . '/resources/backend/assets/dist/.vite/manifest.json',
             devServerUrl: 'http://localhost:5174',
-            mode: 'dev',
+            mode: 'auto',
         );
     }
 
@@ -70,6 +71,8 @@ final class ControllerViewRenderer
     public function render(MatchedRoute $route, array $data): ResponseInterface
     {
         $templateName = $route->controllerName . '/' . $route->actionName;
+        $backendDebug = (bool)Configure::read('debug', false);
+        $templateVite = $this->backendVite->withMode($backendDebug ? 'dev' : 'prod');
 
         $renderer = new SugarPageRenderer(
             templatePath: $this->templateDirectory,
@@ -77,8 +80,8 @@ final class ControllerViewRenderer
             template: $templateName,
             siteConfig: $this->config->site,
             resourcePathRewriter: $this->resourcePathRewriter,
-            templateVite: $this->backendVite,
-            debug: true,
+            templateVite: $templateVite,
+            liveMode: true,
         );
 
         $html = $renderer->render($data);

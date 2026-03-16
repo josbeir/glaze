@@ -33,9 +33,8 @@ final readonly class TemplateViteOptions
      * @param string $devServerUrl Dev server origin URL.
      * @param bool $injectClient Whether `@vite/client` is auto-injected in dev mode.
      * @param string|null $defaultEntry Default entry used when directive is boolean.
-     * @param string $mode Vite resolver mode: `auto` delegates to the Sugar engine debug flag, `dev` always uses
-     *                     the dev server, `prod` always uses the manifest. When `auto`, the mode is determined by
-     *                     whether the parent `SugarPageRenderer` was created with `debug: true`.
+     * @param string $mode Vite resolver mode: `auto`, `dev`, or `prod`. In `auto`, Glaze resolves to `dev` only
+     *                     for live renders where diagnostics are enabled; all other renders use `prod`.
      */
     public function __construct(
         public bool $buildEnabled = false,
@@ -134,6 +133,25 @@ final readonly class TemplateViteOptions
             injectClient: $this->injectClient,
             defaultEntry: $this->defaultEntry,
             mode: $this->mode,
+        );
+    }
+
+    /**
+     * Return a copy of this options object with a different Vite mode.
+     *
+     * @param string $mode Vite resolver mode: `auto`, `dev`, or `prod`.
+     */
+    public function withMode(string $mode): self
+    {
+        return new self(
+            buildEnabled: $this->buildEnabled,
+            devEnabled: $this->devEnabled,
+            assetBaseUrl: $this->assetBaseUrl,
+            manifestPath: $this->manifestPath,
+            devServerUrl: $this->devServerUrl,
+            injectClient: $this->injectClient,
+            defaultEntry: $this->defaultEntry,
+            mode: $mode,
         );
     }
 

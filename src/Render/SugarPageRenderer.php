@@ -45,7 +45,7 @@ final class SugarPageRenderer
      * @param \Glaze\Config\SiteConfig $siteConfig Site configuration for static attribute rewriting.
      * @param \Glaze\Support\ResourcePathRewriter $resourcePathRewriter Shared path rewriter.
      * @param \Glaze\Config\TemplateViteOptions $templateVite Sugar Vite extension configuration.
-     * @param bool $debug Whether to enable debug freshness checks.
+     * @param bool $liveMode Whether this renderer is used for live serving.
      */
     public function __construct(
         protected string $templatePath,
@@ -54,7 +54,7 @@ final class SugarPageRenderer
         protected SiteConfig $siteConfig,
         protected ResourcePathRewriter $resourcePathRewriter,
         protected TemplateViteOptions $templateVite,
-        protected bool $debug = false,
+        protected bool $liveMode = false,
     ) {
     }
 
@@ -78,11 +78,19 @@ final class SugarPageRenderer
     }
 
     /**
+     * Return live mode state.
+     */
+    public function isLiveMode(): bool
+    {
+        return $this->liveMode;
+    }
+
+    /**
      * Return debug mode state.
      */
     public function isDebugEnabled(): bool
     {
-        return $this->debug;
+        return $this->liveMode;
     }
 
     /**
@@ -130,10 +138,12 @@ final class SugarPageRenderer
      */
     protected function createEngine(?object $templateContext = null): Engine
     {
+        $debug = $this->isDebugEnabled();
+
         $builder = Engine::builder()
             ->withTemplateLoader($this->getLoader())
             ->withCache($this->getCache())
-            ->withDebug($this->debug)
+            ->withDebug($debug)
             ->withTemplateContext($templateContext)
             ->withExtension(new ComponentExtension(['components']))
             ->withExtension(new ResourcePathSugarExtension(
@@ -167,7 +177,7 @@ final class SugarPageRenderer
      * Resolve Sugar Vite extension configuration for current render mode.
      *
      * The `mode` field of {@see TemplateViteOptions} is passed directly to the Sugar Vite extension:
-     * - `auto` — Sugar uses the engine debug flag to decide (dev when debug, prod otherwise).
+     * - `auto` — Glaze resolves mode by render mode: live => `dev`, build => `prod`.
      * - `dev`  — always connects to the Vite dev server regardless of debug state.
      * - `prod` — always reads from the manifest regardless of debug state.
      *
@@ -176,7 +186,7 @@ final class SugarPageRenderer
     protected function resolveViteConfiguration(): ?array
     {
         $viteConfiguration = $this->templateVite;
-        $isEnabled = $this->debug
+        $isEnabled = $this->liveMode
             ? $viteConfiguration->devEnabled
             : $viteConfiguration->buildEnabled;
 
@@ -190,8 +200,13 @@ final class SugarPageRenderer
             $assetBaseUrl = $this->resourcePathRewriter->applyBasePathToPath($assetBaseUrl, $this->siteConfig);
         }
 
+        $mode = $viteConfiguration->mode;
+        if ($mode === 'auto') {
+            $mode = $this->liveMode ? 'dev' : 'prod';
+        }
+
         return [
-            'mode' => $viteConfiguration->mode,
+            'mode' => $mode,
             'assetBaseUrl' => $assetBaseUrl,
             'manifestPath' => $viteConfiguration->manifestPath,
             'devServerUrl' => $devServerUrl,

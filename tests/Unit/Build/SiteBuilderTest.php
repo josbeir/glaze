@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Glaze\Tests\Unit\Build;
 
+use Cake\Core\Configure;
 use Closure;
 use Djot\DjotConverter;
 use Djot\Extension\ExtensionInterface as DjotExtensionInterface;
@@ -381,6 +382,10 @@ final class SiteBuilderTest extends TestCase
             $projectRoot . '/templates/taxonomy/term.sugar.php',
             '<p><?= $page->meta("term") ?></p>',
         );
+        file_put_contents(
+            $projectRoot . '/templates/taxonomy/list.sugar.php',
+            '<p>list</p>',
+        );
 
         $builder = $this->createSiteBuilder();
         $config = BuildConfig::fromProjectRoot($projectRoot, true);
@@ -536,13 +541,16 @@ final class SiteBuilderTest extends TestCase
 
         $originalViteEnabled = getenv('GLAZE_VITE_ENABLED');
         $originalViteUrl = getenv('GLAZE_VITE_URL');
+        $originalDebug = Configure::read('debug');
 
         try {
+            Configure::write('debug', true);
             putenv('GLAZE_VITE_ENABLED=1');
             putenv('GLAZE_VITE_URL=http://127.0.0.1:5179');
 
             $html = $builder->renderRequest($config, '/');
         } finally {
+            Configure::write('debug', $originalDebug);
             $this->restoreVariable('GLAZE_VITE_ENABLED', $originalViteEnabled);
             $this->restoreVariable('GLAZE_VITE_URL', $originalViteUrl);
         }

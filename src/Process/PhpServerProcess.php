@@ -65,6 +65,7 @@ final class PhpServerProcess implements ProcessInterface
             'GLAZE_PROJECT_ROOT',
             'GLAZE_STATIC_MODE',
             'GLAZE_INCLUDE_DRAFTS',
+            'GLAZE_DEBUG',
             'GLAZE_VITE_ENABLED',
             'GLAZE_VITE_URL',
             'GLAZE_CLI_ROOT',

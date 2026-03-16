@@ -102,9 +102,9 @@ final class ServeCommandTest extends TestCase
             'command' => 'npm run dev -- --host {host} --port {port} --strictPort',
         ];
 
-        $live = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteDisabled, false);
-        $static = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', false, $viteDisabled, true);
-        $liveWithVite = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteEnabled, false);
+        $live = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteDisabled, false, false);
+        $static = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', false, $viteDisabled, true, false);
+        $liveWithVite = $this->callProtected($command, 'buildRouterEnvironment', '/tmp/project', true, $viteEnabled, false, true);
 
         $this->assertIsArray($live);
         $this->assertIsArray($static);
@@ -115,10 +115,12 @@ final class ServeCommandTest extends TestCase
         $this->assertSame('/tmp/project', $live['GLAZE_PROJECT_ROOT']);
         $this->assertSame('0', $live['GLAZE_STATIC_MODE']);
         $this->assertSame('1', $live['GLAZE_INCLUDE_DRAFTS']);
+        $this->assertSame('0', $live['GLAZE_DEBUG']);
         $this->assertSame('1', $static['GLAZE_STATIC_MODE']);
         $this->assertSame('0', $static['GLAZE_INCLUDE_DRAFTS']);
         $this->assertSame('0', $live['GLAZE_VITE_ENABLED']);
         $this->assertSame('', $live['GLAZE_VITE_URL']);
+        $this->assertSame('1', $liveWithVite['GLAZE_DEBUG']);
         $this->assertSame('1', $liveWithVite['GLAZE_VITE_ENABLED']);
         $this->assertSame('http://127.0.0.1:5173', $liveWithVite['GLAZE_VITE_URL']);
     }

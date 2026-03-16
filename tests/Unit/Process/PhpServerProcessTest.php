@@ -162,6 +162,7 @@ final class PhpServerProcessTest extends TestCase
 
         $originalProjectRoot = getenv('GLAZE_PROJECT_ROOT');
         $originalIncludeDrafts = getenv('GLAZE_INCLUDE_DRAFTS');
+        $originalDebug = getenv('GLAZE_DEBUG');
         $originalViteEnabled = getenv('GLAZE_VITE_ENABLED');
         $originalViteUrl = getenv('GLAZE_VITE_URL');
         $originalCliRoot = getenv('GLAZE_CLI_ROOT');
@@ -169,6 +170,7 @@ final class PhpServerProcessTest extends TestCase
         try {
             putenv('GLAZE_PROJECT_ROOT=/tmp/glaze-project');
             putenv('GLAZE_INCLUDE_DRAFTS=1');
+            putenv('GLAZE_DEBUG=1');
             putenv('GLAZE_VITE_ENABLED=1');
             putenv('GLAZE_VITE_URL=http://127.0.0.1:5174');
             putenv('GLAZE_CLI_ROOT=/tmp/glaze-cli');
@@ -178,6 +180,7 @@ final class PhpServerProcessTest extends TestCase
         } finally {
             $this->restoreVariable('GLAZE_PROJECT_ROOT', $originalProjectRoot);
             $this->restoreVariable('GLAZE_INCLUDE_DRAFTS', $originalIncludeDrafts);
+            $this->restoreVariable('GLAZE_DEBUG', $originalDebug);
             $this->restoreVariable('GLAZE_VITE_ENABLED', $originalViteEnabled);
             $this->restoreVariable('GLAZE_VITE_URL', $originalViteUrl);
             $this->restoreVariable('GLAZE_CLI_ROOT', $originalCliRoot);
@@ -187,6 +190,7 @@ final class PhpServerProcessTest extends TestCase
         $this->assertIsArray($environment);
         $this->assertSame('/tmp/glaze-project', $environment['GLAZE_PROJECT_ROOT'] ?? null);
         $this->assertSame('1', $environment['GLAZE_INCLUDE_DRAFTS'] ?? null);
+        $this->assertSame('1', $environment['GLAZE_DEBUG'] ?? null);
         $this->assertSame('1', $environment['GLAZE_VITE_ENABLED'] ?? null);
         $this->assertSame('http://127.0.0.1:5174', $environment['GLAZE_VITE_URL'] ?? null);
         $this->assertSame('/tmp/glaze-cli', $environment['GLAZE_CLI_ROOT'] ?? null);

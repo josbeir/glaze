@@ -13,7 +13,7 @@ export default defineConfig({
         manifest: true,
         rollupOptions: {
             input: {
-                dev: 'assets/js/dev.js',
+                dev: 'assets/css/dev.css',
             },
         },
     },

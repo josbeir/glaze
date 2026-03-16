@@ -24,12 +24,14 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 
 $includeDrafts = getenv('GLAZE_INCLUDE_DRAFTS') === '1';
 $staticMode = getenv('GLAZE_STATIC_MODE') === '1';
+$debug = getenv('GLAZE_DEBUG') === '1';
 
 $application = new Application();
 $application->bootstrap();
 
 (new ProjectConfigurationReader())->read($projectRoot);
 Configure::write('projectRoot', $projectRoot);
+Configure::write('debug', $debug);
 if ($includeDrafts) {
     Configure::write('build.drafts', true);
 }

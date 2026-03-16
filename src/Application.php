@@ -10,6 +10,7 @@ use Cake\Core\Container;
 use Cake\Core\ContainerApplicationInterface;
 use Cake\Core\ContainerInterface;
 use Cake\Http\MiddlewareQueue;
+use Glaze\Build\SiteBuilder;
 use Glaze\Command\BuildCommand;
 use Glaze\Command\CacheCommand;
 use Glaze\Command\HelpCommand;
@@ -136,8 +137,9 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
     public function middleware(MiddlewareQueue $queue, bool $staticMode): MiddlewareQueue
     {
         $container = $this->getContainer();
+        $debug = (bool)Configure::read('debug', false);
 
-        $queue->add(new ErrorHandlingMiddleware(true));
+        $queue->add(new ErrorHandlingMiddleware($debug));
 
         if ($staticMode) {
             /** @var \Glaze\Http\Middleware\PublicAssetMiddleware $publicAssetMiddleware */
@@ -181,10 +183,12 @@ final class Application implements ConsoleApplicationInterface, ContainerApplica
             return $fallbackHandler;
         }
 
-        /** @var \Glaze\Http\DevPageRequestHandler $fallbackHandler */
-        $fallbackHandler = $container->get(DevPageRequestHandler::class);
+        /** @var \Glaze\Config\BuildConfig $config */
+        $config = $container->get(BuildConfig::class);
+        /** @var \Glaze\Build\SiteBuilder $siteBuilder */
+        $siteBuilder = $container->get(SiteBuilder::class);
 
-        return $fallbackHandler;
+        return new DevPageRequestHandler($config, $siteBuilder);
     }
 
     /**

@@ -96,6 +96,24 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate live mode state exposure for template contexts.
+     */
+    public function testContextExposesLiveModeState(): void
+    {
+        $index = new SiteIndex([
+            $this->makePage('index', '/', 'index.dj', []),
+        ]);
+
+        $page = $index->findBySlug('index') ?? $this->fail('Missing index page');
+
+        $buildContext = new SiteContext($index, $page);
+        $liveContext = new SiteContext($index, $page, liveMode: true);
+
+        $this->assertFalse($buildContext->isLiveMode());
+        $this->assertTrue($liveContext->isLiveMode());
+    }
+
+    /**
      * Validate that the extension() method delegates to the injected ExtensionRegistry.
      */
     public function testExtensionMethodDelegatesToRegistry(): void

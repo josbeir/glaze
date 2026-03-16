@@ -26,6 +26,9 @@ use Glaze\Template\Extension\ExtensionRegistry;
  *   Used exclusively for cross-language lookups (`translations()`, `translation()`,
  *   `languageUrl()`). When `$globalIndex` is `null` (single-language builds or
  *   direct construction without a global index) `$siteIndex` is used as-is.
+ *
+ * - `$liveMode` — indicates whether the current render is served live (`glaze serve`)
+ *   or generated as static output (`glaze build`). Exposed via `isLiveMode()`.
  */
 final class SiteContext
 {
@@ -49,6 +52,7 @@ final class SiteContext
      * @param string $translationsPath Absolute path to the i18n translations directory.
      * @param \Glaze\Template\SiteIndex|null $globalIndex Full site-wide index for cross-language lookups.
      *   When null, `$siteIndex` is used for all lookups — correct for single-language builds.
+     * @param bool $liveMode Whether this template context is rendered in live serve mode.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
@@ -60,6 +64,7 @@ final class SiteContext
         protected I18nConfig $i18nConfig = new I18nConfig(null, []),
         protected string $translationsPath = '',
         protected ?SiteIndex $globalIndex = null,
+        protected bool $liveMode = false,
     ) {
     }
 
@@ -77,6 +82,14 @@ final class SiteContext
     public function site(): self
     {
         return $this;
+    }
+
+    /**
+     * Return whether the current render runs in live serve mode.
+     */
+    public function isLiveMode(): bool
+    {
+        return $this->liveMode;
     }
 
     /**

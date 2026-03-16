@@ -81,14 +81,14 @@ final class PageRenderPipelineTest extends TestCase
     }
 
     /**
-     * Ensure debug variable is true when rendering in serve (debug) mode.
+     * Ensure SiteContext reports live mode during live rendering.
      */
-    public function testRenderExposesDebugTrueInServeMode(): void
+    public function testRenderExposesLiveModeTrueInLiveMode(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
         file_put_contents(
             $projectRoot . '/templates/page.sugar.php',
-            '<?= $debug ? "serve" : "build" ?>',
+            '<?= $this->isLiveMode() ? "serve" : "build" ?>',
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -108,21 +108,21 @@ final class PageRenderPipelineTest extends TestCase
             config: $config,
             page: $page,
             pageTemplate: 'page',
-            debug: true,
+            liveMode: true,
         );
 
         $this->assertSame('serve', $output->html);
     }
 
     /**
-     * Ensure debug variable is false when rendering in build mode.
+     * Ensure SiteContext reports build mode during static rendering.
      */
-    public function testRenderExposesDebugFalseInBuildMode(): void
+    public function testRenderExposesLiveModeFalseInBuildMode(): void
     {
         $projectRoot = $this->copyFixtureToTemp('projects/basic');
         file_put_contents(
             $projectRoot . '/templates/page.sugar.php',
-            '<?= $debug ? "serve" : "build" ?>',
+            '<?= $this->isLiveMode() ? "serve" : "build" ?>',
         );
 
         $config = BuildConfig::fromProjectRoot($projectRoot);
@@ -142,10 +142,52 @@ final class PageRenderPipelineTest extends TestCase
             config: $config,
             page: $page,
             pageTemplate: 'page',
-            debug: false,
+            liveMode: false,
         );
 
         $this->assertSame('build', $output->html);
+    }
+
+    /**
+     * Ensure SiteContext exposes live mode for project templates.
+     */
+    public function testRenderExposesLiveModeViaSiteContextMethod(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $this->isLiveMode() ? "serve" : "build" ?>',
+        );
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $page = new ContentPage(
+            sourcePath: $projectRoot . '/content/index.dj',
+            relativePath: 'index.dj',
+            slug: 'index',
+            urlPath: '/index',
+            outputRelativePath: 'index.html',
+            title: 'Home',
+            source: 'Hello.',
+            draft: false,
+            meta: [],
+        );
+
+        $outputLive = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            liveMode: true,
+        );
+
+        $outputBuild = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            liveMode: false,
+        );
+
+        $this->assertSame('serve', $outputLive->html);
+        $this->assertSame('build', $outputBuild->html);
     }
 
     /**
@@ -178,7 +220,7 @@ final class PageRenderPipelineTest extends TestCase
             config: $config,
             page: $page,
             pageTemplate: 'page',
-            debug: true,
+            liveMode: true,
         );
 
         $this->assertInstanceOf(PageRenderOutput::class, $output);

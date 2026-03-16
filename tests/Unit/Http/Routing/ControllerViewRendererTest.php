@@ -39,7 +39,7 @@ final class ControllerViewRendererTest extends TestCase
         $this->assertStringEndsWith('/resources/backend/assets/dist/.vite/manifest.json', $vite->manifestPath);
         $this->assertSame('http://localhost:5174', $vite->devServerUrl);
         $this->assertSame('/_glaze/assets/dist/', $vite->assetBaseUrl);
-        $this->assertSame('dev', $vite->mode);
+        $this->assertSame('auto', $vite->mode);
     }
 
     /**

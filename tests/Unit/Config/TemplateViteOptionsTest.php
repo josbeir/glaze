@@ -396,4 +396,34 @@ final class TemplateViteOptionsTest extends TestCase
         $this->assertSame($original->defaultEntry, $result->defaultEntry);
         $this->assertSame($original->mode, $result->mode);
     }
+
+    /**
+     * Ensure withMode returns a new immutable instance and only changes mode.
+     */
+    public function testWithModeReturnsNewInstanceWithOnlyModeChanged(): void
+    {
+        $original = new TemplateViteOptions(
+            buildEnabled: true,
+            devEnabled: true,
+            assetBaseUrl: '/assets/',
+            manifestPath: '/project/public/.vite/manifest.json',
+            devServerUrl: 'http://localhost:5173',
+            injectClient: false,
+            defaultEntry: 'assets/app.js',
+            mode: 'auto',
+        );
+
+        $result = $original->withMode('prod');
+
+        $this->assertNotSame($original, $result);
+        $this->assertSame('auto', $original->mode);
+        $this->assertSame('prod', $result->mode);
+        $this->assertSame($original->buildEnabled, $result->buildEnabled);
+        $this->assertSame($original->devEnabled, $result->devEnabled);
+        $this->assertSame($original->assetBaseUrl, $result->assetBaseUrl);
+        $this->assertSame($original->manifestPath, $result->manifestPath);
+        $this->assertSame($original->devServerUrl, $result->devServerUrl);
+        $this->assertSame($original->injectClient, $result->injectClient);
+        $this->assertSame($original->defaultEntry, $result->defaultEntry);
+    }
 }
