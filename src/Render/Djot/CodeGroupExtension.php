@@ -13,6 +13,12 @@ use function htmlspecialchars;
 
 /**
  * Djot extension that renders `::: code-group` blocks as tabbed code panes.
+ *
+ * Supports language hints with optional `[label]` suffix:
+ * - `php` -> language: php, label: php
+ * - `php [Installation]` -> language: php, label: Installation
+ * - `[Custom Label]` -> language: null, label: Custom Label
+ * - `c++`, `c#`, `text/html` -> works with special characters
  */
 final class CodeGroupExtension implements ExtensionInterface
 {
@@ -52,7 +58,7 @@ final class CodeGroupExtension implements ExtensionInterface
                 return;
             }
 
-            $event->setHtml($this->renderCodeGroup($codeBlocks));
+            $event->setHtml($this->renderCodeGroup($node, $codeBlocks));
         });
     }
 
@@ -96,14 +102,17 @@ final class CodeGroupExtension implements ExtensionInterface
     /**
      * Render grouped code blocks as a DaisyUI tabs layout.
      *
+     * @param \Djot\Node\Block\Div $wrapper Original div node for attribute preservation.
      * @param list<\Djot\Node\Block\CodeBlock> $blocks Code blocks.
      */
-    protected function renderCodeGroup(array $blocks): string
+    protected function renderCodeGroup(Div $wrapper, array $blocks): string
     {
         $this->groupIndex++;
         $groupName = 'glaze-code-group-' . $this->groupIndex;
 
-        $html = '<div class="glaze-code-group" role="tablist">';
+        $attrs = $this->buildWrapperAttributes($wrapper);
+        $html = '<div' . $attrs . ' role="tablist">';
+
         foreach ($blocks as $index => $block) {
             $metadata = $this->parseLanguageMetadata($block->getLanguage(), $index + 1);
             $label = $this->escapeAttribute($metadata['label']);
@@ -124,7 +133,40 @@ final class CodeGroupExtension implements ExtensionInterface
     }
 
     /**
+     * Build wrapper div attributes, preserving custom attributes from the original div.
+     *
+     * @param \Djot\Node\Block\Div $wrapper Original div node.
+     */
+    protected function buildWrapperAttributes(Div $wrapper): string
+    {
+        $classes = ['glaze-code-group'];
+
+        // Add any additional classes from the original div (except 'code-group')
+        $existingClasses = (string)$wrapper->getAttribute('class');
+        foreach (preg_split('/\s+/', $existingClasses) ?: [] as $class) {
+            $class = trim($class);
+            if ($class !== '' && $class !== 'code-group' && !in_array($class, $classes, true)) {
+                $classes[] = $class;
+            }
+        }
+
+        $attrs = ' class="' . $this->escapeAttribute(implode(' ', $classes)) . '"';
+
+        // Copy other attributes (except class)
+        foreach ($wrapper->getAttributes() as $name => $value) {
+            if ($name === 'class') {
+                continue;
+            }
+            $attrs .= ' ' . $this->escapeAttribute($name) . '="' . $this->escapeAttribute((string)$value) . '"';
+        }
+
+        return $attrs;
+    }
+
+    /**
      * Parse a Djot code fence language hint with optional `[label]` suffix.
+     *
+     * Supports any non-whitespace characters in language names (c++, c#, text/html, etc.)
      *
      * @param string|null $language Raw language hint from Djot code fence.
      * @param int $position One-based position in the group.
@@ -137,16 +179,19 @@ final class CodeGroupExtension implements ExtensionInterface
             return ['language' => null, 'label' => 'Code ' . $position];
         }
 
-        $matches = [];
-        preg_match('/^(?<lang>[A-Za-z0-9_-]+)?(?:\s*\[(?<label>[^\]]+)\])?.*$/', $raw, $matches);
-
-        $resolvedLanguage = trim($matches['lang'] ?? '');
-        if ($resolvedLanguage === '') {
-            $resolvedLanguage = null;
+        // Match: optional language (any non-whitespace, non-[ chars), optional [label]
+        if (preg_match('/^(?:(?<lang>[^\s\[]+)\s*)?(?:\[(?<label>[^\]]+)])?$/', $raw, $matches) !== 1) {
+            return ['language' => $raw, 'label' => $raw];
         }
 
-        $resolvedLabel = trim($matches['label'] ?? '');
-        if ($resolvedLabel === '') {
+        $matchedLanguage = $matches['lang'] ?? null;
+        $matchedLabel = $matches['label'] ?? null;
+
+        $resolvedLanguage = $matchedLanguage !== '' ? $matchedLanguage : null;
+        $resolvedLabel = $matchedLabel !== null ? trim($matchedLabel) : null;
+
+        // Fallback label to language name or position
+        if ($resolvedLabel === null) {
             $resolvedLabel = $resolvedLanguage ?? 'Code ' . $position;
         }
 

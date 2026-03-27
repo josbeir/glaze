@@ -70,4 +70,54 @@ final class CodeGroupExtensionTest extends TestCase
         $this->assertStringContainsString('aria-label="php"', $html);
         $this->assertStringContainsString('aria-label="Code 2"', $html);
     }
+
+    /**
+     * Ensure special characters in language names are supported (c++, c#, text/html).
+     */
+    public function testSpecialCharactersInLanguageNames(): void
+    {
+        $converter = new DjotConverter();
+        $converter->addExtension(new CodeGroupExtension());
+
+        $html = $converter->convert(
+            "::: code-group\n\n```c++ [C++]\nint main() {}\n```\n\n```c# [C#]\nclass Program {}\n```\n\n:::\n",
+        );
+
+        $this->assertStringContainsString('aria-label="C++"', $html);
+        $this->assertStringContainsString('aria-label="C#"', $html);
+        $this->assertStringContainsString('class="language-c++"', $html);
+        $this->assertStringContainsString('class="language-c#"', $html);
+    }
+
+    /**
+     * Ensure custom attributes from the div are preserved.
+     */
+    public function testAttributePreservation(): void
+    {
+        $converter = new DjotConverter();
+        $converter->addExtension(new CodeGroupExtension());
+
+        $html = $converter->convert(
+            "{#my-code .custom-theme data-section=\"intro\"}\n::: code-group\n\n```php\ntest\n```\n\n:::\n",
+        );
+
+        $this->assertStringContainsString('id="my-code"', $html);
+        $this->assertStringContainsString('class="glaze-code-group custom-theme"', $html);
+        $this->assertStringContainsString('data-section="intro"', $html);
+    }
+
+    /**
+     * Ensure multiple custom classes are preserved alongside glaze-code-group.
+     */
+    public function testMultipleClassesPreserved(): void
+    {
+        $converter = new DjotConverter();
+        $converter->addExtension(new CodeGroupExtension());
+
+        $html = $converter->convert(
+            "{.extra-class .another-class}\n::: code-group\n\n```php\ntest\n```\n\n:::\n",
+        );
+
+        $this->assertStringContainsString('class="glaze-code-group extra-class another-class"', $html);
+    }
 }
