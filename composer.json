@@ -14,7 +14,7 @@
         "nette/neon": "^3.4",
         "nikic/php-parser": "^5.7",
         "phiki/phiki": "^2.1",
-        "php-collective/djot": "^0.1.15",
+        "php-collective/djot": "^0.1.21",
         "php": ">=8.2",
         "symfony/process": "^7.3"
     },
