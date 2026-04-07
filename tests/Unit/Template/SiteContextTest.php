@@ -588,6 +588,34 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate languageUrl() applies the target language's basePath when that language
+     * has per-language site overrides that include a different basePath.
+     */
+    public function testLanguageUrlAppliesTargetLanguageBasePath(): void
+    {
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj', 'About');
+        $nlAbout = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj', 'Over ons');
+        $index = new SiteIndex([$enAbout, $nlAbout]);
+
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en'),
+            'nl' => new LanguageConfig('nl', siteOverrides: ['basePath' => '/app']),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: $index,
+            currentPage: $enAbout,
+            i18nConfig: $i18n,
+            baseSiteConfig: new SiteConfig(),
+        );
+
+        // NL URL must use the NL basePath (/app), not the default site basePath
+        $this->assertSame('/app/nl/about/', $context->languageUrl('nl'));
+        // EN URL from English perspective is unaffected (uses baseSiteConfig, no basePath)
+        $this->assertSame('/about/', $context->languageUrl('en'));
+    }
+
+    /**
      * Validate languageUrl() returns null when no translation exists for the requested language.
      */
     public function testLanguageUrlReturnsNullWhenNoTranslation(): void

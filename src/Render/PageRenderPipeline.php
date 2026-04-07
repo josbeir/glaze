@@ -98,6 +98,7 @@ final class PageRenderPipeline
                 ? $config->translationsPath()
                 : '',
             globalIndex: $globalIndex,
+            baseSiteConfig: $config->site,
         );
 
         $htmlContent = $renderResult->html;

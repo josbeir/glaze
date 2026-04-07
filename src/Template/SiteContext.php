@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Glaze\Template;
 
 use Glaze\Config\I18nConfig;
+use Glaze\Config\LanguageConfig;
 use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Support\ResourcePathRewriter;
@@ -43,12 +44,14 @@ final class SiteContext
      * @param \Glaze\Content\ContentPage $currentPage Current page being rendered.
      * @param \Glaze\Template\Extension\ExtensionRegistry $extensions Registered project extensions.
      * @param \Glaze\Template\ContentAssetResolver|null $assetResolver Optional content asset resolver.
-     * @param \Glaze\Config\SiteConfig $siteConfig Site configuration used for URL helpers.
+     * @param \Glaze\Config\SiteConfig $siteConfig Effective site configuration for the current page (may include language overrides).
      * @param \Glaze\Support\ResourcePathRewriter $pathRewriter Path rewriter used by URL helpers.
      * @param \Glaze\Config\I18nConfig $i18nConfig I18n configuration for language helpers and string translation.
      * @param string $translationsPath Absolute path to the i18n translations directory.
      * @param \Glaze\Template\SiteIndex|null $globalIndex Full site-wide index for cross-language lookups.
      *   When null, `$siteIndex` is used for all lookups — correct for single-language builds.
+     * @param \Glaze\Config\SiteConfig $baseSiteConfig Unresolved base site configuration used as the
+     *   starting point for per-language overrides in cross-language URL helpers.
      */
     public function __construct(
         protected SiteIndex $siteIndex,
@@ -60,6 +63,7 @@ final class SiteContext
         protected I18nConfig $i18nConfig = new I18nConfig(null, []),
         protected string $translationsPath = '',
         protected ?SiteIndex $globalIndex = null,
+        protected SiteConfig $baseSiteConfig = new SiteConfig(),
     ) {
     }
 
@@ -512,7 +516,9 @@ final class SiteContext
      *
      * Uses the global site-wide index to find translations across all languages.
      * Returns null when no translation exists for the requested language or when
-     * i18n is disabled. The returned URL has the site basePath applied.
+     * i18n is disabled. The returned URL has the target language's basePath applied,
+     * which may differ from the current page's basePath when per-language site overrides
+     * are configured.
      *
      * @param string $language Language code.
      */
@@ -523,7 +529,7 @@ final class SiteContext
             return null;
         }
 
-        return $this->url($translated->urlPath);
+        return $this->pathRewriter->applyBasePathToPath($translated->urlPath, $this->siteConfigFor($language));
     }
 
     /**
@@ -541,6 +547,25 @@ final class SiteContext
         $normalized = '/' . trim($trimmed, '/');
 
         return $normalized === '/index' ? '/' : $normalized;
+    }
+
+    /**
+     * Return the effective SiteConfig for a given language.
+     *
+     * Merges the base site configuration with any per-language `site` overrides
+     * defined in the matching LanguageConfig. Returns the base config unchanged
+     * when the language has no overrides or is not found.
+     *
+     * @param string $language Language code to resolve the config for.
+     */
+    protected function siteConfigFor(string $language): SiteConfig
+    {
+        $langConfig = $this->i18nConfig->language($language);
+        if (!$langConfig instanceof LanguageConfig || $langConfig->siteOverrides === []) {
+            return $this->baseSiteConfig;
+        }
+
+        return $this->baseSiteConfig->withLanguageOverrides($langConfig->siteOverrides);
     }
 
     /**
