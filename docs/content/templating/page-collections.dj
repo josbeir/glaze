@@ -23,6 +23,23 @@ $this->taxonomyTerm('tags', 'php')     // pages tagged 'php'
 {.alert .alert-info}
 > **On i18n sites**, `pages()`, `regularPages()`, `sections()`, and related navigation helpers only return pages in the **current page's language**. Cross-language results will not appear. Use `$this->localizedPages()` as a self-documenting alias for `regularPages()` when writing multilingual templates.
 
+### Untranslated fallbacks (i18n)
+
+Pass `withUntranslated: true` to include pages from the default language that have no translation in the current language. A fallback page is only added when no current-language page shares the same `translationKey`.
+
+```php
+$this->regularPages(withUntranslated: true)        // current language + default language fallbacks
+$this->type('post', withUntranslated: true)        // same, filtered by type
+$this->pages(withUntranslated: ['en', 'fr'])       // explicit ordered fallback language list
+```
+
+Always pass the `ContentPage` object to `$this->url()` when iterating results that may contain pages from other languages, so the correct language prefix is resolved automatically:
+
+```sugar
+<a s:foreach="$this->regularPages(withUntranslated: true) as $p"
+   href="<?= $this->url($p) ?>"><?= $p->title ?></a>
+```
+
 ## `ContentPage` properties
 
 Every item in a collection is a `ContentPage` object:

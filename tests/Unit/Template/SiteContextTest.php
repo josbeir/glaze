@@ -493,6 +493,97 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate url(ContentPage) uses the page's own language config, so an EN
+     * ContentPage rendered on an NL-context page does not get the NL prefix.
+     */
+    public function testUrlWithContentPageUsesPageLanguage(): void
+    {
+        $enPost = $this->makeLocalizedPage('post-1', '/post-1/', 'post-1.dj', 'en', 'post-1.dj');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        // String path on NL context: gets NL prefix
+        $this->assertSame('/nl/post-1/', $context->url('/post-1/'));
+        // ContentPage with EN language on NL context: no prefix (EN has no urlPrefix)
+        $this->assertSame('/post-1/', $context->url($enPost));
+    }
+
+    /**
+     * Validate url(ContentPage) for an NL page returns the NL-prefixed URL.
+     */
+    public function testUrlWithNlContentPageReturnsPrefixedUrl(): void
+    {
+        $nlPost = $this->makeLocalizedPage('nl/post-1', '/nl/post-1/', 'post-1.dj', 'nl', 'post-1.dj');
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        // NL ContentPage on NL context: keeps existing NL prefix (idempotent)
+        $this->assertSame('/nl/post-1/', $context->url($nlPost));
+    }
+
+    /**
+     * Validate rawUrl() returns the path without any language prefix, suitable for
+     * static assets that live in the /static folder.
+     */
+    public function testRawUrlSkipsLanguagePrefix(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        $this->assertSame('/favicon.svg', $context->rawUrl('/favicon.svg'));
+        $this->assertSame('/assets/style.css', $context->rawUrl('/assets/style.css'));
+    }
+
+    /**
+     * Validate rawUrl() respects basePath but not the language prefix.
+     */
+    public function testRawUrlAppliesBasePathWithoutLanguagePrefix(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+            baseSiteConfig: new SiteConfig(baseUrl: 'https://example.com', basePath: '/docs'),
+        );
+
+        $this->assertSame('/docs/favicon.svg', $context->rawUrl('/favicon.svg'));
+        $this->assertSame('https://example.com/docs/favicon.svg', $context->rawUrl('/favicon.svg', true));
+    }
+
+    /**
      * Create a content page object for test scenarios.
      *
      * @param string $slug Page slug.
@@ -801,6 +892,210 @@ final class SiteContextTest extends TestCase
         // Both calls must return the same value (memoized loader)
         $this->assertSame('Value', $context->t('key'));
         $this->assertSame('Value', $context->t('key'));
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n: withUntranslated language fallbacks
+    // -------------------------------------------------------------------------
+
+    /**
+     * Build a shared dual-index context for withUntranslated tests.
+     *
+     * NL site-index: nl/post-a, nl/post-b (both are 'post' type)
+     * EN global pages: en about, en post-a, en post-b, en post-c, en post-d
+     * post-a and post-b have NL translations; post-c and post-d do not.
+     *
+     * @return array{\Glaze\Config\I18nConfig, \Glaze\Template\SiteIndex, \Glaze\Template\SiteIndex, \Glaze\Content\ContentPage}
+     */
+    protected function buildWithUntranslatedContext(): array
+    {
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $enAbout = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $enPostA = $this->makeLocalizedPage('post-a', '/post-a/', 'post-a.dj', 'en', 'post-a.dj');
+        $enPostB = $this->makeLocalizedPage('post-b', '/post-b/', 'post-b.dj', 'en', 'post-b.dj');
+        $enPostC = $this->makeLocalizedPage('post-c', '/post-c/', 'post-c.dj', 'en', 'post-c.dj');
+        $enPostD = $this->makeLocalizedPage('post-d', '/post-d/', 'post-d.dj', 'en', 'post-d.dj');
+        $nlPostA = $this->makeLocalizedPage('nl/post-a', '/nl/post-a/', 'post-a.dj', 'nl', 'post-a.dj');
+        $nlPostB = $this->makeLocalizedPage('nl/post-b', '/nl/post-b/', 'post-b.dj', 'nl', 'post-b.dj');
+
+        $nlIndex = new SiteIndex([$nlPostA, $nlPostB]);
+        $globalIndex = new SiteIndex([$enAbout, $enPostA, $enPostB, $enPostC, $enPostD, $nlPostA, $nlPostB]);
+
+        return [$i18n, $nlIndex, $globalIndex, $nlPostA];
+    }
+
+    /**
+     * Validate regularPages(withUntranslated: true) appends EN pages that have no NL translation.
+     */
+    public function testRegularPagesWithUntranslatedAppendsFallbackPages(): void
+    {
+        [$i18n, $nlIndex, $globalIndex, $currentPage] = $this->buildWithUntranslatedContext();
+
+        $context = new SiteContext(
+            siteIndex: $nlIndex,
+            currentPage: $currentPage,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        $pages = $context->regularPages(withUntranslated: true);
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages->all());
+
+        // NL translations come first
+        $this->assertContains('nl/post-a', $slugs);
+        $this->assertContains('nl/post-b', $slugs);
+        // EN fallbacks for pages without NL translations are appended
+        $this->assertContains('post-c', $slugs);
+        $this->assertContains('post-d', $slugs);
+        // EN about also has no NL translation, so it appears too
+        $this->assertContains('about', $slugs);
+        $this->assertCount(5, $pages);
+    }
+
+    /**
+     * Validate regularPages(withUntranslated: true) does NOT include EN pages whose
+     * translationKey is already covered by a NL page.
+     */
+    public function testRegularPagesWithUntranslatedDoesNotDuplicateTranslatedPages(): void
+    {
+        [$i18n, $nlIndex, $globalIndex, $currentPage] = $this->buildWithUntranslatedContext();
+
+        $context = new SiteContext(
+            siteIndex: $nlIndex,
+            currentPage: $currentPage,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        $pages = $context->regularPages(withUntranslated: true);
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages->all());
+
+        // EN post-a and post-b must NOT appear — they have NL translations
+        $this->assertNotContains('post-a', $slugs);
+        $this->assertNotContains('post-b', $slugs);
+        // EN about is not a post but also has no NL translation — it will appear
+        $this->assertContains('about', $slugs);
+    }
+
+    /**
+     * Validate regularPages(withUntranslated: false) (the default) is unchanged.
+     */
+    public function testRegularPagesWithUntranslatedFalseIsUnchanged(): void
+    {
+        [$i18n, $nlIndex, $globalIndex, $currentPage] = $this->buildWithUntranslatedContext();
+
+        $context = new SiteContext(
+            siteIndex: $nlIndex,
+            currentPage: $currentPage,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        $this->assertCount(2, $context->regularPages());
+        $this->assertCount(2, $context->regularPages(withUntranslated: false));
+    }
+
+    /**
+     * Validate regularPages(withUntranslated: ['en']) matches the explicit single-language list.
+     */
+    public function testRegularPagesWithUntranslatedExplicitLanguageList(): void
+    {
+        [$i18n, $nlIndex, $globalIndex, $currentPage] = $this->buildWithUntranslatedContext();
+
+        $context = new SiteContext(
+            siteIndex: $nlIndex,
+            currentPage: $currentPage,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        $withTrue = $context->regularPages(withUntranslated: true);
+        $withArray = $context->regularPages(withUntranslated: ['en']);
+
+        // Both should produce identical results when defaultLanguage is 'en'
+        $this->assertCount(count($withTrue), $withArray);
+        $this->assertSame(
+            array_map(static fn(ContentPage $p): string => $p->slug, $withTrue->all()),
+            array_map(static fn(ContentPage $p): string => $p->slug, $withArray->all()),
+        );
+    }
+
+    /**
+     * Validate type(withUntranslated: true) applies the type filter after merging fallbacks,
+     * so fallback pages must also match the requested type to appear.
+     */
+    public function testTypeWithUntranslatedFiltersAfterFallbackMerge(): void
+    {
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $enAbout = new ContentPage(
+            sourcePath: '/tmp/about.dj',
+            relativePath: 'about.dj',
+            slug: 'about',
+            urlPath: '/about/',
+            outputRelativePath: 'about/index.html',
+            title: 'About',
+            source: '# About',
+            draft: false,
+            meta: ['type' => 'page'],
+            language: 'en',
+            translationKey: 'about.dj',
+        );
+        $enPost = new ContentPage(
+            sourcePath: '/tmp/post-1.dj',
+            relativePath: 'post-1.dj',
+            slug: 'post-1',
+            urlPath: '/post-1/',
+            outputRelativePath: 'post-1/index.html',
+            title: 'Post 1',
+            source: '# Post 1',
+            draft: false,
+            meta: ['type' => 'post'],
+            language: 'en',
+            translationKey: 'post-1.dj',
+        );
+        $nlPost = new ContentPage(
+            sourcePath: '/tmp/nl-post-1.dj',
+            relativePath: 'post-1.dj',
+            slug: 'nl/post-1',
+            urlPath: '/nl/post-1/',
+            outputRelativePath: 'nl/post-1/index.html',
+            title: 'Post 1 NL',
+            source: '# Post 1',
+            draft: false,
+            meta: ['type' => 'post'],
+            language: 'nl',
+            translationKey: 'post-1.dj',
+        );
+
+        $nlIndex = new SiteIndex([$nlPost]);
+        $globalIndex = new SiteIndex([$enAbout, $enPost, $nlPost]);
+
+        $context = new SiteContext(
+            siteIndex: $nlIndex,
+            currentPage: $nlPost,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        // type 'post': NL post covers the translationKey, so EN post is NOT added as fallback
+        $posts = $context->type('post', withUntranslated: true);
+        $this->assertCount(1, $posts);
+        $this->assertSame('nl/post-1', $posts->first()?->slug);
+
+        // type 'page': EN about has no NL translation, so it appears as a fallback
+        $pagesCollection = $context->type('page', withUntranslated: true);
+        $this->assertCount(1, $pagesCollection);
+        $this->assertSame('about', $pagesCollection->first()?->slug);
     }
 
     // -------------------------------------------------------------------------
