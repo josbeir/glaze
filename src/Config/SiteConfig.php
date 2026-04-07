@@ -81,6 +81,42 @@ final class SiteConfig
     }
 
     /**
+     * Return a new SiteConfig with per-language overrides merged on top of this instance.
+     *
+     * Only the keys present in `$overrides` are applied; all other properties
+     * fall back to the values of the current instance. Typed scalar fields
+     * (`title`, `description`, `baseUrl`, `basePath`) are overridden when the
+     * override map provides a non-empty string value. The `meta` bag is
+     * deep-merged with `array_replace_recursive` so nested structures (e.g.
+     * `hero`, `nav`) are handled correctly.
+     *
+     * This is called by the render pipeline when building a page that belongs
+     * to a language which has a `site` override block in its `LanguageConfig`.
+     *
+     * @param array<string, mixed> $overrides Raw per-language site override map (the `site` block
+     *   from a `LanguageConfig` entry).
+     */
+    public function withLanguageOverrides(array $overrides): self
+    {
+        if ($overrides === []) {
+            return $this;
+        }
+
+        $overrideConfig = self::fromProjectConfig($overrides);
+
+        /** @var array<string, mixed> $mergedMeta */
+        $mergedMeta = array_replace_recursive($this->meta, $overrideConfig->meta);
+
+        return new self(
+            title: $overrideConfig->title ?? $this->title,
+            description: $overrideConfig->description ?? $this->description,
+            baseUrl: $overrideConfig->baseUrl ?? $this->baseUrl,
+            basePath: $overrideConfig->basePath ?? $this->basePath,
+            meta: $mergedMeta,
+        );
+    }
+
+    /**
      * Convert to template-friendly array.
      *
      * @return array<string, mixed>

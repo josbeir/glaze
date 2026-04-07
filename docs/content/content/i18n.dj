@@ -27,6 +27,11 @@ i18n:
       label: Nederlands
       urlPrefix: /nl
       contentDir: content/nl
+      site:
+        title: "Mijn site"
+        description: "Nederlandstalige omschrijving."
+        hero:
+          title: "Hallo!"
     fr:
       label: Français
       urlPrefix: /fr
@@ -47,10 +52,65 @@ A map of language code → language options. Each entry accepts:
 | `label` | string | Human-readable language name (used in language switchers) |
 | `urlPrefix` | string | URL path prefix for this language (`""` for root, `"/nl"` for `/nl/...`) |
 | `contentDir` | string | Content directory for this language (relative to project root). Omit to use the project-level `content/` directory |
+| `site` | map | Per-language site config overrides (see [Per-language site settings](#per-language-site-settings)) |
 
 The default language does not need a `contentDir` — it automatically uses the
 project-level content directory. Non-default languages without a `contentDir` are
 skipped during discovery.
+
+## Per-language site settings
+
+Each language entry can include an optional `site` block that overrides the
+project-level `site` configuration for pages in that language. Only the keys you
+specify are overridden — everything else falls back to the values in the top-level
+`site` block.
+
+This is useful for translating the site title, meta description, and any custom
+metadata (such as `hero` or `nav`) that appears in templates via `$site`.
+
+```neon
+site:
+  title: "My Site"
+  description: "An English description."
+  hero:
+    title: "Hi!"
+    subtitle: "Welcome"
+  nav:
+    - label: Home
+      url: /
+    - label: Blog
+      url: /blog/
+
+i18n:
+  defaultLanguage: en
+  languages:
+    en:
+      label: English
+      urlPrefix: ""
+    nl:
+      label: Nederlands
+      urlPrefix: /nl
+      contentDir: content/nl
+      site:
+        title: "Mijn site"
+        description: "Een Nederlandstalige omschrijving."
+        hero:
+          title: "Hallo!"
+          subtitle: "Welkom"
+        nav:
+          - label: Home
+            url: /nl/
+          - label: Blog
+            url: /nl/blog/
+```
+
+For pages in the `nl` language, `$site->title` resolves to `"Mijn site"` and
+`$site->siteMeta('hero.title')` resolves to `"Hallo!"`. For all other languages
+the project-level values are used.
+
+Nested meta structures (such as `hero`) are deep-merged, so you only need to
+specify the keys that actually differ. Scalar fields (`title`, `description`,
+`baseUrl`, `basePath`) are replaced outright when present in the override.
 
 ## Directory structure
 
