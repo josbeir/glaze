@@ -138,6 +138,9 @@ i18n:
       label: Nederlands
       urlPrefix: /nl
       contentDir: content/nl
+      site:
+        title: "Nederlandse site"
+        description: "Een Nederlandstalige omschrijving."
 ```
 
 ## `pageTemplate`
@@ -187,6 +190,10 @@ Global site metadata. All values are available in templates as properties on the
 - `description` -- default meta description
 - `baseUrl` -- canonical base URL (used for sitemaps, feed links, etc.)
 - `basePath` -- URL prefix for subfolder deployments (e.g. `/blog`); prepended to all generated links
+
+Any additional keys you add (e.g. `hero`, `nav`) are collected into the `$site` metadata bag and accessible via `$site->siteMeta('key')` or `$site->meta('meta.key')` in templates.
+
+When i18n is enabled, individual language entries can include a `site` block to override any of these values for that language's pages. See [Per-language site settings](/content/i18n/#per-language-site-settings).
 
 ## `images`
 

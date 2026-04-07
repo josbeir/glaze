@@ -144,7 +144,15 @@ $this->previousInSection(?callable $predicate = null)  // ?ContentPage
 $this->nextInSection(?callable $predicate = null)      // ?ContentPage
 ```
 
-See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination.
+On i18n sites, all navigation methods (`pages()`, `regularPages()`, `type()`, `sections()`) automatically scope results to the current page's language. To also include pages from other languages that have no translation for the current language, pass `withUntranslated: true`:
+
+```php
+$this->regularPages(withUntranslated: true)   // current language + untranslated fallbacks
+$this->type('post', withUntranslated: true)   // same, filtered by type
+$this->pages(withUntranslated: ['en', 'fr'])  // explicit fallback language list
+```
+
+See [Page collections](page-collections.dj) for filtering, sorting, grouping, and pagination. For full i18n navigation details see [Internationalization](../content/i18n.dj).
 
 ### URL helpers
 
@@ -153,7 +161,8 @@ See [Page collections](page-collections.dj) for filtering, sorting, grouping, an
 ```php
 $this->url('/blog/')                 // '/blog/' or '/sub/blog/' when basePath is /sub
 $this->url('/blog/', true)           // 'https://example.com/sub/blog/' with baseUrl configured
-$this->url($page->urlPath)           // apply basePath to any page URL
+$this->url($page)                    // URL for a ContentPage — uses the page's own language prefix
+$this->rawUrl('/favicon.svg')        // basePath only, never adds a language prefix
 $this->canonicalUrl()                // fully-qualified URL for the current page
 ```
 
@@ -162,9 +171,32 @@ Use `$this->url()` for all internal `href` and `src` attributes. Pass `true` as 
 ```php
 <link rel="canonical" href="<?= $this->canonicalUrl() ?>" />
 <meta property="og:url" content="<?= $this->canonicalUrl() ?>" />
-<meta property="og:image" content="<?= $this->url('/og-image.png', true) ?>" />
+<meta property="og:image" content="<?= $this->rawUrl('/og-image.png', true) ?>" />
 <a href="<?= $this->url('/quick-start/') ?>">Get started</a>
 ```
+
+#### Passing a `ContentPage` to `url()`
+
+When iterating pages in a multilingual context, prefer passing the `ContentPage` object directly instead of `$post->urlPath`. This lets `url()` resolve the correct language prefix for the page, even when it belongs to a different language than the current page:
+
+```php
+// correct: uses the post's own language prefix
+<a href="<?= $this->url($post) ?>"><?= $post->title ?></a>
+
+// problematic on i18n sites: always applies the current page's language prefix
+<a href="<?= $this->url($post->urlPath) ?>"><?= $post->title ?></a>
+```
+
+#### `rawUrl()` for static assets
+
+Use `rawUrl()` for paths that should never receive a language prefix — static files in the `/static` folder, favicons, JSON feeds, and similar site-wide assets:
+
+```php
+<link rel="icon" href="<?= $this->rawUrl('/favicon.svg') ?>" />
+<script src="<?= $this->rawUrl('/assets/site.js') ?>"></script>
+```
+
+`rawUrl()` applies `basePath` (for subfolder deployments) but not the current language's `urlPrefix`.
 
 ### Content assets
 

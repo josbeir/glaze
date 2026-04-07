@@ -162,4 +162,63 @@ final class LanguageConfigTest extends TestCase
 
         $this->assertTrue($config->hasUrlPrefix());
     }
+
+    // -------------------------------------------------------------------------
+    // siteOverrides
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure siteOverrides defaults to an empty array.
+     */
+    public function testDefaultSiteOverridesIsEmpty(): void
+    {
+        $config = new LanguageConfig('en');
+
+        $this->assertSame([], $config->siteOverrides);
+    }
+
+    /**
+     * Ensure fromConfig() parses a site override block into siteOverrides.
+     */
+    public function testFromConfigParsesSiteOverrideBlock(): void
+    {
+        $config = LanguageConfig::fromConfig('nl', [
+            'label' => 'Nederlands',
+            'urlPrefix' => 'nl',
+            'site' => [
+                'title' => 'Mijn site',
+                'hero' => ['title' => 'Hallo!'],
+            ],
+        ]);
+
+        $this->assertSame([
+            'title' => 'Mijn site',
+            'hero' => ['title' => 'Hallo!'],
+        ], $config->siteOverrides);
+    }
+
+    /**
+     * Ensure fromConfig() stores an empty siteOverrides when no site block is present.
+     */
+    public function testFromConfigStoresEmptySiteOverridesWhenAbsent(): void
+    {
+        $config = LanguageConfig::fromConfig('nl', [
+            'label' => 'Nederlands',
+            'urlPrefix' => 'nl',
+        ]);
+
+        $this->assertSame([], $config->siteOverrides);
+    }
+
+    /**
+     * Ensure fromConfig() treats a non-array site block as an empty override.
+     */
+    public function testFromConfigIgnoresNonArraySiteBlock(): void
+    {
+        $config = LanguageConfig::fromConfig('nl', [
+            'site' => 'not-an-array',
+        ]);
+
+        $this->assertSame([], $config->siteOverrides);
+    }
 }

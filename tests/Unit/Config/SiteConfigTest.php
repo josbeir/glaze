@@ -193,4 +193,131 @@ final class SiteConfigTest extends TestCase
 
         $this->assertSame(['hero' => ['title' => 'Build fast']], $config->meta);
     }
+
+    // -------------------------------------------------------------------------
+    // withLanguageOverrides()
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ensure withLanguageOverrides() returns the same instance for an empty override map.
+     */
+    public function testWithLanguageOverridesReturnsBaseForEmptyOverrides(): void
+    {
+        $base = new SiteConfig(title: 'My Site', description: 'Desc');
+        $result = $base->withLanguageOverrides([]);
+
+        $this->assertSame($base, $result);
+    }
+
+    /**
+     * Ensure withLanguageOverrides() overrides only the typed scalar fields that are present.
+     */
+    public function testWithLanguageOverridesOverridesScalarFields(): void
+    {
+        $base = new SiteConfig(
+            title: 'My Site',
+            description: 'English description',
+            baseUrl: 'https://example.com',
+        );
+
+        $result = $base->withLanguageOverrides([
+            'title' => 'Mijn site',
+            'description' => 'Nederlandse omschrijving',
+        ]);
+
+        $this->assertSame('Mijn site', $result->title);
+        $this->assertSame('Nederlandse omschrijving', $result->description);
+        $this->assertSame('https://example.com', $result->baseUrl);
+        $this->assertNull($result->basePath);
+    }
+
+    /**
+     * Ensure withLanguageOverrides() falls back to base values for scalar fields not present in override.
+     */
+    public function testWithLanguageOverridesFallsBackToBaseForMissingScalarFields(): void
+    {
+        $base = new SiteConfig(title: 'My Site', description: 'Desc', baseUrl: 'https://example.com');
+        $result = $base->withLanguageOverrides(['title' => 'Vertaald']);
+
+        $this->assertSame('Vertaald', $result->title);
+        $this->assertSame('Desc', $result->description);
+        $this->assertSame('https://example.com', $result->baseUrl);
+    }
+
+    /**
+     * Ensure withLanguageOverrides() deep-merges meta maps so nested keys are combined.
+     */
+    public function testWithLanguageOverridesDeepMergesMeta(): void
+    {
+        $base = new SiteConfig(
+            title: 'My Site',
+            meta: [
+                'hero' => ['title' => 'Hi!', 'subtitle' => 'Developer'],
+                'nav' => [['label' => 'Home', 'url' => '/']],
+            ],
+        );
+
+        $result = $base->withLanguageOverrides([
+            'hero' => ['title' => 'Hallo!'],
+        ]);
+
+        $this->assertSame('Hallo!', $result->siteMeta('hero.title'));
+        $this->assertSame('Developer', $result->siteMeta('hero.subtitle'));
+    }
+
+    /**
+     * Ensure withLanguageOverrides() replaces a meta key with the override value when the full key is present.
+     */
+    public function testWithLanguageOverridesReplacesMetaKeyWhenFullKeyProvided(): void
+    {
+        $base = new SiteConfig(
+            title: 'My Site',
+            meta: ['nav' => [['label' => 'Home', 'url' => '/']]],
+        );
+
+        $result = $base->withLanguageOverrides([
+            'nav' => [['label' => 'Thuis', 'url' => '/nl/']],
+        ]);
+
+        $this->assertSame([['label' => 'Thuis', 'url' => '/nl/']], $result->siteMeta('nav'));
+    }
+
+    /**
+     * Ensure withLanguageOverrides() replaces a sequential list (numeric array) wholesale
+     * rather than merging by index.
+     *
+     * Overriding a 3-item base nav with a 1-item nav must yield exactly 1 item;
+     * previously array_replace_recursive would keep the 2 trailing base items.
+     */
+    public function testWithLanguageOverridesReplacesNumericListsWholesale(): void
+    {
+        $base = new SiteConfig(
+            meta: ['nav' => [
+                ['label' => 'Home', 'url' => '/'],
+                ['label' => 'About', 'url' => '/about/'],
+                ['label' => 'Blog', 'url' => '/blog/'],
+            ]],
+        );
+
+        $result = $base->withLanguageOverrides([
+            'nav' => [['label' => 'Start', 'url' => '/nl/']],
+        ]);
+
+        /** @var array<mixed> $nav */
+        $nav = $result->siteMeta('nav');
+        $this->assertCount(1, $nav);
+        $this->assertSame([['label' => 'Start', 'url' => '/nl/']], $nav);
+    }
+
+    /**
+     * Ensure withLanguageOverrides() leaves the base untouched.
+     */
+    public function testWithLanguageOverridesDoesNotMutateBase(): void
+    {
+        $base = new SiteConfig(title: 'My Site', meta: ['hero' => ['title' => 'Hi!']]);
+        $base->withLanguageOverrides(['title' => 'Vertaald', 'hero' => ['title' => 'Hallo!']]);
+
+        $this->assertSame('My Site', $base->title);
+        $this->assertSame('Hi!', $base->siteMeta('hero.title'));
+    }
 }

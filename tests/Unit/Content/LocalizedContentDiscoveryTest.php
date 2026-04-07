@@ -256,6 +256,53 @@ final class LocalizedContentDiscoveryTest extends TestCase
     }
 
     /**
+     * Ensure discover() does not include non-default language pages in the default language
+     * when language directories are nested inside the default content directory.
+     *
+     * Without exclusion, the recursive scan of `content/` would pick up files from
+     * `content/nl/` too, producing duplicate pages tagged with the wrong language code.
+     */
+    public function testDiscoverExcludesNonDefaultLanguagePagesFromDefaultLanguageScan(): void
+    {
+        $projectRoot = $this->createTempDirectory();
+
+        $enContent = $projectRoot . '/content';
+        mkdir($enContent, 0755, true);
+        file_put_contents($enContent . '/index.dj', "# Home\n");
+        file_put_contents($enContent . '/about.dj', "# About\n");
+
+        // Dutch content nested inside the default language content directory
+        $nlContent = $projectRoot . '/content/nl';
+        mkdir($nlContent, 0755, true);
+        file_put_contents($nlContent . '/index.dj', "# Startpagina\n");
+        file_put_contents($nlContent . '/about.dj', "# Over ons\n");
+
+        $i18n = I18nConfig::fromProjectConfig([
+            'defaultLanguage' => 'en',
+            'languages' => [
+                'en' => ['label' => 'English', 'urlPrefix' => ''],
+                'nl' => ['label' => 'Nederlands', 'urlPrefix' => 'nl', 'contentDir' => 'content/nl'],
+            ],
+        ]);
+
+        $config = new BuildConfig(projectRoot: $projectRoot, i18n: $i18n);
+        $discovery = new LocalizedContentDiscovery($this->createService());
+
+        $pages = $discovery->discover($config);
+
+        $enPages = array_values(array_filter($pages, static fn($page): bool => $page->language === 'en'));
+        $nlPages = array_values(array_filter($pages, static fn($page): bool => $page->language === 'nl'));
+
+        // Exactly 2 English pages (index + about), not 4 — the nl/ subdir is excluded.
+        $this->assertCount(2, $enPages, 'Default language must not contain pages from non-default language dirs');
+        $this->assertCount(2, $nlPages);
+
+        foreach ($enPages as $page) {
+            $this->assertStringNotContainsString('/nl/', $page->sourcePath);
+        }
+    }
+
+    /**
      * Ensure discover() uses default language fallback for content path when contentDir is null.
      */
     public function testDiscoverUsesProjectContentPathForDefaultLanguage(): void

@@ -8,6 +8,7 @@ use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use DateTimeInterface;
 use Glaze\Utility\Normalization;
+use Glaze\Utility\Path;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -85,7 +86,7 @@ final class ContentDiscoveryService
                 continue;
             }
 
-            $sourcePath = $file->getPathname();
+            $sourcePath = Path::normalize($file->getPathname());
             $relativePath = $this->relativePath($contentPath, $sourcePath);
             $parsed = $this->frontMatterParser->parse($this->readFile($sourcePath));
             $meta = $this->normalizeMetadata($parsed->metadata);

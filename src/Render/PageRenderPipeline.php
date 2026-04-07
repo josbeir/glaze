@@ -7,6 +7,8 @@ use ArrayObject;
 use Glaze\Build\Event\EventDispatcher;
 use Glaze\Build\PageMetaResolver;
 use Glaze\Config\BuildConfig;
+use Glaze\Config\LanguageConfig;
+use Glaze\Config\SiteConfig;
 use Glaze\Content\ContentPage;
 use Glaze\Support\BuildGlideHtmlRewriter;
 use Glaze\Support\ResourcePathRewriter;
@@ -71,10 +73,12 @@ final class PageRenderPipeline
         $assetResolver = new ContentAssetResolver($config->contentPath(), $config->site->basePath);
         $siteIndex ??= new SiteIndex([$page], $assetResolver);
 
+        $effectiveSiteConfig = $this->resolveEffectiveSiteConfig($config, $page);
+
         $renderResult = $this->djotRenderer->render(
             source: $page->source,
             djot: $config->djotOptions,
-            siteConfig: $config->site,
+            siteConfig: $effectiveSiteConfig,
             relativePagePath: $page->relativePath,
             dispatcher: $dispatcher,
             page: $page,
@@ -88,16 +92,17 @@ final class PageRenderPipeline
             currentPage: $page,
             extensions: $extensionRegistry ?? new ExtensionRegistry(),
             assetResolver: $assetResolver,
-            siteConfig: $config->site,
+            siteConfig: $effectiveSiteConfig,
             i18nConfig: $config->i18n,
             translationsPath: $config->i18n->isEnabled()
                 ? $config->translationsPath()
                 : '',
             globalIndex: $globalIndex,
+            baseSiteConfig: $config->site,
         );
 
         $htmlContent = $renderResult->html;
-        $pageUrl = $this->resourcePathRewriter->applyBasePathToPath($page->urlPath, $config->site);
+        $pageUrl = $this->resourcePathRewriter->applyBasePathToPath($page->urlPath, $effectiveSiteConfig);
 
         $output = $pageRenderer->render([
             'title' => $page->title,
@@ -105,10 +110,10 @@ final class PageRenderPipeline
             'content' => $htmlContent,
             'page' => $page,
             'meta' => new ArrayObject(
-                $this->pageMetaResolver->resolve($page, $config->site),
+                $this->pageMetaResolver->resolve($page, $effectiveSiteConfig),
                 ArrayObject::ARRAY_AS_PROPS,
             ),
-            'site' => $config->site,
+            'site' => $effectiveSiteConfig,
             'debug' => $debug,
         ], $templateContext);
 
@@ -140,5 +145,29 @@ final class PageRenderPipeline
             siteConfig: $config->site,
             relativePagePath: $page->relativePath,
         )->toc;
+    }
+
+    /**
+     * Return the effective SiteConfig for a given page.
+     *
+     * When i18n is enabled and the page's language has a `site` override block
+     * in its LanguageConfig, the base project SiteConfig is merged with those
+     * overrides. Otherwise the base project SiteConfig is returned unchanged.
+     *
+     * @param \Glaze\Config\BuildConfig $config Build configuration.
+     * @param \Glaze\Content\ContentPage $page Page being rendered.
+     */
+    protected function resolveEffectiveSiteConfig(BuildConfig $config, ContentPage $page): SiteConfig
+    {
+        if ($page->language === '') {
+            return $config->site;
+        }
+
+        $langConfig = $config->i18n->language($page->language);
+        if (!$langConfig instanceof LanguageConfig || $langConfig->siteOverrides === []) {
+            return $config->site;
+        }
+
+        return $config->site->withLanguageOverrides($langConfig->siteOverrides);
     }
 }

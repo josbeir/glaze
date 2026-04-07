@@ -27,6 +27,10 @@ use Glaze\Utility\Normalization;
  *       label: Nederlands
  *       urlPrefix: nl
  *       contentDir: content/nl
+ *       site:
+ *         title: "Mijn site"
+ *         hero:
+ *           title: "Hallo!"
  * ```
  */
 final class LanguageConfig
@@ -38,12 +42,15 @@ final class LanguageConfig
      * @param string $label Human-readable language label shown in switchers.
      * @param string $urlPrefix URL path prefix for this language (empty string for the default language at root).
      * @param string|null $contentDir Relative or absolute content directory for this language. Null uses the project-level content dir.
+     * @param array<string, mixed> $siteOverrides Per-language site config overrides merged on top of the base `site` block at render time.
+     *   Only keys listed here are overridden; all other site config keys fall back to the project-level values.
      */
     public function __construct(
         public readonly string $code,
         public readonly string $label = '',
         public readonly string $urlPrefix = '',
         public readonly ?string $contentDir = null,
+        public readonly array $siteOverrides = [],
     ) {
     }
 
@@ -62,12 +69,22 @@ final class LanguageConfig
         $label = Normalization::optionalString($value['label'] ?? null) ?? '';
         $urlPrefix = self::normalizeUrlPrefix($value['urlPrefix'] ?? null);
         $contentDir = Normalization::optionalString($value['contentDir'] ?? null);
+        $raw = $value['site'] ?? null;
+        $siteOverrides = [];
+        if (is_array($raw)) {
+            foreach ($raw as $siteKey => $siteValue) {
+                if (is_string($siteKey)) {
+                    $siteOverrides[$siteKey] = $siteValue;
+                }
+            }
+        }
 
         return new self(
             code: $code,
             label: $label,
             urlPrefix: $urlPrefix,
             contentDir: $contentDir,
+            siteOverrides: $siteOverrides,
         );
     }
 

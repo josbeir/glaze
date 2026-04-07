@@ -27,6 +27,11 @@ i18n:
       label: Nederlands
       urlPrefix: /nl
       contentDir: content/nl
+      site:
+        title: "Mijn site"
+        description: "Nederlandstalige omschrijving."
+        hero:
+          title: "Hallo!"
     fr:
       label: Français
       urlPrefix: /fr
@@ -47,10 +52,65 @@ A map of language code → language options. Each entry accepts:
 | `label` | string | Human-readable language name (used in language switchers) |
 | `urlPrefix` | string | URL path prefix for this language (`""` for root, `"/nl"` for `/nl/...`) |
 | `contentDir` | string | Content directory for this language (relative to project root). Omit to use the project-level `content/` directory |
+| `site` | map | Per-language site config overrides (see [Per-language site settings](#per-language-site-settings)) |
 
 The default language does not need a `contentDir` — it automatically uses the
 project-level content directory. Non-default languages without a `contentDir` are
 skipped during discovery.
+
+## Per-language site settings
+
+Each language entry can include an optional `site` block that overrides the
+project-level `site` configuration for pages in that language. Only the keys you
+specify are overridden — everything else falls back to the values in the top-level
+`site` block.
+
+This is useful for translating the site title, meta description, and any custom
+metadata (such as `hero` or `nav`) that appears in templates via `$site`.
+
+```neon
+site:
+  title: "My Site"
+  description: "An English description."
+  hero:
+    title: "Hi!"
+    subtitle: "Welcome"
+  nav:
+    - label: Home
+      url: /
+    - label: Blog
+      url: /blog/
+
+i18n:
+  defaultLanguage: en
+  languages:
+    en:
+      label: English
+      urlPrefix: ""
+    nl:
+      label: Nederlands
+      urlPrefix: /nl
+      contentDir: content/nl
+      site:
+        title: "Mijn site"
+        description: "Een Nederlandstalige omschrijving."
+        hero:
+          title: "Hallo!"
+          subtitle: "Welkom"
+        nav:
+          - label: Home
+            url: /nl/
+          - label: Blog
+            url: /nl/blog/
+```
+
+For pages in the `nl` language, `$site->title` resolves to `"Mijn site"` and
+`$site->siteMeta('hero.title')` resolves to `"Hallo!"`. For all other languages
+the project-level values are used.
+
+Nested meta structures (such as `hero`) are deep-merged, so you only need to
+specify the keys that actually differ. Scalar fields (`title`, `description`,
+`baseUrl`, `basePath`) are replaced outright when present in the override.
 
 ## Directory structure
 
@@ -249,7 +309,7 @@ code. Useful for generating `<link rel="alternate" hreflang="...">` tags.
 <link s:foreach="$this->translations() as $lang => $translated"
       rel="alternate"
       hreflang="<?= $lang ?>"
-      href="<?= $this->url($translated->urlPath) ?>">
+      href="<?= $this->url($translated) ?>">
 ```
 
 ### Single translation
@@ -268,7 +328,7 @@ On single-language sites this is equivalent to `$this->regularPages()`.
 
 ```sugar
 <a s:foreach="$this->localizedPages() as $p"
-   href="<?= $this->url($p->urlPath) ?>"><?= $p->title ?></a>
+   href="<?= $this->url($p) ?>"><?= $p->title ?></a>
 ```
 
 ### Translate a string
@@ -282,6 +342,67 @@ substitution via `$params`. Falls back to the default language, then returns `$f
 <?= $this->t('posted_on', ['date' => '2026-01']) ?>
 <?= $this->t('promo', fallback: 'Check out the latest posts') ?>
 ```
+
+### Untranslated page fallbacks
+
+By default, navigation helpers (`regularPages()`, `allPages()`, `pages()`, `type()`) only return pages
+in the current language. When a translated page does not yet exist for the current language, that
+content is invisible to templates.
+
+Pass `withUntranslated: true` to automatically fill in pages from the default language that have no
+translation in the current language:
+
+```php
+// only NL pages
+$this->regularPages()
+
+// NL pages + EN pages that have no NL translation
+$this->regularPages(withUntranslated: true)
+
+// same — filter by type after merging
+$this->type('post', withUntranslated: true)
+```
+
+You can also pass an explicit list of fallback languages instead of `true`:
+
+```php
+// use EN, then FR as fallback (in order)
+$this->regularPages(withUntranslated: ['en', 'fr'])
+```
+
+When `true` is passed, Glaze uses the configured `i18n.defaultLanguage` as the only fallback source.
+
+The deduplication logic is based on `translationKey`. A fallback page is only added when no page in
+the current language shares the same `translationKey`.
+
+{.alert .alert-warning}
+> **Cross-language URLs:** Pages returned via `withUntranslated` belong to a different language. Always
+> pass the `ContentPage` object directly to `$this->url($page)` \u2014 never `$this->url($page->urlPath)` \u2014
+> so that `url()` can resolve the correct language prefix automatically.
+
+## URL generation in multilingual templates
+
+Glaze's `url()` helper is language-aware. When passed a `ContentPage` object, it uses the page's own
+language to build the URL, ensuring cross-language links are always correct regardless of which
+language page the template is currently rendering.
+
+```php
+// correct: resolves /post-1/ for an EN post even when rendering a NL page
+<a href="<?= $this->url($post) ?>"><?= $post->title ?></a>
+
+// problematic: always applies the current page's language prefix
+<a href="<?= $this->url($post->urlPath) ?>"><?= $post->title ?></a>
+```
+
+For static files that must never receive a language prefix (favicons, JS/CSS bundles, JSON feeds,
+images in `static/`) use `rawUrl()`:
+
+```php
+<link rel="icon" href="<?= $this->rawUrl('/favicon.svg') ?>" />
+<script src="<?= $this->rawUrl('/assets/site.js') ?>"></script>
+```
+
+`rawUrl()` applies `basePath` (subfolder deployments) but never adds a language segment.
 
 ## The `glaze routes` command
 

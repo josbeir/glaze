@@ -189,6 +189,108 @@ final class PageRenderPipelineTest extends TestCase
     }
 
     /**
+     * Ensure render uses language-specific site override when the page has a language set.
+     */
+    public function testRenderAppliesLanguageSiteOverridesToSiteConfig(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $site->title ?>',
+        );
+
+        file_put_contents($projectRoot . '/glaze.neon', <<<'NEON'
+site:
+    title: "English Site"
+i18n:
+    defaultLanguage: en
+    languages:
+        en:
+            label: English
+            urlPrefix: ""
+        nl:
+            label: Nederlands
+            urlPrefix: nl
+            contentDir: content
+            site:
+                title: "Nederlandse site"
+NEON);
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $page = (new ContentPage(
+            sourcePath: $projectRoot . '/content/index.dj',
+            relativePath: 'index.dj',
+            slug: 'index',
+            urlPath: '/nl/index',
+            outputRelativePath: 'nl/index.html',
+            title: 'Home',
+            source: 'Hello.',
+            draft: false,
+            meta: [],
+        ))->withLanguage('nl', 'nl', 'index');
+
+        $output = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            debug: false,
+        );
+
+        $this->assertSame('Nederlandse site', $output->html);
+    }
+
+    /**
+     * Ensure render uses base site config when no language site override is configured.
+     */
+    public function testRenderUsesBaseSiteConfigWithoutLanguageOverride(): void
+    {
+        $projectRoot = $this->copyFixtureToTemp('projects/basic');
+
+        file_put_contents(
+            $projectRoot . '/templates/page.sugar.php',
+            '<?= $site->title ?>',
+        );
+
+        file_put_contents($projectRoot . '/glaze.neon', <<<'NEON'
+site:
+    title: "English Site"
+i18n:
+    defaultLanguage: en
+    languages:
+        en:
+            label: English
+            urlPrefix: ""
+        nl:
+            label: Nederlands
+            urlPrefix: nl
+            contentDir: content
+NEON);
+
+        $config = BuildConfig::fromProjectRoot($projectRoot);
+        $page = (new ContentPage(
+            sourcePath: $projectRoot . '/content/index.dj',
+            relativePath: 'index.dj',
+            slug: 'index',
+            urlPath: '/nl/index',
+            outputRelativePath: 'nl/index.html',
+            title: 'Home',
+            source: 'Hello.',
+            draft: false,
+            meta: [],
+        ))->withLanguage('nl', 'nl', 'index');
+
+        $output = $this->createPipeline()->render(
+            config: $config,
+            page: $page,
+            pageTemplate: 'page',
+            debug: false,
+        );
+
+        $this->assertSame('English Site', $output->html);
+    }
+
+    /**
      * Create a PageRenderPipeline instance via the DI container.
      */
     protected function createPipeline(): PageRenderPipeline

@@ -53,6 +53,13 @@ final class LocalizedContentDiscovery
      * are enriched with language metadata before being merged into a single
      * sorted list.
      *
+     * When language content directories are nested inside the default language
+     * content directory (the common `content/nl/` inside `content/` pattern),
+     * the recursive scan for the default language would otherwise include those
+     * pages too, causing duplicate entries with an incorrect language code. The
+     * non-default language paths are pre-collected and used to filter any
+     * spurious pages from the default language discovery pass.
+     *
      * @param \Glaze\Config\BuildConfig $config Build configuration.
      * @return array<\Glaze\Content\ContentPage>
      */
@@ -64,6 +71,19 @@ final class LocalizedContentDiscovery
                 $config->taxonomies,
                 $config->contentTypes,
             );
+        }
+
+        // Collect resolved content paths for all non-default languages that
+        // have an explicit contentDir. These are excluded from the default
+        // language discovery pass to prevent duplicate pages.
+        $nonDefaultContentPaths = [];
+        foreach ($config->i18n->languages as $langCode => $langConfig) {
+            if ($langCode !== $config->i18n->defaultLanguage && $langConfig->contentDir !== null) {
+                $nonDefaultContentPaths[] = rtrim(
+                    Path::resolve($config->projectRoot, $langConfig->contentDir),
+                    '/',
+                );
+            }
         }
 
         $allPages = [];
@@ -79,6 +99,24 @@ final class LocalizedContentDiscovery
                 $config->taxonomies,
                 $config->contentTypes,
             );
+
+            // Strip pages whose sourcePath falls inside a non-default language
+            // content directory. This avoids the duplication that occurs when
+            // language dirs are nested under the default language content dir.
+            if ($langCode === $config->i18n->defaultLanguage && $nonDefaultContentPaths !== []) {
+                $pages = array_values(array_filter(
+                    $pages,
+                    static function (ContentPage $page) use ($nonDefaultContentPaths): bool {
+                        foreach ($nonDefaultContentPaths as $excludedPath) {
+                            if (str_starts_with($page->sourcePath, $excludedPath . '/')) {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    },
+                ));
+            }
 
             foreach ($pages as $page) {
                 $translationKey = $this->resolveTranslationKey($page);

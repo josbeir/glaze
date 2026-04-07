@@ -81,6 +81,43 @@ final class SiteConfig
     }
 
     /**
+     * Return a new SiteConfig with per-language overrides merged on top of this instance.
+     *
+     * Only the keys present in `$overrides` are applied; all other properties
+     * fall back to the values of the current instance. Typed scalar fields
+     * (`title`, `description`, `baseUrl`, `basePath`) are overridden when the
+     * override map provides a non-empty string value. The `meta` bag is
+     * deep-merged so nested associative structures (e.g. `hero`) can be partially overridden
+     * without repeating unchanged keys. Numeric list values (e.g. `nav`) are replaced wholesale
+     * so an override with fewer items does not retain trailing base items.
+     *
+     * This is called by the render pipeline when building a page that belongs
+     * to a language which has a `site` override block in its `LanguageConfig`.
+     *
+     * @param array<string, mixed> $overrides Raw per-language site override map (the `site` block
+     *   from a `LanguageConfig` entry).
+     */
+    public function withLanguageOverrides(array $overrides): self
+    {
+        if ($overrides === []) {
+            return $this;
+        }
+
+        $overrideConfig = self::fromProjectConfig($overrides);
+
+        /** @var array<string, mixed> $mergedMeta */
+        $mergedMeta = self::deepMerge($this->meta, $overrideConfig->meta);
+
+        return new self(
+            title: $overrideConfig->title ?? $this->title,
+            description: $overrideConfig->description ?? $this->description,
+            baseUrl: $overrideConfig->baseUrl ?? $this->baseUrl,
+            basePath: $overrideConfig->basePath ?? $this->basePath,
+            meta: $mergedMeta,
+        );
+    }
+
+    /**
      * Convert to template-friendly array.
      *
      * @return array<string, mixed>
@@ -192,5 +229,31 @@ final class SiteConfig
         }
 
         return $normalized;
+    }
+
+    /**
+     * Deep-merge two metadata maps.
+     *
+     * Associative sub-arrays are merged recursively so nested structures (e.g. `hero`) can be
+     * partially overridden without repeating unchanged keys. Numeric list arrays in the override
+     * replace the corresponding base value wholesale, preventing index-based merging that would
+     * corrupt ordered lists such as `nav` (a base with 4 items would otherwise retain trailing
+     * items when the override provides only 2).
+     *
+     * @param array<string, mixed> $base Base metadata.
+     * @param array<string, mixed> $override Override metadata.
+     * @return array<string, mixed>
+     */
+    private static function deepMerge(array $base, array $override): array
+    {
+        foreach ($override as $key => $value) {
+            if (!array_key_exists($key, $base) || !is_array($value) || !is_array($base[$key]) || array_is_list($value)) {
+                $base[$key] = $value;
+            } else {
+                $base[$key] = self::deepMerge($base[$key], $value);
+            }
+        }
+
+        return $base;
     }
 }
