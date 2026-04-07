@@ -283,6 +283,33 @@ final class SiteConfigTest extends TestCase
     }
 
     /**
+     * Ensure withLanguageOverrides() replaces a sequential list (numeric array) wholesale
+     * rather than merging by index.
+     *
+     * Overriding a 3-item base nav with a 1-item nav must yield exactly 1 item;
+     * previously array_replace_recursive would keep the 2 trailing base items.
+     */
+    public function testWithLanguageOverridesReplacesNumericListsWholesale(): void
+    {
+        $base = new SiteConfig(
+            meta: ['nav' => [
+                ['label' => 'Home', 'url' => '/'],
+                ['label' => 'About', 'url' => '/about/'],
+                ['label' => 'Blog', 'url' => '/blog/'],
+            ]],
+        );
+
+        $result = $base->withLanguageOverrides([
+            'nav' => [['label' => 'Start', 'url' => '/nl/']],
+        ]);
+
+        /** @var array<mixed> $nav */
+        $nav = $result->siteMeta('nav');
+        $this->assertCount(1, $nav);
+        $this->assertSame([['label' => 'Start', 'url' => '/nl/']], $nav);
+    }
+
+    /**
      * Ensure withLanguageOverrides() leaves the base untouched.
      */
     public function testWithLanguageOverridesDoesNotMutateBase(): void

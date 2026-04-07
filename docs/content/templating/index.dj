@@ -171,7 +171,7 @@ Use `$this->url()` for all internal `href` and `src` attributes. Pass `true` as 
 ```php
 <link rel="canonical" href="<?= $this->canonicalUrl() ?>" />
 <meta property="og:url" content="<?= $this->canonicalUrl() ?>" />
-<meta property="og:image" content="<?= $this->url('/og-image.png', true) ?>" />
+<meta property="og:image" content="<?= $this->rawUrl('/og-image.png', true) ?>" />
 <a href="<?= $this->url('/quick-start/') ?>">Get started</a>
 ```
 

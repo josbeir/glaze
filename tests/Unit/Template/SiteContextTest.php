@@ -540,6 +540,32 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate url(ContentPage) does not double-prefix the language segment when a basePath is set.
+     *
+     * basePath='/docs' plus a NL page whose urlPath is '/nl/about/' must produce '/docs/nl/about/',
+     * not '/docs/nl/nl/about/' (which the old urlSiteConfigFor() compose would yield).
+     */
+    public function testUrlWithContentPageDoesNotDoublePrefixWithBasePath(): void
+    {
+        $nlPost = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $nlPage = $this->makeLocalizedPage('nl/home', '/nl/', 'index.dj', 'nl', 'index.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+            baseSiteConfig: new SiteConfig(basePath: '/docs'),
+        );
+
+        // urlPath already carries the /nl/ segment; basePath /docs is applied once
+        $this->assertSame('/docs/nl/about/', $context->url($nlPost));
+    }
+
+    /**
      * Validate rawUrl() returns the path without any language prefix, suitable for
      * static assets that live in the /static folder.
      */
@@ -1096,6 +1122,59 @@ final class SiteContextTest extends TestCase
         $pagesCollection = $context->type('page', withUntranslated: true);
         $this->assertCount(1, $pagesCollection);
         $this->assertSame('about', $pagesCollection->first()?->slug);
+    }
+
+    /**
+     * Validate regularPages(withUntranslated: true) does not include unlisted pages (e.g. _index.dj)
+     * when they appear in the default-language fallback set.
+     *
+     * An unlisted EN _index.dj should never surface as a fallback for an NL site index that
+     * only contains regular translated posts.
+     */
+    public function testRegularPagesWithUntranslatedSkipsUnlistedFallbacks(): void
+    {
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        // EN _index section page is unlisted — must not appear as a fallback
+        $enIndex = new ContentPage(
+            sourcePath: '/tmp/_index.dj',
+            relativePath: '_index.dj',
+            slug: '_index',
+            urlPath: '/',
+            outputRelativePath: 'index.html',
+            title: 'Home',
+            source: '# Home',
+            draft: false,
+            meta: [],
+            unlisted: true,
+            language: 'en',
+            translationKey: '_index.dj',
+        );
+        $enPost = $this->makeLocalizedPage('post-1', '/post-1/', 'post-1.dj', 'en', 'post-1.dj');
+        $nlPost = $this->makeLocalizedPage('nl/post-1', '/nl/post-1/', 'post-1.dj', 'nl', 'post-1.dj');
+
+        // NL index only has the translated post; EN has the unlisted _index + translated post
+        $nlSiteIndex = new SiteIndex([$nlPost]);
+        $globalIndex = new SiteIndex([$enIndex, $enPost, $nlPost]);
+
+        $context = new SiteContext(
+            siteIndex: $nlSiteIndex,
+            currentPage: $nlPost,
+            i18nConfig: $i18n,
+            globalIndex: $globalIndex,
+        );
+
+        // nl/post-1 already covers post-1.dj, so no fallback needed for it.
+        // _index.dj is unlisted in EN and must NOT appear; result should be exactly the NL post.
+        $pages = $context->regularPages(withUntranslated: true);
+        $this->assertCount(1, $pages);
+
+        $slugs = array_map(static fn(ContentPage $p): string => $p->slug, $pages->all());
+        $this->assertNotContains('_index', $slugs);
+        $this->assertContains('nl/post-1', $slugs);
     }
 
     // -------------------------------------------------------------------------

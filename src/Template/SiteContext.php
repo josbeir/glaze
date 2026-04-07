@@ -117,13 +117,15 @@ final class SiteContext
      * the current language are included.
      *
      * Accepts the same `$withUntranslated` parameter as `regularPages()` to append
-     * untranslated fallback pages from the default or specified language(s).
+     * untranslated fallback pages from the default or specified language(s). Fallback
+     * candidates are sourced from `allPages()` on the global index so unlisted pages
+     * are included as fallbacks, consistent with the method's own scope.
      *
      * @param list<string>|bool $withUntranslated Fallback language source — see `regularPages()`.
      */
     public function allPages(bool|array $withUntranslated = false): PageCollection
     {
-        return $this->withUntranslatedFallback($this->siteIndex->allPages(), $withUntranslated);
+        return $this->withUntranslatedFallback($this->siteIndex->allPages(), $withUntranslated, includeUnlisted: true);
     }
 
     /**
@@ -372,11 +374,18 @@ final class SiteContext
      *
      * For static assets that must not receive any language prefix, use `rawUrl()`.
      *
+     * When a `ContentPage` is passed, `url()` uses the page's own language to look up
+     * the effective site config (with any per-language site overrides applied). Because
+     * `ContentPage::urlPath` is already prefixed by `withLanguage()`, no additional prefix
+     * is injected — only `basePath` from the language's site config is applied. This avoids
+     * the double-prefix that would occur if `basePath` were composed with `urlPrefix` first.
+     *
      * Examples:
      * ```php
      * $this->url('/about/')           // '/nl/about/' (on NL page, urlPrefix='nl')
      * $this->url('/about/', true)     // 'https://example.com/nl/about/'
      * $this->url($enPost)             // '/post-1/' (EN post on NL page, no double-prefix)
+     * $this->url($nlPost)             // '/docs/nl/about/' (basePath=/docs, urlPath already has /nl/)
      * ```
      *
      * @param \Glaze\Content\ContentPage|string $path Site-root path or a content page.
@@ -385,7 +394,7 @@ final class SiteContext
     public function url(string|ContentPage $path, bool $absolute = false): string
     {
         if ($path instanceof ContentPage) {
-            $urlSiteConfig = $this->urlSiteConfigFor($path->language);
+            $urlSiteConfig = $this->siteConfigFor($path->language);
             $withBase = $this->pathRewriter->applyBasePathToPath($path->urlPath, $urlSiteConfig);
         } else {
             $urlSiteConfig = $this->urlSiteConfig();
@@ -642,8 +651,11 @@ final class SiteContext
      *
      * @param list<string>|bool $withUntranslated `true` to use the configured default language,
      *   or a list of language codes to specify fallback languages in priority order.
+     * @param bool $includeUnlisted When `true`, unlisted pages in the fallback language(s) are
+     *   eligible as fallback candidates. Should match the scope of `$pages` — pass `true`
+     *   when the input collection came from `allPages()` and `false` (default) for `regularPages()`.
      */
-    protected function withUntranslatedFallback(PageCollection $pages, bool|array $withUntranslated): PageCollection
+    protected function withUntranslatedFallback(PageCollection $pages, bool|array $withUntranslated, bool $includeUnlisted = false): PageCollection
     {
         if ($withUntranslated === false) {
             return $pages;
@@ -670,6 +682,10 @@ final class SiteContext
         foreach ($fallbackLanguages as $fallbackLanguage) {
             foreach ($this->resolvedGlobalIndex()->all() as $page) {
                 if ($page->language !== $fallbackLanguage) {
+                    continue;
+                }
+
+                if (!$includeUnlisted && $page->unlisted) {
                     continue;
                 }
 
@@ -731,43 +747,6 @@ final class SiteContext
             baseUrl: $this->siteConfig->baseUrl,
             basePath: $composedBasePath,
             meta: $this->siteConfig->meta,
-        );
-    }
-
-    /**
-     * Return the effective SiteConfig for URL resolution for a specific language.
-     *
-     * Composes the given language's `urlPrefix` into `$baseSiteConfig->basePath`. This
-     * lets `url(ContentPage)` build links to pages in any language — including EN fallback
-     * posts rendered on an NL page via `withUntranslated` — using the correct prefix.
-     *
-     * Examples (urlPrefix='nl', basePath=null):
-     * - called for 'nl': basePath becomes `/nl`
-     * - called for 'en' (no prefix): basePath unchanged
-     *
-     * @param string $language Language code.
-     */
-    protected function urlSiteConfigFor(string $language): SiteConfig
-    {
-        $langConfig = $this->i18nConfig->language($language);
-        $urlPrefix = $langConfig instanceof LanguageConfig ? trim($langConfig->urlPrefix, '/') : '';
-
-        if ($urlPrefix === '') {
-            return $this->baseSiteConfig;
-        }
-
-        $prefix = '/' . $urlPrefix;
-        $basePath = $this->baseSiteConfig->basePath;
-        $composedBasePath = $basePath !== null && $basePath !== ''
-            ? rtrim($basePath, '/') . $prefix
-            : $prefix;
-
-        return new SiteConfig(
-            title: $this->baseSiteConfig->title,
-            description: $this->baseSiteConfig->description,
-            baseUrl: $this->baseSiteConfig->baseUrl,
-            basePath: $composedBasePath,
-            meta: $this->baseSiteConfig->meta,
         );
     }
 
