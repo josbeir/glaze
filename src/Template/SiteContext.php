@@ -36,6 +36,11 @@ final class SiteContext
     protected ?TranslationLoader $translationLoader = null;
 
     /**
+     * Memoized URL-resolution SiteConfig with the current language's urlPrefix composed into basePath.
+     */
+    protected ?SiteConfig $resolvedUrlSiteConfig = null;
+
+    /**
      * Constructor.
      *
      * @param \Glaze\Template\SiteIndex $siteIndex Language-scoped page index used for navigation.
@@ -350,13 +355,14 @@ final class SiteContext
      */
     public function url(string $path, bool $absolute = false): string
     {
-        $withBase = $this->pathRewriter->applyBasePathToPath($path, $this->siteConfig);
+        $urlSiteConfig = $this->urlSiteConfig();
+        $withBase = $this->pathRewriter->applyBasePathToPath($path, $urlSiteConfig);
 
         if (!$absolute) {
             return $withBase;
         }
 
-        $baseUrl = rtrim($this->siteConfig->baseUrl ?? '', '/');
+        $baseUrl = rtrim($urlSiteConfig->baseUrl ?? '', '/');
         if ($baseUrl === '') {
             return $withBase;
         }
@@ -378,11 +384,17 @@ final class SiteContext
     /**
      * Check if the current page URL matches a path.
      *
-     * @param string $urlPath Path to compare.
+     * The argument is resolved through the same language-aware URL config as `url()`,
+     * so templates can pass an un-prefixed site-root path (e.g. `'/about/'`) and the
+     * comparison still works correctly on non-default-language pages.
+     *
+     * @param string $urlPath Site-root path to compare, e.g. `'/about/'`.
      */
     public function isCurrent(string $urlPath): bool
     {
-        return $this->normalizeUrlPath($this->currentPage->urlPath) === $this->normalizeUrlPath($urlPath);
+        $resolved = $this->pathRewriter->applyBasePathToPath($urlPath, $this->urlSiteConfig());
+
+        return $this->normalizeUrlPath($this->currentPage->urlPath) === $this->normalizeUrlPath($resolved);
     }
 
     /**
@@ -547,6 +559,49 @@ final class SiteContext
         $normalized = '/' . trim($trimmed, '/');
 
         return $normalized === '/index' ? '/' : $normalized;
+    }
+
+    /**
+     * Return the effective SiteConfig for URL resolution for the current page.
+     *
+     * Composes the current language's `urlPrefix` into `$siteConfig->basePath` so that
+     * `url()` automatically prepends the language prefix without requiring every template
+     * call to be aware of i18n. The result is memoized for the lifetime of the context.
+     *
+     * Examples (urlPrefix='nl', basePath=null):
+     * - `url('/')` → `/nl/`
+     * - `url('/about/')` → `/nl/about/`
+     * - `url('/nl/about/')` → `/nl/about/` (idempotent via applyBasePathToPath)
+     *
+     * Examples (urlPrefix='nl', basePath='/docs'):
+     * - `url('/about/')` → `/docs/nl/about/`
+     */
+    protected function urlSiteConfig(): SiteConfig
+    {
+        if ($this->resolvedUrlSiteConfig instanceof SiteConfig) {
+            return $this->resolvedUrlSiteConfig;
+        }
+
+        $langConfig = $this->i18nConfig->language($this->currentPage->language);
+        $urlPrefix = $langConfig instanceof LanguageConfig ? trim($langConfig->urlPrefix, '/') : '';
+
+        if ($urlPrefix === '') {
+            return $this->resolvedUrlSiteConfig = $this->siteConfig;
+        }
+
+        $prefix = '/' . $urlPrefix;
+        $basePath = $this->siteConfig->basePath;
+        $composedBasePath = $basePath !== null && $basePath !== ''
+            ? rtrim($basePath, '/') . $prefix
+            : $prefix;
+
+        return $this->resolvedUrlSiteConfig = new SiteConfig(
+            title: $this->siteConfig->title,
+            description: $this->siteConfig->description,
+            baseUrl: $this->siteConfig->baseUrl,
+            basePath: $composedBasePath,
+            meta: $this->siteConfig->meta,
+        );
     }
 
     /**

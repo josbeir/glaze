@@ -337,6 +337,162 @@ final class SiteContextTest extends TestCase
     }
 
     /**
+     * Validate url() automatically prepends the current language's urlPrefix when i18n is enabled.
+     */
+    public function testUrlPrependsLanguageUrlPrefix(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        $this->assertSame('/nl/', $context->url('/'));
+        $this->assertSame('/nl/about/', $context->url('/about/'));
+    }
+
+    /**
+     * Validate url() with a urlPrefix is idempotent — paths already containing the prefix
+     * are not double-prefixed.
+     */
+    public function testUrlWithPrefixIsIdempotent(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        // Already-prefixed path must not get double-prefixed
+        $this->assertSame('/nl/about/', $context->url('/nl/about/'));
+    }
+
+    /**
+     * Validate url() composes urlPrefix with an existing basePath.
+     */
+    public function testUrlComposesUrlPrefixWithBasePath(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            siteConfig: new SiteConfig(baseUrl: 'https://example.com', basePath: '/docs'),
+            i18nConfig: $i18n,
+        );
+
+        $this->assertSame('/docs/nl/about/', $context->url('/about/'));
+        $this->assertSame('https://example.com/docs/nl/about/', $context->url('/about/', true));
+    }
+
+    /**
+     * Validate url() does not apply a language prefix for the default language (empty urlPrefix).
+     */
+    public function testUrlDoesNotPrefixDefaultLanguage(): void
+    {
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$enPage]),
+            currentPage: $enPage,
+            i18nConfig: $i18n,
+        );
+
+        $this->assertSame('/', $context->url('/'));
+        $this->assertSame('/about/', $context->url('/about/'));
+    }
+
+    /**
+     * Validate canonicalUrl() works correctly for a language-prefixed page — the urlPath already
+     * contains the prefix so applyBasePathToPath's idempotency guard prevents double-prefixing.
+     */
+    public function testCanonicalUrlIsNotDoublePrefixedForLocalizedPage(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            siteConfig: new SiteConfig(baseUrl: 'https://example.com'),
+            i18nConfig: $i18n,
+        );
+
+        $this->assertSame('https://example.com/nl/about/', $context->canonicalUrl());
+    }
+
+    /**
+     * Validate isCurrent() returns true when passed a site-root path that resolves to the current
+     * NL page URL after the language prefix is applied.
+     */
+    public function testIsCurrentIsLanguageAware(): void
+    {
+        $nlPage = $this->makeLocalizedPage('nl/about', '/nl/about/', 'about.dj', 'nl', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$nlPage]),
+            currentPage: $nlPage,
+            i18nConfig: $i18n,
+        );
+
+        // Un-prefixed path resolves to /nl/about/ — must match the current page
+        $this->assertTrue($context->isCurrent('/about/'));
+        // Already-prefixed path is also idempotent
+        $this->assertTrue($context->isCurrent('/nl/about/'));
+        // A different path must not match
+        $this->assertFalse($context->isCurrent('/'));
+        $this->assertFalse($context->isCurrent('/contact/'));
+    }
+
+    /**
+     * Validate isCurrent() still works correctly for a non-prefixed default language page.
+     */
+    public function testIsCurrentDefaultLanguageUnchanged(): void
+    {
+        $enPage = $this->makeLocalizedPage('about', '/about/', 'about.dj', 'en', 'about.dj');
+        $i18n = new I18nConfig('en', [
+            'en' => new LanguageConfig('en', urlPrefix: ''),
+            'nl' => new LanguageConfig('nl', urlPrefix: 'nl', contentDir: 'content/nl'),
+        ]);
+
+        $context = new SiteContext(
+            siteIndex: new SiteIndex([$enPage]),
+            currentPage: $enPage,
+            i18nConfig: $i18n,
+        );
+
+        $this->assertTrue($context->isCurrent('/about/'));
+        $this->assertFalse($context->isCurrent('/nl/about/'));
+    }
+
+    /**
      * Create a content page object for test scenarios.
      *
      * @param string $slug Page slug.
